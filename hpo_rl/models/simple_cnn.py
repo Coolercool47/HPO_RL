@@ -1,17 +1,17 @@
-from hpo_rl.models.base import BaseModel
 import torch.nn as nn
 import torch.nn.functional as F
+from hpo_rl.models.base import BaseModel
 
 
 class SimpleCNN(BaseModel):
     """
-    Модель маленькой CNN для экспериментов и примера
+    A small CNN model for experiments and demonstration.
+    Provides a simple convolutional neural network architecture for image classification.
     """
-    # Контракт для гиперпараметров модели
     HYPERPARAMETERS = {
-        "num_classes": {"type": int, "default": 10},  # сильно связано с данными, и вообще говоря не то чтобы прям подбирается
-        "n_params": {"type": int, "default": 128}
-    }  # Теоретически можно добавить шизоNAS с числом сверточных слоев
+        "num_classes": {"type": int, "default": 10},  # Number of output classes
+        "n_params": {"type": int, "default": 128}     # Size of the penultimate layer
+    }  # Can be extended with NAS parameters like number of conv layers
 
     def __init__(self, num_classes, n_params):
         super(SimpleCNN, self).__init__()
