@@ -56,8 +56,9 @@ def get_model_class(name: str) -> Type[BaseModel]:
     try:
         return MODEL_REGISTRY[name]
     except KeyError:
-        raise ValueError(f"""Модель не зарегестрирована в factory.py.
-                         Доступные модели: {"\n".join(list(MODEL_REGISTRY.keys()))}""")
+        avaliable_models = "\n".join(list(MODEL_REGISTRY.keys()))
+        raise ValueError(f"""Модель не зарегистрирована в factory.py.
+                         Доступные модели: {avaliable_models}""")
 
 
 def get_optimizer_class(name: str) -> Type[optim.Optimizer]:
@@ -67,8 +68,9 @@ def get_optimizer_class(name: str) -> Type[optim.Optimizer]:
     try:
         return OPTIMIZER_REGISTRY["name"]
     except KeyError:
-        raise ValueError(f"""Оптимизатор не зарегестрирован в factory.py.
-                         Доступные оптимизаторы: {"\n".join(list(OPTIMIZER_REGISTRY.keys()))}""")
+        avaliable_optims = "\n".join(list(OPTIMIZER_REGISTRY.keys()))
+        raise ValueError(f"""Оптимизатор не зарегистрирован в factory.py.
+                         Доступные оптимизаторы: {avaliable_optims}""")
 
 
 def get_criterion_instance(name: str) -> Type[nn.Module]:
@@ -79,8 +81,9 @@ def get_criterion_instance(name: str) -> Type[nn.Module]:
         criterion_class = CRITERION_REGISTRY["name"]
         return criterion_class()
     except KeyError:
-        raise ValueError(f"""Функция потерь не зарегестрирована в factory.py.
-                         Доступные функции потерь: {"\n".join(list(CRITERION_REGISTRY.keys()))}""")
+        avaliable_losses = "\n".join(list(CRITERION_REGISTRY.keys()))
+        raise ValueError(f"""Функция потерь не зарегистрирована в factory.py.
+                         Доступные функции потерь: {avaliable_losses}""")
 
 
 def build_optimizer(model: nn.Module, hparams: Dict[str, Any]) -> optim.Optimizer:
@@ -92,21 +95,14 @@ def build_optimizer(model: nn.Module, hparams: Dict[str, Any]) -> optim.Optimize
         builder = OPTIMIZER_BUILDER_REGISTRY[optimizer_name]
         return builder.build(model.parameters(), hparams)
     except KeyError:
-        raise ValueError(f"""Строитель оптимизатора не зарегестрирован в factory.py.
-                         Доступные строители оптимизаторов: {"\n".join(list(CRITERION_REGISTRY.keys()))}""")
+        avaliable_optim_builders = "\n".join(list(CRITERION_REGISTRY.keys()))
+        raise ValueError(f"""Строитель оптимизатора не зарегистрирован в factory.py.
+                         Доступные строители оптимизаторов: {avaliable_optim_builders}""")
 
 
 def build_trainer(config: Dict[str, Any]) -> BaseTrainer:
     """
     Создает экземпляр тренера на основе конфигурационного словаря.
-
-    Args:
-        config (Dict[str, Any]): Словарь с конфигурацией для тренера,
-                                 обычно содержит 'name' и 'params'.
-                                 Пример: {"name": "PyTorchTrainer", "params": {...}}
-
-    Returns:
-        Экземпляр тренера, готовый к использованию.
     """
     trainer_name = config.get("name")
     if not trainer_name:
@@ -119,7 +115,9 @@ def build_trainer(config: Dict[str, Any]) -> BaseTrainer:
         # Используем универсальный фабричный метод самого класса
         return trainer_class.from_config(trainer_params)
     except KeyError:
-        raise ValueError(f"Тренер '{trainer_name}' не зарегистрирован. Доступные: {list(TRAINER_REGISTRY.keys())}")
+        avaliable_trainer_builders = "\n".join(list(TRAINER_REGISTRY.keys()))
+        raise ValueError(f"""Строитель тренера не зарегистрирован в factory.py. 
+                         Доступные строители тренеров: {avaliable_trainer_builders}""")
 
 
 def build_backend(config: Dict[str, Any]) -> EvaluationBackend:
@@ -133,7 +131,9 @@ def build_backend(config: Dict[str, Any]) -> EvaluationBackend:
         backend_class = BACKEND_REGISTRY[backend_name]
         return backend_class(**backend_params)
     except KeyError:
-        raise ValueError(f"Бэкенд '{backend_name}' не зарегистрирован.")
+        avaliable_backend_builders = "\n".join(list(BACKEND_REGISTRY.keys()))
+        raise ValueError(f"""Строитель бэкенда не зарегистрирован в factory.py. 
+                         Доступные строители бэкендов: {avaliable_backend_builders}""")
 
 
 def build_env(config: Dict[str, Any], backend: EvaluationBackend) -> BaseHPOEnv:
@@ -152,4 +152,6 @@ def build_env(config: Dict[str, Any], backend: EvaluationBackend) -> BaseHPOEnv:
         # Передаем в конструктор бэкенд, пространство поиска и другие параметры
         return env_class(hp_space=hp_space, backend=backend, **env_params)
     except KeyError:
-        raise ValueError(f"Среда '{env_name}' не зарегистрирована.")
+        avaliable_env_builders = "\n".join(list(ENV_REGISTRY.keys()))
+        raise ValueError(f"""Строитель среды не зарегистрирован в factory.py. 
+                         Доступные строители сред: {avaliable_env_builders}""")
