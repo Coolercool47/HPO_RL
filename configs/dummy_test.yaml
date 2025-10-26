@@ -1,0 +1,30 @@
+experiment_name: "simple_dummy_run_with_discrete_pipeline"
+
+backend:
+  name: "DummyBackend"
+  params:
+    optimum:
+      lr: 0.01
+      epochs: 5
+
+environment:
+  name: "DiscretePipelineEnv"
+  params: {}
+  hp_space:
+    lr:
+      discrete:
+        choices: [0.001, 0.01, 0.1]
+    epochs:
+      discrete:
+        choices: [1, 5, 10]
+
+agent:
+  name: "MaskablePPO"
+  policy: "MultiInputPolicy"
+  params:
+    verbose: 1
+    seed: 42
+    gamma: 0.95
+
+training:
+  total_timesteps: 1000
