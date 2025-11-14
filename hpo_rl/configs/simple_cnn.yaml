@@ -1,0 +1,40 @@
+hp_space:
+  optimizer:
+    discrete:
+      type: "categorical"
+      choices:
+        - "Adam"
+        - "SGD"
+
+  learning_rate:
+    continuous:
+      type: "float"
+      range: [0.001, 0.1]
+      log: true
+    discrete:
+      type: "categorical"
+      choices: [0.001, 0.01, 0.1]
+
+  batch_size:
+    continuous:
+      type: "int"
+      range: [32, 128]
+      log: true
+    discrete:
+      type: "categorical"
+      choices: [32, 64, 128]
+
+  number_epochs:
+    continuous:
+      type: "int"
+      range: [1, 10]
+      log: false
+    discrete:
+      type: "categorical"
+      choices: [1]
+
+  criterion:
+    discrete:
+      type: "categorical"
+      choices:
+        - "CrossEntropyLoss"

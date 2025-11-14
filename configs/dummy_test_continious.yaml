@@ -1,0 +1,55 @@
+experiment_name: "simple_dummy_run_with_discretized_pipeline_and_cont_"
+
+backend:
+  name: "DummyBackend"
+  params:
+    optimum:
+      lr: 0.095
+      epochs: 5
+      lol1: 0.03
+      lol2: 0.05
+      lol3: 0.1
+      lol4: 0.9
+
+environment: # попробовать задать нелинейную зависимость для гиперпараметров
+  name: "DiscretizedPipelineEnv"
+  params: {num_bins: 100}
+  hp_space:
+    lr:
+      continuous:
+        type: float
+        log: True
+        range: [0.001, 0.1]
+    epochs:
+      discrete:
+        choices: [1, 5, 10]
+    lol1:
+      continuous:
+          type: float
+          range: [0.0, 1.0]
+    lol2:
+      continuous:
+          type: float
+          range: [0.0, 1.0]
+    lol3:
+      continuous:
+          type: float
+          range: [0.0, 1.0]
+    lol4:
+      continuous:
+          type: float
+          range: [0.0, 1.0]
+    
+
+agent:
+  name: "PPO"
+  policy: "MultiInputPolicy"
+  params:
+    verbose: 1
+    seed: 42
+    gamma: 0.95
+
+training:
+  total_timesteps: 100000
+
+save_path: "bad_model"
