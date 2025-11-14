@@ -8,7 +8,7 @@ backend:
       epochs: 5
 
 environment:
-  name: "DiscretePipelineEnv"
+  name: "DiscretizedPipelineEnv"
   params: {}
   hp_space:
     lr:
@@ -19,7 +19,7 @@ environment:
         choices: [1, 5, 10]
 
 agent:
-  name: "MaskablePPO"
+  name: "A2C"
   policy: "MultiInputPolicy"
   params:
     verbose: 1
@@ -28,3 +28,5 @@ agent:
 
 training:
   total_timesteps: 1000
+
+save_path: "bad_model"

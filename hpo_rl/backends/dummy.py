@@ -13,15 +13,14 @@ class DummyBackend(EvaluationBackend):
 
     def evaluate(self, config: Dict[str, Any]) -> float:
         # Вычисление награды по мере близости к "оптимуму" (заданному)
-
+        # print(config)
         total_distance = 0.0
         num_params = 0
-
+        print(config)
         for key, opt_value in self.optimum.items():
             if key in config:
                 num_params += 1
                 config_value = config[key]
-
                 # Нормализуем расстояние для разных типов
                 if isinstance(opt_value, (int, float)):
                     distance = abs(config_value - opt_value) / (abs(opt_value) + 1e-9)
@@ -37,5 +36,4 @@ class DummyBackend(EvaluationBackend):
 
         # Берем e^(-MSE) чтобы усилить сигнал награды
         reward = math.exp(-mean_squared_distance)
-
         return reward

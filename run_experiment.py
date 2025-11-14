@@ -17,6 +17,8 @@ AGENT_REGISTRY = {
     "MaskablePPO": MaskablePPO,
 }
 
+# TODO исправить run_experiment так, чтобы он работал корректно с моделями и данными
+
 
 def run_experiment(config: Dict[str, Any]):
     """
@@ -42,6 +44,7 @@ def run_experiment(config: Dict[str, Any]):
         raise ValueError("Секция 'environment' отсутствует в конфигурационном файле.")
 
     # Передаем весь блок environment и уже созданный бэкенд в фабрику
+    print(env_cfg)
     env = build_env(env_cfg, backend=backend)
     print(f"Среда '{env_cfg['name']}' успешно создана.")
 
@@ -79,13 +82,75 @@ def run_experiment(config: Dict[str, Any]):
         agent.save(save_path)
         print("Агент успешно сохранен.")
 
+    # Итоговый прогон по моделям
+    # по-хорошему должен работать с любыми бекэндами, правда, не факт, мне точно удалось настроить под dummy
+
+    vec_env = agent.get_env()
+    obs = vec_env.reset()
+    terminated = [False]
+    while not terminated[0]:
+        action, _states = agent.predict(obs, deterministic=True)
+        print(action)
+        obs, reward, terminated, info = vec_env.step(action)
+        # в step бы добавить сохраниние модельки если terminated,
+        # а то выходит что мы обучили модель и теперь должны снова обучать модель, потому что не сохранили ее :/
+
+    final_info = info[0]
+    print(final_info.get("terminal_observation"))
+    chosen_indices = final_info.get("terminal_observation").get("chosen_values")
+    final_reward = reward[0]
+    # обработка вывода
+    print("Найденная конфигурация:")
+    print(chosen_indices)
+    print(f"Награда за эту конфигурацию: {final_reward:.4f}")
+
+    # прогон на другой функции
+    print("Zero-shot на другой функции")
+    backend_cfg_eval = config.get('backend')
+    print(backend_cfg_eval)
+    backend_cfg_eval["params"]["function_name"] = "sphere"
+    if not backend_cfg_eval:
+        raise ValueError("Секция 'backend' отсутствует в конфигурационном файле.")
+    backend_eval = build_backend(backend_cfg_eval)
+    print(f"Бэкенд '{backend_cfg_eval['name']}' успешно создан.")
+
+    env_eval = build_env(env_cfg, backend=backend_eval)
+    print(f"Среда '{env_cfg['name']}' успешно создана.")
+
+    agent.set_env(env_eval)
+
+    # few-shot дообучение
+    tune_timesteps = 10000
+    print(f"Запуск дообучения на {tune_timesteps} шагов...")
+    agent.learn(total_timesteps=tune_timesteps)
+    print("Добучение завершено!")
+
+    vec_env = agent.get_env()
+    obs = vec_env.reset()
+    terminated = [False]
+    while not terminated[0]:
+        action, _states = agent.predict(obs, deterministic=True)
+        print(action)
+        obs, reward, terminated, info = vec_env.step(action)
+        # в step бы добавить сохраниние модельки если terminated,
+        # а то выходит что мы обучили модель и теперь должны снова обучать модель, потому что не сохранили ее :/
+
+    final_info = info[0]
+    print(final_info.get("terminal_observation"))
+    chosen_indices = final_info.get("terminal_observation").get("chosen_values")
+    final_reward = reward[0]
+    # обработка вывода
+    print("Найденная конфигурация:")
+    print(chosen_indices)
+    print(f"Награда за эту конфигурацию: {final_reward:.4f}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Запуск HPO эксперимента.")
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/dummy_test.yaml",
+        default="configs/function_test.yaml",
         help="Путь к YAML-файлу конфигурации эксперимента."
     )
     args = parser.parse_args()

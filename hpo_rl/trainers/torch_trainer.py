@@ -28,6 +28,7 @@ class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
 
         optimizer = build_optimizer(model, self._hparams)
         criterion = get_criterion_instance(self._hparams['criterion'])
+        # добавить scheduler
 
         history = {
             "train_loss_history": [],

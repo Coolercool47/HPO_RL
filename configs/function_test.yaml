@@ -1,0 +1,58 @@
+experiment_name: "simple_dummy_run_with_discretized_pipeline_and_cont_"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "levy"
+    dimensions: 6
+    noise_std: 0
+    maximize: False
+
+environment: # попробовать задать нелинейную зависимость для гиперпараметров
+  name: "DiscretizedPipelineEnv"
+  params: {num_bins: 100}
+  hp_space:
+    x0:
+      continuous:
+        type: float
+        log: False
+        range: [-10.0, 10.0]
+    x1:
+      continuous:
+        type: float
+        log: False
+        range: [-10.0, 10.0]
+    x2:
+      continuous:
+        type: float
+        log: False
+        range: [-10.0, 10.0]
+    x3:
+      continuous:
+        type: float
+        log: False
+        range: [-10.0, 10.0]
+    x4:
+      continuous:
+        type: float
+        log: False
+        range: [-10.0, 10.0]
+    x5:
+      continuous:
+        type: float
+        log: False
+        range: [-10.0, 10.0]
+    
+
+agent:
+  name: "PPO"
+  policy: "MultiInputPolicy"
+  params:
+    verbose: 1
+    seed: 42
+    gamma: 0.95
+
+training:
+  total_timesteps: 50000
+
+save_path: "bad_model"

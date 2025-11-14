@@ -56,21 +56,9 @@ class BaseHPOEnv(gym.Env, ABC):
         Returns:
             Dict[str, Any]: Полный конфигурационный словарь.
         """
-        # ВАЖНО: Структура этого словаря должна точно соответствовать
-        # тому, что ожидает ваш RealTrainingBackend и фабрики.
-        # В будущем это можно будет сделать более гибким, загружая
-        # "шаблон" конфига из YAML.
-        full_config = {
-            "model": {
-                "name": "simple_cnn",
-                "params": chosen_options
-            },
-            "trainer": {
-                "name": "PyTorchTrainer",
-                "params": chosen_options
-            }
-        }
-        return full_config
+        # Шизофункция, которая должна была разделять ответственность,
+        # но фактически не делает буквально ничего - потому что разделять реально нечего :/
+        return chosen_options
 
     @abstractmethod
     def reset(self, *, seed: Optional[int] = None, options: Optional[Dict] = None):
