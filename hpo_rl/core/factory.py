@@ -1,4 +1,4 @@
-from typing import Type, Dict, Any
+from typing import Type, Dict, Any, Optional
 import torch.optim as optim
 import torch.nn as nn
 
@@ -66,19 +66,21 @@ def get_optimizer_class(name: str) -> Type[optim.Optimizer]:
     Возвращает класс оптимизатора по имени
     """
     try:
-        return OPTIMIZER_REGISTRY["name"]
+        # ИСПРАВЛЕНО: убраны кавычки вокруг name
+        return OPTIMIZER_REGISTRY[name]
     except KeyError:
         avaliable_optims = "\n".join(list(OPTIMIZER_REGISTRY.keys()))
         raise ValueError(f"""Оптимизатор не зарегистрирован в factory.py.
                          Доступные оптимизаторы: {avaliable_optims}""")
 
 
-def get_criterion_instance(name: str) -> Type[nn.Module]:
+def get_criterion_instance(name: str) -> nn.Module:
     """
     Возвращает экземпляр функции потерь по имени
     """
     try:
-        criterion_class = CRITERION_REGISTRY["name"]
+        # ИСПРАВЛЕНО: убраны кавычки вокруг name
+        criterion_class = CRITERION_REGISTRY[name]
         return criterion_class()
     except KeyError:
         avaliable_losses = "\n".join(list(CRITERION_REGISTRY.keys()))
@@ -95,7 +97,7 @@ def build_optimizer(model: nn.Module, hparams: Dict[str, Any]) -> optim.Optimize
         builder = OPTIMIZER_BUILDER_REGISTRY[optimizer_name]
         return builder.build(model.parameters(), hparams)
     except KeyError:
-        avaliable_optim_builders = "\n".join(list(CRITERION_REGISTRY.keys()))
+        avaliable_optim_builders = "\n".join(list(OPTIMIZER_BUILDER_REGISTRY.keys()))
         raise ValueError(f"""Строитель оптимизатора не зарегистрирован в factory.py.
                          Доступные строители оптимизаторов: {avaliable_optim_builders}""")
 
@@ -112,7 +114,6 @@ def build_trainer(config: Dict[str, Any]) -> BaseTrainer:
 
     try:
         trainer_class = TRAINER_REGISTRY[trainer_name]
-        # Используем универсальный фабричный метод самого класса
         return trainer_class.from_config(trainer_params)
     except KeyError:
         avaliable_trainer_builders = "\n".join(list(TRAINER_REGISTRY.keys()))
@@ -136,22 +137,35 @@ def build_backend(config: Dict[str, Any]) -> EvaluationBackend:
                          Доступные строители бэкендов: {avaliable_backend_builders}""")
 
 
-def build_env(config: Dict[str, Any], backend: EvaluationBackend) -> BaseHPOEnv:
+def build_env(
+    config: Dict[str, Any],
+    backend: EvaluationBackend,
+    hp_space: Optional[Dict[str, Any]] = None
+) -> BaseHPOEnv:
     """
     Создает экземпляр RL-среды на основе конфигурационного словаря.
+
+    :param config: Часть конфига environment из YAML
+    :param backend: Инициализированный объект backend
+    :param hp_space: Словарь пространства поиска. 
+                     Если передан явно (из кода) - используется он.
+                     Если None - пытается извлечься из config.
     """
     env_name = config.get("name")
     if not env_name:
         raise ValueError("В конфигурации среды отсутствует ключ 'name'.")
 
     env_params = config.get("params", {})
-    hp_space = config.get("hp_space", {})
+    if hp_space is None:
+        hp_space = config.get("hp_space", {})
+    if not hp_space:
+        pass
 
     try:
         env_class = ENV_REGISTRY[env_name]
-        # Передаем в конструктор бэкенд, пространство поиска и другие параметры
+        # Передаем в конструктор итоговый hp_space
         return env_class(hp_space=hp_space, backend=backend, **env_params)
     except KeyError:
         avaliable_env_builders = "\n".join(list(ENV_REGISTRY.keys()))
-        raise ValueError(f"""Строитель среды не зарегистрирован в factory.py. 
+        raise ValueError(f"""Строитель среды '{env_name}' не зарегистрирован в factory.py. 
                          Доступные строители сред: {avaliable_env_builders}""")

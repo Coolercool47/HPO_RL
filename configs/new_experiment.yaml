@@ -1,0 +1,26 @@
+experiment_name: "cyclic_experiment"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "rastrigin"
+    dimensions: 5
+    maximize: false
+
+environment:
+  name: "CyclicPipelineEnv"
+  params:
+    num_bins: 100
+    max_steps: 100
+    sparse_reward: false
+
+agent:
+  name: "TRPO"
+  policy: "MultiInputPolicy"
+  params:
+    learning_rate: 0.003
+    gamma: 0.95
+    verbose: 1
+
+training:
+  total_timesteps: 25000

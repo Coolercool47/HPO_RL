@@ -11,6 +11,7 @@ def initialize_framework():
     from hpo_rl.environments.discretized_pipeline_env import DiscretizedPipelineEnv
     from hpo_rl.environments.masked_pipeline_env import DiscretePipelineEnv
     from hpo_rl.environments.lab_env import StrategyEnv
+    from hpo_rl.environments.cycle_move_pipeline import CyclicPipelineEnv
 
     factory.register_model("simple_cnn", SimpleCNN)
 
@@ -25,3 +26,4 @@ def initialize_framework():
     factory.register_env("ContinuousPipelineEnv", ContinuousPipelineEnv)
     factory.register_env("DiscretizedPipelineEnv", DiscretizedPipelineEnv)
     factory.register_env("StrategyEnv", StrategyEnv)
+    factory.register_env("CyclicPipelineEnv", CyclicPipelineEnv)

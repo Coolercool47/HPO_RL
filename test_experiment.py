@@ -1,4 +1,5 @@
-from hpo_rl.models.simple_cnn import SimpleCNN
+import sys
+import torch
 
-model = SimpleCNN.from_config({"n_classes": [10]})
-print(10)
+print(f"Python executable: {sys.executable}")
+print(f"Torch version: {torch.__version__}")
