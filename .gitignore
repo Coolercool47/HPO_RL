@@ -8,6 +8,9 @@
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+environments/cycle_move_pipeline_copy.py
+environments/reccurent_cmp.py
+environments/feed_forward_cmp.py
 
 # AWS User-specific
 .idea/**/aws.xml

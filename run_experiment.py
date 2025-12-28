@@ -1,21 +1,21 @@
 """
-Unified script for HPO-RL experiments with 2D visualization and transfer learning support.
-Supports all algorithms: PPO, RecurrentPPO, TD3, SAC, A2C, DQN, TRPO, MaskablePPO.
+Уннифицированный скрипт для экспериментов HPO-RL с 2D визуализацией и поддержкой переноса знаний.
+Поддерживает все алгоритмы: PPO, RecurrentPPO, TD3, SAC, A2C, DQN, TRPO, MaskablePPO.
 
-Usage examples:
-    # Train new model
+Примеры использования:
+    # Тренировка новой модели
     python run_experiment.py --config configs/function_2d_test.yaml
     
-    # Transfer learning (zero-shot)
+    # Перенос знаний (zero-shot)
     python run_experiment.py --config configs/function_2d_sphere.yaml \
         --pretrained-model logs/PPO/model_2d.zip --transfer-learning
     
-    # Transfer learning with fine-tuning
+    # Перенос знаний с дообучением
     python run_experiment.py --config configs/function_2d_sphere.yaml \
         --pretrained-model logs/PPO/model_2d.zip --transfer-learning \
         --fine-tune-steps 2000 --exploration-boost 2.5
     
-    # RecurrentPPO with final point evaluation
+    # RecurrentPPO с оценкой точки в конце эпизода
     python run_experiment.py --config configs/function_2d_recurrent_ppo.yaml \
         --agent RecurrentPPO --eval-mode final
 """
@@ -48,7 +48,6 @@ AGENT_REGISTRY = {
     "RecurrentPPO": RecurrentPPO,
 }
 
-# Algorithms that require special handling for recurrent state
 RECURRENT_ALGORITHMS = {"RecurrentPPO"}
 
 
@@ -67,17 +66,17 @@ def generate_benchmark_hp_space(backend) -> Dict[str, Any]:
 def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1, 
                        eval_seed: Optional[int] = None) -> Tuple[List[Tuple[float, float, float]], Optional[Tuple[float, float, float]]]:
     """
-    Collects search trajectory: (x0, x1, metric)
+    Собирает траекторию поиска: (x0, x1, metric)
     
     Args:
-        agent: Trained agent
-        env: Environment
-        agent_name: Name of the algorithm (for detecting recurrent models)
-        num_episodes: Number of episodes to collect
-        eval_seed: Seed for starting point initialization (None = random)
+        agent: Обученный агент
+        env: Среда
+        agent_name: Название алгоритма (для обнаружения рекуррентных моделей)
+        num_episodes: Количество эпизодов для сбора
+        eval_seed: Seed для инициализации начальной точки (None = случайный)
     
     Returns:
-        (trajectory, final_point) where final_point is the final configuration of the episode
+        (trajectory, final_point) где final_point - это конечная конфигурация эпизода
     """
     trajectory = []
     step_sizes_used = []
@@ -93,9 +92,9 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
         obs = vec_env.reset()
         done = False
         step_count = 0
-        _states = None  # For RecurrentPPO
+        _states = None  # Для RecurrentPPO
         
-        # First step
+        # Первый шаг
         if is_recurrent:
             action, _states = agent.predict(obs, state=_states, deterministic=True, 
                                            episode_start=np.array([True]))
@@ -104,7 +103,7 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
         
         obs, reward, dones, infos = vec_env.step(action)
         
-        # Process info from first step
+        # Обработка информации из первого шага
         if isinstance(infos, (list, tuple)) and len(infos) > 0:
             info = infos[0]
         else:
@@ -131,7 +130,7 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
             done = dones[0] if isinstance(dones, (list, np.ndarray)) else dones
             
             if done and is_recurrent:
-                _states = None  # Reset LSTM state between episodes
+                _states = None  # Сброс состояния LSTM между эпизодами
             
             if isinstance(infos, (list, tuple)) and len(infos) > 0:
                 info = infos[0]
@@ -141,13 +140,13 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
             current_config = info.get("current_config", info.get("best_config", {}))
             current_metric = info.get("current_metric", info.get("best_metric", -float('inf')))
             
-            # Save final configuration
+            # Сохранение конечной конфигурации
             if done and len(current_config) >= 2:
                 x0 = current_config.get("x0", 0.0)
                 x1 = current_config.get("x1", 0.0)
                 final_point = (x0, x1, current_metric)
             
-            # Step size statistics
+            # Статистика размера шага
             step_size = info.get("step_size", 0)
             if step_size > 0:
                 step_sizes_used.append(step_size)
@@ -166,7 +165,7 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
         if final_point is None and len(trajectory) > 0:
             final_point = trajectory[-1]
     
-    # Print step size statistics
+    # Вывод статистики размера шага
     if step_sizes_used:
         from collections import Counter
         step_size_counts = Counter(step_sizes_used)
@@ -187,20 +186,20 @@ def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]
                            final_point: Optional[Tuple[float, float, float]] = None,
                            save_path: str = "trajectory_2d.png"):
     """
-    Visualizes search trajectory on 2D plane with function contour lines
+    Визуализирует траекторию поиска на 2D плоскости с линиями уровня функции
     
     Args:
-        backend: Backend with function to optimize
-        trajectory: List of (x0, x1, metric) points
-        eval_mode: "best" (mark best intermediate point) or "final" (mark final point)
-        final_point: Final configuration (used when eval_mode="final")
-        save_path: Path to save the plot
+        backend: Backend с функцией для оптимизации
+        trajectory: Список точек (x0, x1, metric)
+        eval_mode: "best" (отмечает лучшую промежуточную точку) или "final" (отмечает конечную точку)
+        final_point: Конечная конфигурация (используется при eval_mode="final")
+        save_path: Путь для сохранения графика
     """
     if len(trajectory) == 0:
         print("Trajectory is empty, nothing to visualize")
         return
     
-    # Extract coordinates
+    # Извлечение координат
     x0_vals = [t[0] for t in trajectory]
     x1_vals = [t[1] for t in trajectory]
     rewards = [t[2] for t in trajectory]
@@ -210,13 +209,13 @@ def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]
     else:
         metrics = [-r for r in rewards]
     
-    # Create grid for contour lines
+    # Создание сетки для линий уровня
     bounds = backend.bounds
     x0_range = np.linspace(bounds[0], bounds[1], 100)
     x1_range = np.linspace(bounds[0], bounds[1], 100)
     X0, X1 = np.meshgrid(x0_range, x1_range)
     
-    # Compute function values on grid
+    # Вычисление значений функции на сетке
     Z = np.zeros_like(X0)
     for i in range(X0.shape[0]):
         for j in range(X0.shape[1]):
@@ -227,22 +226,19 @@ def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]
             else:
                 Z[i, j] = -reward
     
-    # Create figure with two subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     
-    # Subplot 1: Contour lines + trajectory
     contour = ax1.contour(X0, X1, Z, levels=20, cmap='viridis', alpha=0.6)
     ax1.clabel(contour, inline=True, fontsize=8)
     ax1.contourf(X0, X1, Z, levels=20, cmap='viridis', alpha=0.3)
     
-    # Draw trajectory
     ax1.plot(x0_vals, x1_vals, 'r-', linewidth=2, alpha=0.7, label='Trajectory')
     ax1.scatter(x0_vals[0], x1_vals[0], c='green', s=100, marker='o', 
                 label='Start', zorder=5, edgecolors='black', linewidths=2)
     ax1.scatter(x0_vals[-1], x1_vals[-1], c='red', s=100, marker='*', 
                 label='End', zorder=5, edgecolors='black', linewidths=2)
     
-    # Mark result point based on eval_mode
+    # Отмечаем результирующую точку на основе eval_mode
     if eval_mode == "final" and final_point is not None:
         final_x0, final_x1, final_metric = final_point
         if backend.maximize:
@@ -256,7 +252,7 @@ def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]
         marker_value = final_value
         marker_coords = (final_x0, final_x1)
     else:
-        # Mark best intermediate point
+        # Отмечаем лучшую промежуточную точку
         best_idx = np.argmin(metrics) if not backend.maximize else np.argmax(metrics)
         ax1.scatter(x0_vals[best_idx], x1_vals[best_idx], c='yellow', s=150, 
                     marker='X', label='Best point', zorder=5, 
@@ -273,19 +269,18 @@ def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]
     ax1.grid(True, alpha=0.3)
     ax1.set_aspect('equal')
     
-    # Subplot 2: 3D surface + trajectory
     ax2 = fig.add_subplot(122, projection='3d')
     surf = ax2.plot_surface(X0, X1, Z, cmap='viridis', alpha=0.6, 
                            linewidth=0, antialiased=True)
     
-    # Draw trajectory in 3D
+    # Рисуем траекторию в 3D
     ax2.plot(x0_vals, x1_vals, metrics, 'r-', linewidth=2, alpha=0.8, label='Trajectory')
     ax2.scatter(x0_vals[0], x1_vals[0], metrics[0], c='green', s=100, 
                 marker='o', label='Start', edgecolors='black', linewidths=2)
     ax2.scatter(x0_vals[-1], x1_vals[-1], metrics[-1], c='red', s=100, 
                 marker='*', label='End', edgecolors='black', linewidths=2)
     
-    # Mark result point in 3D
+    # Отмечаем результирующую точку в 3D
     if eval_mode == "final" and final_point is not None:
         ax2.scatter(marker_coords[0], marker_coords[1], marker_value, 
                     c='yellow', s=150, marker='X', label='Final point (result)', 
@@ -316,12 +311,10 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     agent_name = agent_cfg['name']
     is_recurrent = agent_name in RECURRENT_ALGORITHMS
     
-    # Auto-detect eval_mode
     if eval_mode == "auto":
         eval_mode = "final" if is_recurrent else "best"
         print(f"Auto-detected eval_mode='{eval_mode}' for {agent_name}")
     
-    # Use provided output_dir or generate new folder with timestamp
     if output_dir:
         log_dir_root = output_dir
     else:
@@ -347,17 +340,17 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     
     env_cfg = config.get('environment')
     
-    # Sync environment parameters for transfer learning
+    # Синхронизация параметров среды для перенос знаний
     if transfer_learning and pretrained_model_path:
         if 'params' not in env_cfg:
             env_cfg['params'] = {}
         
-        # For RecurrentPPO, force use_history=False
+        # Для RecurrentPPO, принудительное use_history=False
         if is_recurrent:
             env_cfg['params']['use_history'] = False
             print(f"[OK] Forced use_history=False for {agent_name}")
         
-        # Detect reward_mode from model filename
+        # Определение reward_mode из имени модели
         if 'per_cycle' in pretrained_model_path.lower():
             if env_cfg['params'].get('reward_mode') != 'per_cycle':
                 env_cfg['params']['reward_mode'] = 'per_cycle'
@@ -366,7 +359,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             env_cfg['params']['reward_mode'] = 'per_step'
             print(f"[OK] Using reward_mode='per_step' (default)")
         
-        # Sync penalty parameters
+        # Синхронизация параметров штрафа
         if env_cfg['params'].get('step_size_penalty_coef') is None:
             env_cfg['params']['step_size_penalty_coef'] = 0.15
             print(f"[OK] Auto-set step_size_penalty_coef=0.15")
@@ -374,7 +367,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             env_cfg['params']['adaptive_step_penalty'] = True
             print(f"[OK] Auto-enabled adaptive_step_penalty=True")
     
-    # For TD3 and SAC, auto-switch to continuous actions
+    # Для TD3 и SAC, автоматически переключаемся на непрерывные действия
     if agent_name in ["TD3", "SAC"] and env_cfg.get('params', {}).get('action_type') != "continuous":
         if 'params' not in env_cfg:
             env_cfg['params'] = {}
@@ -383,7 +376,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             env_cfg['params']['max_step_bins'] = 30
         print(f"WARNING: {agent_name} requires continuous actions. Auto-set action_type='continuous'")
     
-    # Check if parallel environments are needed
+    # Проверяем, нужны ли параллельные среды
     n_envs = agent_cfg.get('params', {}).get('n_envs', 1)
     if n_envs > 1:
         from stable_baselines3.common.vec_env import DummyVecEnv
@@ -397,7 +390,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     else:
         env = build_env(env_cfg, backend=backend, hp_space=hp_space)
     
-    # Create unique log path
+    # Создаем уникальный путь для логов
     function_name = backend_cfg.get('params', {}).get('function_name', 'unknown')
     if transfer_learning:
         if fine_tune_steps > 0:
@@ -420,7 +413,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     print("\n=== Creating/Loading Agent ===")
     agent_class = AGENT_REGISTRY[agent_name]
     
-    # For TD3 and SAC, auto-use MultiInputPolicy
+    # Для TD3 и SAC, автоматически используем MultiInputPolicy
     if agent_name in ["TD3", "SAC"] and agent_cfg.get('policy') != "MultiInputPolicy":
         agent_cfg['policy'] = "MultiInputPolicy"
         print(f"WARNING: {agent_name} requires MultiInputPolicy. Auto-set policy='MultiInputPolicy'")
@@ -435,7 +428,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             print(f"\n=== Transfer Learning Mode ===")
             print(f"Testing on new function: {function_name}")
             
-            # Get original ent_coef
+            # Получение исходного ent_coef
             original_ent_coef = _get_ent_coef(agent)
             if original_ent_coef is None or original_ent_coef < 1e-6:
                 original_ent_coef = 0.01
@@ -444,7 +437,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             new_ent_coef = original_ent_coef * exploration_boost
             print(f"Increased entropy for exploration: {original_ent_coef:.4f} -> {new_ent_coef:.4f}")
             
-            # Get original learning rate
+            # Получение исходного learning rate
             original_lr = _get_learning_rate(agent)
             new_lr = original_lr * 2.0
             print(f"Increased learning rate for adaptation: {original_lr:.6f} -> {new_lr:.6f}")
@@ -468,7 +461,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             print(f"WARNING: Model file not found: {pretrained_model_path}")
             print("Creating new model...")
         
-        # Determine device
+        # Определение устройства
         import torch
         device = agent_cfg.get('params', {}).get('device', None)
         if device is None:
@@ -485,10 +478,10 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             else:
                 print(f"Using device: {device}")
         
-        # Create agent
+        # Создание агента
         agent_params = agent_cfg.get('params', {}).copy()
         agent_params['device'] = device
-        agent_params.pop('n_envs', None)  # Already handled
+        agent_params.pop('n_envs', None)
         
         agent = agent_class(
             policy=agent_cfg['policy'],
@@ -500,7 +493,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
         print(f"\n=== Training ({train_steps} steps) ===")
         agent.learn(total_timesteps=train_steps)
         
-        # Save model if path specified
+        # Сохранение модели, если путь указан
         save_path = config.get('save_path')
         if save_path:
             if not save_path.endswith('.zip'):
@@ -518,7 +511,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     print(f"Collected {len(trajectory)} trajectory points")
     
     if len(trajectory) > 0:
-        # Compute metrics
+        # Вычисление метрик
         rewards = [t[2] for t in trajectory]
         if backend.maximize:
             metrics = rewards
@@ -527,7 +520,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             metrics = [-r for r in rewards]
             best_intermediate = min(metrics)
         
-        # Get result based on eval_mode
+        # Получение результата на основе eval_mode
         if eval_mode == "final" and final_point is not None:
             final_metric_reward = final_point[2]
             if backend.maximize:
@@ -546,7 +539,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             print(f"Global optimum: {backend.global_optimum_value:.6f}")
             print(f"Deviation from optimum: {abs(result_metric - backend.global_optimum_value):.6f}")
         
-        # Show best intermediate for reference if using final mode
+        # Вывод лучшей промежуточной метрики для справки, если используется режим final
         if eval_mode == "final":
             print(f"Best intermediate metric (for reference): {best_intermediate:.6f}")
         
@@ -569,7 +562,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
 
 
 def _get_ent_coef(agent) -> Optional[float]:
-    """Helper to get entropy coefficient from agent"""
+    """Помощник для получения энтропийного коэффициента от агента"""
     if hasattr(agent, 'ent_coef'):
         if isinstance(agent.ent_coef, float):
             return agent.ent_coef
@@ -590,11 +583,11 @@ def _get_ent_coef(agent) -> Optional[float]:
                 return float(agent.policy.ent_coef)
             except:
                 pass
-    return 0.01  # Default for PPO
+    return 0.01  # По умолчанию для PPO
 
 
 def _get_learning_rate(agent) -> float:
-    """Helper to get learning rate from agent"""
+    """Помощник для получения learning rate от агента"""
     if hasattr(agent, 'learning_rate'):
         if isinstance(agent.learning_rate, float):
             return agent.learning_rate
@@ -608,11 +601,11 @@ def _get_learning_rate(agent) -> float:
     if hasattr(agent, 'lr_schedule'):
         if hasattr(agent.lr_schedule, 'initial_value'):
             return agent.lr_schedule.initial_value
-    return 0.0003  # Default for PPO
+    return 0.0003  # По умолчанию для PPO
 
 
 def _set_ent_coef(agent, value: float):
-    """Helper to set entropy coefficient"""
+    """Помощник для установки энтропийного коэффициента"""
     if hasattr(agent, 'ent_coef'):
         try:
             if hasattr(agent.ent_coef, '__call__'):
@@ -624,7 +617,7 @@ def _set_ent_coef(agent, value: float):
 
 
 def _set_learning_rate(agent, value: float):
-    """Helper to set learning rate"""
+    """Помощник для установки learning rate"""
     if hasattr(agent, 'policy') and hasattr(agent.policy, 'optimizer'):
         for param_group in agent.policy.optimizer.param_groups:
             param_group['lr'] = value
@@ -638,15 +631,15 @@ if __name__ == "__main__":
         description="HPO-RL 2D Optimization with Visualization and Transfer Learning",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  Train new model:
+Примеры:
+  Тренировка новой модели:
     python run_experiment.py --config configs/function_2d_test.yaml
 
-  Transfer learning (zero-shot):
+  Перенос знаний (zero-shot):
     python run_experiment.py --config configs/function_2d_sphere.yaml \\
         --pretrained-model logs/PPO/model_2d.zip --transfer-learning
 
-  Fine-tuning:
+  Дообучение:
     python run_experiment.py --config configs/function_2d_sphere.yaml \\
         --pretrained-model logs/PPO/model_2d.zip --transfer-learning \\
         --fine-tune-steps 2000 --exploration-boost 2.5
@@ -685,7 +678,7 @@ Examples:
         with open(args.config, 'r', encoding='utf-8') as f:
             main_config = yaml.safe_load(f)
         
-        # Override algorithm if specified
+        # Переопределение алгоритма, если указан
         if args.agent:
             if args.agent not in AGENT_REGISTRY:
                 print(f"ERROR: Unknown algorithm '{args.agent}'")
