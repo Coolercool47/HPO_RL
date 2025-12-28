@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional, List, Union
 import warnings
+import logging
 from random import choice
 
 from torch.utils.data import DataLoader
@@ -8,6 +9,10 @@ from hpo_rl.backends.base import EvaluationBackend, CATASTROPHIC_FAILURE_REWARD
 from hpo_rl.core.factory import get_model_class, build_trainer
 from hpo_rl.models.base import BaseModel
 
+logger = logging.getLogger(__name__)
+
+
+# TODO: отревьюить код, проверить что все работает (пока что не самая важная задача, но все же)
 
 class RealTrainingBackend(EvaluationBackend):
     """
@@ -22,11 +27,25 @@ class RealTrainingBackend(EvaluationBackend):
         val_data: Optional[DataLoader] = None,
         reward_strategy: str = "neg_final_val_loss"
     ):
-        self.model_names = model_names  # TODO накинуть проверки формата not implemented
-        if model_choice_strategy in ["random", "sequential"]:  # перекинуть в регистры
+        # Валидация model_names
+        if isinstance(model_names, str):
+            self.model_names = [model_names]
+        elif isinstance(model_names, list):
+            if not model_names:
+                raise ValueError("model_names не может быть пустым списком")
+            if not all(isinstance(name, str) for name in model_names):
+                raise ValueError("Все элементы model_names должны быть строками")
+            self.model_names = model_names
+        else:
+            raise TypeError(f"model_names должен быть строкой или списком строк, получен {type(model_names)}")
+        
+        if model_choice_strategy in ["random", "sequential"]:
             self.model_choice_strategy = model_choice_strategy
         else:
-            raise NotImplementedError(f"model_choice_strategy should be random or sequential, not {model_choice_strategy}")
+            raise ValueError(
+                f"model_choice_strategy должен быть 'random' или 'sequential', "
+                f"получен '{model_choice_strategy}'"
+            )
         warnings.warn("Different data for different models is not yet implemented, use unified task models", UserWarning)
         self.train_data = train_data  
         # TODO сделать подгрузку датасетов через dict-ы формата имя_модели: данные, в идеале что-то типа multi-key делать
@@ -35,23 +54,27 @@ class RealTrainingBackend(EvaluationBackend):
         self.prev_model_idx = 0
 
     def evaluate(self, config: Dict[str, Any]) -> float:
-        """ Убогое обозначение, переписать
-        Оркестрирует весь процесс оценки одной конфигурации."""
+        """
+        Оркестрирует весь процесс оценки одной конфигурации.
+        
+        Создает модель, обучает её с использованием указанного тренера
+        и вычисляет награду на основе результатов обучения.
+        
+        Args:
+            config: Словарь конфигурации, должен содержать ключ "trainer"
+                   с параметрами тренера.
+        
+        Returns:
+            float: Награда за данную конфигурацию. В случае ошибки возвращает
+                   CATASTROPHIC_FAILURE_REWARD.
+        """
         try:
-            '''
-            Убогая реализация, конфиги тут передавать мне не нравится, это как будто избыточно,
-            я предлагаю парсеры вынести немного внаружу, хотя бы частично
-            model_config = config.get("model", {})
-            '''
-            trainer_config = config.get("trainer", {})  # <-- Получаем весь блок "trainer"
+            trainer_config = config.get("trainer", {})
 
             model_class = get_model_class(self._get_model_name())
             model = model_class()
-            # model = model_class.from_config(model_config.get("params", {}))
-            # удалить, мы избавляемся от гиперпараметров самих моделей, только оптимизаторы.
-            # Теоретически потом можем вернуть, но пока что пробуем только гиперы оптимизаторов
 
-            trainer = build_trainer(trainer_config)  # тут не уйти от конфига, так что с ним тусим
+            trainer = build_trainer(trainer_config)
 
             trained_model, history = trainer.train(model, self.train_data, self.val_data)
 
@@ -60,7 +83,11 @@ class RealTrainingBackend(EvaluationBackend):
             return reward
 
         except Exception as e:
-            print(f"КАТАСТРОФИЧЕСКАЯ ОШИБКА в цикле evaluate: {e}")
+            logger.error(
+                f"Catastrophic error in evaluate cycle: {e}",
+                exc_info=True,
+                extra={"config": config}
+            )
             return CATASTROPHIC_FAILURE_REWARD
 
     def _calculate_reward(

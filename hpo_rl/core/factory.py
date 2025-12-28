@@ -159,7 +159,10 @@ def build_env(
     if hp_space is None:
         hp_space = config.get("hp_space", {})
     if not hp_space:
-        pass
+        raise ValueError(
+            "Пространство гиперпараметров (hp_space) не может быть пустым. "
+            "Укажите hp_space либо в параметрах функции, либо в конфигурации среды."
+        )
 
     try:
         env_class = ENV_REGISTRY[env_name]

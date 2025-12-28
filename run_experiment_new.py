@@ -159,5 +159,5 @@ if __name__ == "__main__":
             main_config = yaml.safe_load(f)
         run_experiment(main_config)
     except Exception as e:
-        traceback.print_exc(e)
+        traceback.print_exc()
         exit(1)

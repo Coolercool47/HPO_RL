@@ -1,0 +1,47 @@
+experiment_name: "2d_beale_optimization"
+# Beale function: min at (3, 0.5) - НЕ в центре!
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "beale"
+    dimensions: 2
+    noise_std: 0
+    maximize: False
+
+environment:
+  name: "CyclicPipelineEnv"
+  params:
+    num_bins: 300
+    max_steps: 1000
+    sparse_reward: false
+    reward_mode: "per_step"
+    step_sizes: [25, 5, 1]
+    step_size_penalty_coef: 0.0
+    adaptive_step_penalty: false
+  hp_space:
+    x0:
+      continuous:
+        type: float
+        log: False
+        range: [-4.5, 4.5]
+    x1:
+      continuous:
+        type: float
+        log: False
+        range: [-4.5, 4.5]
+
+agent:
+  name: "PPO"
+  policy: "MultiInputPolicy"
+  params:
+    verbose: 1
+    # seed: 42
+    gamma: 0.95
+    learning_rate: 0.0003
+
+training:
+  total_timesteps: 200000
+
+save_path: "model_2d_beale"
+

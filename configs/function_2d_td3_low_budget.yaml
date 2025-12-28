@@ -1,0 +1,46 @@
+experiment_name: "2d_function_optimization_td3_low_budget"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "rastrigin"  # Можно изменить на sphere, rosenbrock и т.д.
+    dimensions: 2
+    noise_std: 0
+    maximize: False  # False = минимизация
+
+environment:
+  name: "CyclicPipelineEnv"
+  params:
+    num_bins: 300
+    max_steps: 100  # Резко снижено для проверки поведения при малом бюджете
+    sparse_reward: false
+    action_type: "continuous"  # Непрерывные действия для TD3
+    max_step_bins: 30  # Максимальный шаг в бинах (10% от num_bins)
+  hp_space:
+    x0:
+      continuous:
+        type: float
+        log: False
+        range: [-5.12, 5.12]
+    x1:
+      continuous:
+        type: float
+        log: False
+        range: [-5.12, 5.12]
+
+agent:
+  name: "TD3"
+  policy: "MultiInputPolicy"
+  params:
+    verbose: 1
+    # seed: 42
+    gamma: 0.95
+    learning_rate: 0.003
+    buffer_size: 100000
+    batch_size: 256
+
+training:
+  total_timesteps: 10000  # 100 эпизодов (100 шагов * 100 эпизодов)
+
+save_path: "model_2d_td3_low_budget"
+

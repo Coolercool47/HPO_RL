@@ -1,0 +1,46 @@
+experiment_name: "2d_ackley_optimization"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "ackley"  # Много локальных минимумов + крутые склоны
+    dimensions: 2
+    noise_std: 0
+    maximize: False  # False = минимизация
+
+environment:
+  name: "CyclicPipelineEnv"
+  params:
+    num_bins: 300  # Значительно увеличено для более точного поиска
+    max_steps: 1000  # Больше шагов для исследования пространства
+    sparse_reward: false
+    reward_mode: "per_step"  # Reward после каждого шага
+    step_sizes: [25, 5, 1]  # Ограничено до 1, 5, и 25
+    step_size_penalty_coef: 0.15  # Штраф за размер шага
+    adaptive_step_penalty: true  # Штраф увеличивается с прогрессом эпизода
+  hp_space:
+    x0:
+      continuous:
+        type: float
+        log: False
+        range: [-5.0, 5.0]  # Для визуализации используем меньший диапазон
+    x1:
+      continuous:
+        type: float
+        log: False
+        range: [-5.0, 5.0]
+
+agent:
+  name: "PPO"
+  policy: "MultiInputPolicy"
+  params:
+    verbose: 1
+    # seed: 42
+    gamma: 0.95
+    learning_rate: 0.003
+
+training:
+  total_timesteps: 200000  # Увеличено для лучшего обучения с большим пространством действий
+
+save_path: "model_2d_ackley"
+
