@@ -18,7 +18,7 @@ environment:
     step_sizes: [25, 5, 1]
     step_size_penalty_coef: 0.0 
     adaptive_step_penalty: false
-    use_history: false
+    use_history: false  # LSTM: минимальный obs + prev_reward для RL² адаптации
   hp_space:
     x0:
       continuous:
@@ -41,7 +41,7 @@ agent:
     learning_rate: 0.00005 
 
 training:
-  total_timesteps: 20000
+  total_timesteps: 10000  # 100 эпизодов (100 шагов * 100 эпизодов)
 
 save_path: "model_2d_recurrent_ppo_low_budget"
 

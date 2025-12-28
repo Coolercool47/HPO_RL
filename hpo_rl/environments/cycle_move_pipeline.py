@@ -21,7 +21,8 @@ class CyclicPipelineEnv(BaseHPOEnv):
         action_type: str = "discrete",  # "discrete" - дискретные шаги, "continuous" - непрерывные действия (Box)
         max_step_bins: Optional[int] = None,  # Максимальный шаг в бинах для continuous действий (None = без ограничений)
         adaptive_step_penalty: bool = False,  # Если True, штраф за размер шага увеличивается с прогрессом эпизода
-        use_history: bool = True  # Если False, не включать prev_values и prev_delta в observation (для RecurrentPPO)
+        use_history: bool = True,  # Если False, минимальный observation для RecurrentPPO (prev_reward + prev_action)
+        history_cycles: int = 3  # Сколько ЦИКЛОВ хранить в истории (умножается на num_hyperparams)
     ):
         super().__init__(hp_space, backend)
 
@@ -34,6 +35,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self.max_step_bins = max_step_bins  # Максимальный шаг в бинах для continuous
         self.adaptive_step_penalty = adaptive_step_penalty  # Адаптивный штраф в зависимости от прогресса эпизода
         self.use_history = use_history  # Включать ли историю в observation (отключить для RecurrentPPO)
+        self.history_cycles = history_cycles  # Количество циклов в истории
         
         if reward_mode not in ["per_step", "per_cycle"]:
             raise ValueError(f"reward_mode must be 'per_step' or 'per_cycle', got {reward_mode}")
@@ -46,6 +48,10 @@ class CyclicPipelineEnv(BaseHPOEnv):
         
         self.action_grid = np.linspace(0.0, 1.0, num=num_bins, dtype=np.float32)
         self.num_hyperparams = len(self.hp_names)
+        
+        # Вычисляем длину скользящего окна: history_cycles * num_hyperparams
+        # Это гарантирует, что история всегда содержит целое число циклов
+        self.history_len = self.history_cycles * self.num_hyperparams
 
         self.param_types = []
         for name in self.hp_names:
@@ -77,17 +83,26 @@ class CyclicPipelineEnv(BaseHPOEnv):
             self.step_sizes = []  # Не используется для continuous
 
         # OBSERVATION SPACE
-        # Для RecurrentPPO (use_history=False): минимальный observation, LSTM сам запомнит историю
-        # Для других алгоритмов (use_history=True): включаем prev_values и prev_delta
+        # Для RecurrentPPO (use_history=False): минимальный observation + prev_reward + prev_action для RL² адаптации
+        # Для Feedforward (use_history=True): скользящее окно (reward_history + action_history)
         obs_spaces = {
             "active_param": gym.spaces.Box(low=0, high=1, shape=(self.num_hyperparams,), dtype=np.float32),
             "chosen_values": gym.spaces.Box(low=0.0, high=1.0, shape=(self.num_hyperparams,), dtype=np.float32),
         }
         
         if self.use_history:
-            # Для не-рекуррентных алгоритмов: добавляем историю
+            # Для Feedforward: скользящее окно для компенсации отсутствия памяти
             obs_spaces["prev_values"] = gym.spaces.Box(low=0.0, high=1.0, shape=(self.num_hyperparams,), dtype=np.float32)
-            obs_spaces["prev_delta"] = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(1,), dtype=np.float32)
+            # История rewards: sign(reward) * log(1 + |reward|) / log(1 + max_reward)
+            # Нормализовано в [-1, 1] с сохранением масштаба
+            obs_spaces["reward_history"] = gym.spaces.Box(low=-1.0, high=1.0, shape=(self.history_len,), dtype=np.float32)
+            # История действий: для discrete — signed_step (направление и размер), для continuous — значение
+            # Нормализовано в [-1, 1]: отрицательные = шаг назад, положительные = шаг вперёд, 0 = stay
+            obs_spaces["action_history"] = gym.spaces.Box(low=-1.0, high=1.0, shape=(self.history_len,), dtype=np.float32)
+        else:
+            # Для LSTM (RL² подход): prev_reward + prev_action, LSTM сам построит историю
+            obs_spaces["prev_reward"] = gym.spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+            obs_spaces["prev_action"] = gym.spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
         
         self.observation_space = gym.spaces.Dict(obs_spaces)
 
@@ -99,7 +114,11 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self.prev_cycle_indices = np.zeros(self.num_hyperparams, dtype=np.int32)
 
         self.current_metric = 0.0
-        self.prev_delta = 0.0
+        self.prev_reward = 0.0  # Reward за предыдущий шаг (для LSTM)
+        self.prev_action = 0.0  # Действие за предыдущий шаг (нормализованное, для LSTM)
+        # Буферы скользящего окна (согласованы по длине!)
+        self.reward_history_buffer = np.zeros(self.history_len, dtype=np.float32)
+        self.action_history_buffer = np.zeros(self.history_len, dtype=np.float32)
         self.best_metric_so_far = -float('inf')
         self.best_config_so_far = {}
         self.final_config_options = {}
@@ -110,16 +129,17 @@ class CyclicPipelineEnv(BaseHPOEnv):
         # Для режима per_cycle: накапливаем метрики в течение цикла
         self.cycle_metrics = []  # Метрики за текущий цикл
         self.cycle_start_metric = 0.0  # Метрика в начале цикла
-        
-        # Защита от колебаний: запоминаем недавно посещённые позиции
-        self.visited_positions = set()  # Множество посещённых позиций (кортежи индексов)
-        self.position_visit_count = {}  # Счётчик посещений каждой позиции
+        self.cycle_start_best_metric = 0.0  # Лучшая метрика в начале цикла (для сравнения в конце)
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
         self.cursor_idx = 0
         self.steps_total = 0
-        self.prev_delta = 0.0
+        self.prev_reward = 0.0
+        self.prev_action = 0.0
+        # Сбрасываем буферы скользящего окна
+        self.reward_history_buffer.fill(0.0)
+        self.action_history_buffer.fill(0.0)
 
         self.current_indices = self.np_random.integers(0, self.num_bins, size=self.num_hyperparams)
         # В начале эпизода предыдущие значения равны текущим
@@ -136,13 +156,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self.steps_without_improvement = 0
         self.cycle_metrics = []
         self.cycle_start_metric = self.current_metric
-        
-        # Сбрасываем историю посещений и добавляем начальную позицию
-        self.visited_positions = set()
-        self.position_visit_count = {}
-        initial_pos = tuple(self.current_indices.tolist())
-        self.visited_positions.add(initial_pos)
-        self.position_visit_count[initial_pos] = 1
+        self.cycle_start_best_metric = self.best_metric_so_far  # Сохраняем лучшую метрику для per_cycle
 
         return self._get_obs(), self._get_info()
 
@@ -203,7 +217,6 @@ class CyclicPipelineEnv(BaseHPOEnv):
         
         # Вычисляем reward в зависимости от режима
         reward = 0.0
-        cycle_completed = False
         
         if new_idx != old_idx or self.action_type == "continuous":
             # Оцениваем новую конфигурацию
@@ -245,11 +258,25 @@ class CyclicPipelineEnv(BaseHPOEnv):
             # Нет изменения позиции - небольшой штраф за бездействие
             reward = -0.05
 
-        self.prev_delta = reward
+        # Нормализуем действие в [-1, 1] с семантикой: отрицательное = назад, положительное = вперёд
+        if self.action_type == "discrete":
+            # Для дискретных: delta / max_step_size
+            max_step = max(self.step_sizes) if self.step_sizes else 1
+            normalized_action = float(delta_idx) / max_step  # [-1, 1]
+        else:
+            # Для continuous: delta / max_possible_step
+            actual_delta = new_idx - old_idx
+            # Делим на max_step_bins (если задан) или num_bins-1
+            max_possible_delta = self.max_step_bins if self.max_step_bins else (self.num_bins - 1)
+            normalized_action = float(actual_delta) / max(max_possible_delta, 1)  # [-1, 1]
+        
+        normalized_action = np.clip(normalized_action, -1.0, 1.0)
+        
         self.steps_total += 1
         self.cursor_idx = (self.cursor_idx + 1) % self.num_hyperparams
         
         # Проверяем, завершен ли цикл (все параметры выбраны)
+        cycle_completed = False
         if self.cursor_idx == 0 and self.steps_total > 0:
             cycle_completed = True
             # Сохраняем текущие значения как предыдущие для следующего цикла
@@ -261,29 +288,49 @@ class CyclicPipelineEnv(BaseHPOEnv):
                 if len(self.cycle_metrics) > 0:
                     cycle_best_metric = max(self.cycle_metrics)
                     
-                    # Улучшение относительно глобального лучшего (до этого цикла)
-                    diff_from_best = cycle_best_metric - self.best_metric_so_far
+                    # Улучшение относительно лучшего значения НА НАЧАЛО цикла
+                    # (best_metric_so_far уже обновлён внутри цикла, поэтому используем сохранённое значение)
+                    diff_from_best = cycle_best_metric - self.cycle_start_best_metric
                     
                     if diff_from_best > 0:
                         # Новый глобальный рекорд! Награда пропорциональна улучшению
                         scale_factor = 100.0
                         reward = math.log(1 + diff_from_best * scale_factor) + 1.0
-                        # best_metric_so_far обновляется в основном цикле step()
                     else:
                         # Цикл не улучшил глобальный результат
                         reward = -0.05  # Небольшой штраф за цикл без прогресса
+                else:
+                    # Агент не изменил ни один параметр за цикл - штраф
+                    reward = -0.1
                 
                 # Сбрасываем для следующего цикла
                 self.cycle_start_metric = self.current_metric
+                self.cycle_start_best_metric = self.best_metric_so_far  # Обновляем для следующего цикла
                 self.cycle_metrics = []
+
+        # Обновляем скользящее окно ПОСЛЕ вычисления финального reward (важно для per_cycle!)
+        self.reward_history_buffer = np.roll(self.reward_history_buffer, -1)
+        # Используем softsign вместо tanh: r / (1 + |r|)
+        # Лучше сохраняет различия между большими значениями:
+        # softsign(1)=0.5, softsign(2)=0.67, softsign(5)=0.83, softsign(10)=0.91
+        normalized_reward = reward / (1.0 + abs(reward))  # softsign, диапазон (-1, 1)
+        self.reward_history_buffer[-1] = normalized_reward
+        
+        self.action_history_buffer = np.roll(self.action_history_buffer, -1)
+        self.action_history_buffer[-1] = normalized_action
+        
+        # Сохраняем для LSTM варианта (RL²)
+        self.prev_reward = reward  # Сырое значение, нормализуем в _get_obs
+        self.prev_action = normalized_action
 
         terminated = False
         truncated = self.steps_total >= self.max_steps_limit
 
         info = self._get_info()
-        # Добавляем информацию о выбранном размере шага для диагностики
+        # Добавляем информацию для диагностики
         info['step_size'] = step_size
         info['steps_without_improvement'] = self.steps_without_improvement
+        info['cycle_completed'] = cycle_completed
 
         return self._get_obs(), reward, terminated, truncated, info
 
@@ -321,12 +368,20 @@ class CyclicPipelineEnv(BaseHPOEnv):
             "chosen_values": norm_values,
         }
         
-        # Для не-рекуррентных алгоритмов: добавляем историю
-        # Для RecurrentPPO (use_history=False): LSTM сам запомнит, не дублируем
         if self.use_history:
+            # Для Feedforward: скользящее окно (rewards + actions)
             prev_norm_values = self.prev_cycle_indices.astype(np.float32) / (self.num_bins - 1)
             obs["prev_values"] = prev_norm_values
-            obs["prev_delta"] = np.array([math.tanh(self.prev_delta)], dtype=np.float32)
+            # История rewards (уже нормализованы через softsign в буфере)
+            obs["reward_history"] = self.reward_history_buffer.copy()
+            # История действий: signed step в [-1, 1]
+            obs["action_history"] = self.action_history_buffer.copy()
+        else:
+            # Для LSTM (RL² подход): prev_reward + prev_action для адаптации внутри эпизода
+            # Используем softsign для нормализации reward
+            normalized_prev_reward = self.prev_reward / (1.0 + abs(self.prev_reward))
+            obs["prev_reward"] = np.array([normalized_prev_reward], dtype=np.float32)
+            obs["prev_action"] = np.array([self.prev_action], dtype=np.float32)
         
         return obs
 

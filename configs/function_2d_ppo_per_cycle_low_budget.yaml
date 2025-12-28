@@ -13,9 +13,10 @@ environment:
   params:
     num_bins: 300
     max_steps: 100  # Резко снижено для проверки поведения при малом бюджете
-    sparse_reward: false
     reward_mode: "per_cycle"  # Reward только после полного цикла
     step_sizes: [25, 5, 1]  # Ограничено до 1, 5, и 25 для совместимости с другими конфигами
+    use_history: true  # Feedforward агенту нужна история
+    history_cycles: 3  # Сколько циклов хранить (× num_params = длина окна)
   hp_space:
     x0:
       continuous:

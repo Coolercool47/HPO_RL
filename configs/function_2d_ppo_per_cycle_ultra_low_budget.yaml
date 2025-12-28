@@ -15,7 +15,9 @@ environment:
     max_steps: 20  # Ультрамалый бюджет: 20 шагов в эпизоде
     sparse_reward: false
     reward_mode: "per_cycle"  # Reward только после полного цикла
-    step_sizes: [50, 40, 30, 25, 20, 15, 12, 10, 8, 6, 5, 4, 3, 2, 1]
+    step_sizes: [25, 5, 1]  # Большой/средний/маленький шаг
+    use_history: true  # Feedforward агенту нужна история
+    history_cycles: 3  # Сколько циклов хранить (× num_params = длина окна)
   hp_space:
     x0:
       continuous:

@@ -18,7 +18,7 @@ environment:
     step_sizes: [25, 5, 1]  # Ограничено до 1, 5, и 25
     step_size_penalty_coef: 0.0  # Отключён
     adaptive_step_penalty: false
-    use_history: false  # ВАЖНО: Отключено для RecurrentPPO - LSTM сам запомнит историю
+    use_history: false  # ВАЖНО: Минимальный obs для RecurrentPPO + prev_reward для RL² адаптации
   hp_space:
     x0:
       continuous:
