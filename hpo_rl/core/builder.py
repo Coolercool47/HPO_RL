@@ -5,16 +5,12 @@ import torch.optim as optim
 
 
 class OptimizerBuilder(ABC):
-    """Интерфейс для строителей оптимизаторов."""
-
     @abstractmethod
     def build(self, model_params, hparams: Dict[str, Any]) -> optim.Optimizer:
         pass
 
 
 class BaseOptimizerBuilder(OptimizerBuilder):
-    """Базовый строитель оптимизатора."""
-
     HYPERPARAMETERS: Dict[str, Dict[str, Any]] = {}
 
     def build(self, model_params, hparams: Dict[str, Any]) -> optim.Optimizer:

@@ -15,9 +15,6 @@ class BaseTrainer(ABC, Generic[ModelType, DataType]):
 
     @abstractmethod
     def train(self, model: ModelType, train_loader: DataType, val_data: Optional[DataType] = None):
-        """
-        Метод обучения модели. Принимает модель и обучающую выборку, возвращает кортеж из обученной модели и истории обучения
-        """
         pass
 
     @classmethod

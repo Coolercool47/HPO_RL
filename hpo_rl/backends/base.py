@@ -15,7 +15,6 @@ class EvaluationBackend(ABC):
         self._cache_misses = 0
 
     def evaluate(self, config: Dict[str, Any]) -> float:
-        """Оценивает конфигурацию (с кэшированием если включено)."""
         if not self.use_cache:
             return self._evaluate(config)
 
@@ -31,11 +30,9 @@ class EvaluationBackend(ABC):
 
     @abstractmethod
     def _evaluate(self, config: Dict[str, Any]) -> float:
-        """Реализация оценки конфигурации (переопределяется в наследниках)."""
         pass
 
     def _config_to_key(self, config: Dict[str, Any]) -> Tuple:
-        """Конвертирует конфиг в hashable ключ для кэша."""
         items = []
         for k in sorted(config.keys()):
             v = config[k]
@@ -46,14 +43,12 @@ class EvaluationBackend(ABC):
         return tuple(items)
 
     def clear_cache(self):
-        """Очищает кэш."""
         self._cache.clear()
         self._cache_hits = 0
         self._cache_misses = 0
 
     @property
     def cache_stats(self) -> Dict[str, Any]:
-        """Статистика кэша."""
         total = self._cache_hits + self._cache_misses
         hit_rate = self._cache_hits / total if total > 0 else 0.0
         return {

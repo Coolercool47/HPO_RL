@@ -67,7 +67,6 @@ def get_criterion_instance(name: str) -> nn.Module:
 
 
 def build_optimizer(model: nn.Module, hparams: Dict[str, Any]) -> optim.Optimizer:
-    """Создает оптимизатор через систему строителей."""
     optimizer_name = hparams['optimizer']
     if optimizer_name not in OPTIMIZER_BUILDER_REGISTRY:
         available = ", ".join(OPTIMIZER_BUILDER_REGISTRY.keys())

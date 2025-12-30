@@ -104,8 +104,6 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
 
         return value if self.maximize else -value
 
-    # === Базовые функции ===
-
     def _sphere(self, x):
         """min at (0, ..., 0) = 0"""
         return np.sum(x ** 2)
@@ -154,8 +152,6 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
     def _nondiff(self, x):
         return (x > 0).sum()
 
-    # === 2D функции с минимумом не в центре ===
-
     def _booth(self, x):
         """min at (1, 3) = 0"""
         return (x[0] + 2*x[1] - 7)**2 + (2*x[0] + x[1] - 5)**2
@@ -172,8 +168,6 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         a = 1 + (x[0] + x[1] + 1)**2 * (19 - 14*x[0] + 3*x[0]**2 - 14*x[1] + 6*x[0]*x[1] + 3*x[1]**2)
         b = 30 + (2*x[0] - 3*x[1])**2 * (18 - 32*x[0] + 12*x[0]**2 + 48*x[1] - 36*x[0]*x[1] + 27*x[1]**2)
         return a * b
-
-    # === Сдвинутые функции ===
 
     def _shifted_sphere(self, x):
         """min at (2, 2, ...) = 0"""

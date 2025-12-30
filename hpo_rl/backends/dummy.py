@@ -1,5 +1,3 @@
-"""Тестовый backend для отладки RL-агентов без реальных вычислений."""
-
 from hpo_rl.backends.base import EvaluationBackend
 from typing import Dict, Any
 import math
@@ -9,10 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class DummyBackend(EvaluationBackend):
-    """
-    Вычисляет награду на основе близости к заданному оптимуму.
-    Награда = exp(-MSE), где MSE — среднеквадратичное расстояние до оптимума.
-    """
+    """Награда = exp(-MSE), где MSE — расстояние до оптимума."""
 
     def __init__(self, optimum: Dict[str, Any], use_cache: bool = True) -> None:
         super().__init__(use_cache=use_cache)
@@ -28,11 +23,6 @@ class DummyBackend(EvaluationBackend):
         logger.info(f"DummyBackend: {len(optimum)} параметров: {list(optimum.keys())}")
 
     def _evaluate(self, config: Dict[str, Any]) -> float:
-        """
-        Награда в диапазоне [0, 1]:
-        - 1.0 = точное совпадение
-        - 0.0 = полное несовпадение
-        """
         if not isinstance(config, dict):
             logger.warning(f"config должен быть dict, получен {type(config).__name__}")
             return 0.0

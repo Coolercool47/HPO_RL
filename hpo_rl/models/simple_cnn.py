@@ -4,10 +4,6 @@ from hpo_rl.models.base import BaseModel
 
 
 class SimpleCNN(BaseModel):
-    """
-    A small CNN model for experiments and demonstration.
-    Provides a simple convolutional neural network architecture for image classification.
-    """
     HYPERPARAMETERS = {
         "num_classes": {"type": int, "default": 10},  # Number of output classes
         "n_params": {"type": int, "default": 128}     # Size of the penultimate layer
