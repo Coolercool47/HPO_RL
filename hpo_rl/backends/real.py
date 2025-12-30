@@ -44,9 +44,6 @@ class RealTrainingBackend(EvaluationBackend):
         self.reward_strategy = reward_strategy
         self.prev_model_idx = 0
 
-        # TODO: разные данные для разных моделей через dict имя_модели -> данные
-        warnings.warn("Разные данные для разных моделей пока не поддерживаются", UserWarning)
-
     def _evaluate(self, config: Dict[str, Any]) -> float:
         try:
             trainer_cfg = config.get("trainer", {})
@@ -56,7 +53,7 @@ class RealTrainingBackend(EvaluationBackend):
             trained_model, history = trainer.train(model, self.train_data, self.val_data)
             return self._calculate_reward(trained_model, history, config)
         except Exception as e:
-            print(f"КАТАСТРОФИЧЕСКАЯ ОШИБКА в цикле evaluate: {e}")
+            print(f"Ошибка при оценке конфигурации: {e}")
             return CATASTROPHIC_FAILURE_REWARD
 
     def _calculate_reward(self, model: BaseModel, history: Dict[str, Any], config: Dict[str, Any]) -> float:

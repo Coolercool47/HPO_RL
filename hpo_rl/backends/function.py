@@ -2,8 +2,6 @@ import numpy as np
 from typing import Dict, Any, Literal
 from hpo_rl.backends.base import EvaluationBackend
 
-# TODO: сдвиг задавать параметром, а не отдельными функциями
-
 
 class OptimizationBenchmarkBackend(EvaluationBackend):
     """

@@ -60,7 +60,7 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
         try:
             infos = vec_env.env_method('get_info')
             start_info = infos[0] if infos else {}
-        except:
+        except Exception:
             start_info = {}
 
         if (start_point := _extract_point(start_info)):
@@ -203,7 +203,7 @@ def _get_attr(obj, attr, default=None):
         return val.value()
     try:
         return float(val)
-    except:
+    except (TypeError, ValueError):
         return default
 
 
