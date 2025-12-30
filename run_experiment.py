@@ -63,7 +63,8 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
         except Exception:
             start_info = {}
 
-        if (start_point := _extract_point(start_info)):
+        start_point = _extract_point(start_info)
+        if start_point:
             trajectory.append(start_point)
             best_reward = start_point[2]
 
@@ -82,7 +83,8 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
             obs, _, dones, infos = vec_env.step(action)
             done, info = dones[0], infos[0]
 
-            if (point := _extract_point(info)):
+            point = _extract_point(info)
+            if point:
                 trajectory.append(point)
                 best_reward = max(best_reward, point[2])
                 if done:
@@ -366,7 +368,8 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
         print(f"Training {train_steps} steps...")
         agent.learn(total_timesteps=train_steps)
 
-        if (save_path := config.get('save_path')):
+        save_path = config.get('save_path')
+        if save_path:
             if not save_path.endswith('.zip'):
                 save_path += '.zip'
             model_path = os.path.join(log_dir, save_path)
