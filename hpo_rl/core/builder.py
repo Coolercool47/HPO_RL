@@ -13,7 +13,7 @@ class OptimizerBuilder(ABC):
 
 
 class BaseOptimizerBuilder(OptimizerBuilder):
-    """Базовый строитель с поддержкой HYPERPARAMETERS."""
+    """Базовый строитель оптимизатора."""
 
     HYPERPARAMETERS: Dict[str, Dict[str, Any]] = {}
 
