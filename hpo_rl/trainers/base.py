@@ -26,6 +26,8 @@ class BaseTrainer(ABC, Generic[ModelType, DataType]):
         for param_name, meta in cls.HYPERPARAMETERS.items():
             if param_name in config:
                 init_kwargs[param_name] = config[param_name]
+            elif param_name == "epochs" and "number_epochs" in config:
+                init_kwargs[param_name] = config["number_epochs"]
             elif "default" in meta:
                 init_kwargs[param_name] = meta["default"]
             else:

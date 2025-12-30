@@ -13,7 +13,6 @@ environment:
   params:
     num_bins: 300
     max_steps: 20  # Ультрамалый бюджет: 20 шагов в эпизоде
-    sparse_reward: false
     reward_mode: "per_cycle"  # Reward только после полного цикла
     step_sizes: [25, 5, 1]  # Большой/средний/маленький шаг
     use_history: true  # Feedforward агенту нужна история

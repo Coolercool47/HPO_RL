@@ -3,7 +3,7 @@ import math
 import gymnasium as gym
 import numpy as np
 
-from hpo_rl.environments.cycle_move_pipeline_copy import CyclicPipelineEnv
+from hpo_rl.environments.cycle_move_pipeline import CyclicPipelineEnv
 from hpo_rl.backends.base import EvaluationBackend
 
 class PPOPipelineEnv(CyclicPipelineEnv):
@@ -13,16 +13,24 @@ class PPOPipelineEnv(CyclicPipelineEnv):
         backend: EvaluationBackend,
         num_bins: int = 20,
         max_steps: int = 200,
-        sparse_reward: bool = False,
         step_sizes: Optional[List[int]] = None,
-        step_size_penalty_coef: float = 0.0,  # Коэффициент штрафа за размер шага (отключен, используется простой reward)
         reward_mode: str = "per_step",  # "per_step" - "Награда" после каждого шага, "per_cycle" - "Награда" после выбора всех параметров
         action_type: str = "discrete",  # "discrete" - Дискретное пространство действий, "continuous" - Непрерывное пространство действий
         max_step_bins: Optional[int] = None,  # Максимальный шаг в бинах для Нерперывного пространства действий (None = без ограничений)
-        adaptive_step_penalty: bool = False,  # Если True, штраф за размер шага увеличивается в течении эпизода
         history_cycles: int = 3  # Сколько ЦИКЛОВ хранить в истории (умножается на num_hyperparams)
     ):
-        super().__init__(hp_space, backend, num_bins, max_steps, sparse_reward, step_sizes, step_size_penalty_coef, reward_mode, action_type, max_step_bins, adaptive_step_penalty, history_cycles)
+        super().__init__(
+            hp_space=hp_space, 
+            backend=backend, 
+            num_bins=num_bins, 
+            max_steps=max_steps, 
+            step_sizes=step_sizes, 
+            reward_mode=reward_mode, 
+            action_type=action_type, 
+            max_step_bins=max_step_bins, 
+            use_history=False, # Для RecurrentPPO обычно false, так как LSTM сам строит историю
+            history_cycles=history_cycles
+        )
 
         # OBSERVATION SPACE
         # Для RecurrentPPO (use_history=False): минимальный observation + prev_reward + prev_action для RL² адаптации

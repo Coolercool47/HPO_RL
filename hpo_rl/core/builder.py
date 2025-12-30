@@ -19,11 +19,15 @@ class BaseOptimizerBuilder(OptimizerBuilder):
     HYPERPARAMETERS: Dict[str, Dict[str, Any]] = {}
 
     def build(self, model_params, hparams: Dict[str, Any]) -> optim.Optimizer:
-
+        """
+        Собирает параметры для оптимизатора
+        """
         params_to_pass = {}
         for name, meta in self.HYPERPARAMETERS.items():
             if name in hparams:
                 params_to_pass[name] = hparams[name]
+            elif name == "lr" and "learning_rate" in hparams:
+                params_to_pass[name] = hparams["learning_rate"]
             elif "default" in meta:
                 params_to_pass[name] = meta["default"]
 

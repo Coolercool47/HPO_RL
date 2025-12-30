@@ -5,17 +5,12 @@ CATASTROPHIC_FAILURE_REWARD: float = -1e9
 
 
 class EvaluationBackend(ABC):
+    """Базовый класс для бэкендов оценки конфигураций."""
+
+    def __init__(self):
+        self.maximize = True  # True = чем выше, тем лучше
+
     @abstractmethod
     def evaluate(self, config: Dict[str, Any]) -> float:
-        """
-        Основной метод, выполняющий оценку одной конфигурации.
-
-        Args:
-            config (Dict[str, Any]): Словарь с гиперпараметрами,
-                                     предложенный RL-агентом.
-
-        Returns:
-            float: Одно число, представляющее метрику качества (награду).
-                   Чем выше, тем лучше.
-        """
+        """Оценивает конфигурацию и возвращает метрику качества."""
         pass
