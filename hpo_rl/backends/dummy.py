@@ -14,8 +14,8 @@ class DummyBackend(EvaluationBackend):
     Награда = exp(-MSE), где MSE — среднеквадратичное расстояние до оптимума.
     """
 
-    def __init__(self, optimum: Dict[str, Any]) -> None:
-        super().__init__()
+    def __init__(self, optimum: Dict[str, Any], use_cache: bool = True) -> None:
+        super().__init__(use_cache=use_cache)
 
         if optimum is None:
             raise ValueError("optimum не может быть None")
@@ -27,7 +27,7 @@ class DummyBackend(EvaluationBackend):
         self.optimum = optimum
         logger.info(f"DummyBackend: {len(optimum)} параметров: {list(optimum.keys())}")
 
-    def evaluate(self, config: Dict[str, Any]) -> float:
+    def _evaluate(self, config: Dict[str, Any]) -> float:
         """
         Награда в диапазоне [0, 1]:
         - 1.0 = точное совпадение

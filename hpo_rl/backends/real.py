@@ -20,7 +20,7 @@ class RealTrainingBackend(EvaluationBackend):
         val_data: Optional[DataLoader] = None,
         reward_strategy: str = "neg_final_val_loss"
     ):
-        super().__init__()
+        super().__init__(use_cache=True)  # кэш экономит много на повторных конфигах
         self.maximize = False  # минимизируем loss
 
         # Валидация model_names
@@ -47,7 +47,7 @@ class RealTrainingBackend(EvaluationBackend):
         # TODO: разные данные для разных моделей через dict имя_модели -> данные
         warnings.warn("Разные данные для разных моделей пока не поддерживаются", UserWarning)
 
-    def evaluate(self, config: Dict[str, Any]) -> float:
+    def _evaluate(self, config: Dict[str, Any]) -> float:
         try:
             trainer_cfg = config.get("trainer", {})
             model_class = get_model_class(self._get_model_name())

@@ -22,9 +22,11 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         function_name: FUNCTIONS = "rastrigin",
         dimensions: int = 6,
         noise_std: float = 0.0,
-        maximize: bool = True
+        maximize: bool = True,
+        use_cache: bool = True
     ):
-        super().__init__()
+        # Кэш имеет смысл только без шума
+        super().__init__(use_cache=(use_cache and noise_std == 0))
         self.function_name = function_name
         self.dimensions = dimensions
         self.noise_std = noise_std
@@ -86,7 +88,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         else:
             raise ValueError(f"Неизвестная функция: {self.function_name}")
 
-    def evaluate(self, config: Dict[str, Any]) -> float:
+    def _evaluate(self, config: Dict[str, Any]) -> float:
         """Вычисляет значение функции. config: {"x0": val, "x1": val, ...}"""
         x = np.array([config[f"x{i}"] for i in range(self.dimensions)])
 
