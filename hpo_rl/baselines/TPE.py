@@ -73,8 +73,8 @@ class TPE:
             result = self.objective_func(best_sample)
             self.data.append((best_sample, result))
             
-            if len(self.data) % 10 == 0:
-                print(f"Iter {len(self.data)}/{self.budget}: Best Score = {min(d[1] for d in self.data)}")
+            # if len(self.data) % 10 == 0:
+            #     print(f"Iter {len(self.data)}/{self.budget}: Best Score = {min(d[1] for d in self.data)}")
 
         best_overall = min(self.data, key=lambda x: x[1])
         return best_overall

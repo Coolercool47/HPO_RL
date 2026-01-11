@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import norm
-from TPE import TPE
+from .TPE import TPE
 
 class BOHB:
     def __init__(self, R, nu, objective_function, dict_config, 

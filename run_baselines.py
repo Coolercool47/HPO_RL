@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime
 
-from hpo_rl.core.factory import build_backend, build_env
+from hpo_rl.core.factory import build_backend
 from hpo_rl.core.register import initialize_framework
 
 from hpo_rl.baselines.TPE import TPE
@@ -28,10 +28,9 @@ def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]
     if not trajectory:
         print("Empty trajectory, skipping visualization")
         return
-
-    x0_vals = [t[0] for t in trajectory]
-    x1_vals = [t[1] for t in trajectory]
-    rewards = [t[2] for t in trajectory]
+    x0_vals = [t[0]['x0'] for t in trajectory]
+    x1_vals = [t[0]['x1'] for t in trajectory]
+    rewards = [t[1] for t in trajectory]
     metrics = rewards if backend.maximize else [-r for r in rewards]
 
     # Сетка для contour/surface
@@ -112,10 +111,10 @@ def run_experiment_with_visualization(config: Dict[str, Any], eval_seed: Optiona
                                      eval_mode: str = "auto", run_name: Optional[str] = None,
                                      output_dir: Optional[str] = None):
     algorithm_cfg = config.get('algorithm')
-    algorithm_name = algorithm_cfg['name']
+    algorithm_name = algorithm_cfg.get('name')
     algorithm = ALGORITHM_REGISTRY[algorithm_name]
     algorithm_params = algorithm_cfg.get('params', {})
-    algorithm = algorithm(**algorithm_params)
+    
     
     # Папка для результатов
     if output_dir:
@@ -123,7 +122,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], eval_seed: Optiona
     else:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         folder = f"{ts}_{run_name}" if run_name else ts
-        log_dir = os.path.join("logs", algorithm_cfg, folder)
+        log_dir = os.path.join("logs", algorithm_name, folder)
     os.makedirs(log_dir, exist_ok=True)
     print(f"Output: {log_dir}")
 
@@ -135,13 +134,16 @@ def run_experiment_with_visualization(config: Dict[str, Any], eval_seed: Optiona
     if eval_seed is not None:
         print(f"eval_seed={eval_seed}")
     
+    sep_val = algorithm_params.pop("separation_value")
+    print(algorithm_cfg.get("hp_space"))
+    algorithm = algorithm(objective_func = backend._evaluate, gamma_func=lambda n: sep_val, dict_to_optimize = algorithm_cfg.get("hp_space"), **algorithm_params)
+
     trajectory, final_point = collect_trajectory_alg(algorithm, eval_seed=eval_seed)
     print(f"Points: {len(trajectory)}")
-
     function_name = backend_cfg.get('params', {}).get('function_name', 'unknown')
 
     if trajectory:
-        rewards = [t[2] for t in trajectory]
+        rewards = [t[1] for t in trajectory]
         if backend.maximize:
             values = rewards
             best_value = max(values)
@@ -150,7 +152,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], eval_seed: Optiona
             best_value = min(values)
 
         if final_point:
-            final_value = final_point[2] if backend.maximize else -final_point[2]
+            final_value = final_point[1] if backend.maximize else -final_point[1]
             print(f"Final: {final_value:.6f}")
 
         print(f"Best: {best_value:.6f}")
