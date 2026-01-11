@@ -13,8 +13,11 @@ environment:
   params:
     num_bins: 300  # Значительно увеличено для более точного поиска и лучшего transfer learning
     max_steps: 100  # Резко снижено для проверки поведения при малом бюджете
+    sparse_reward: false
     reward_mode: "per_step"  # Reward после каждого шага
     step_sizes: [25, 5, 1]  # Ограничено до 1, 5, и 25 для совместимости с другими конфигами
+    step_size_penalty_coef: 0.15  # Штраф за размер шага
+    adaptive_step_penalty: true  # Штраф увеличивается с прогрессом эпизода
   hp_space:
     x0:
       continuous:

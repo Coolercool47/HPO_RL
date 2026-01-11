@@ -12,6 +12,7 @@ environment:
   params:
     num_bins: 100
     max_steps: 100
+    sparse_reward: false
 
 agent:
   name: "TRPO"

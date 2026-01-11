@@ -15,6 +15,9 @@ class BaseTrainer(ABC, Generic[ModelType, DataType]):
 
     @abstractmethod
     def train(self, model: ModelType, train_loader: DataType, val_data: Optional[DataType] = None):
+        """
+        Метод обучения модели. Принимает модель и обучающую выборку, возвращает кортеж из обученной модели и истории обучения
+        """
         pass
 
     @classmethod
@@ -23,8 +26,6 @@ class BaseTrainer(ABC, Generic[ModelType, DataType]):
         for param_name, meta in cls.HYPERPARAMETERS.items():
             if param_name in config:
                 init_kwargs[param_name] = config[param_name]
-            elif param_name == "epochs" and "number_epochs" in config:
-                init_kwargs[param_name] = config["number_epochs"]
             elif "default" in meta:
                 init_kwargs[param_name] = meta["default"]
             else:

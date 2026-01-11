@@ -1,6 +1,7 @@
 # rl_opt/environments/continuous_pipeline_env.py
 
 from typing import Dict, Any, Optional
+import math
 
 import gymnasium as gym
 import numpy as np
@@ -58,7 +59,7 @@ class ContinuousPipelineEnv(BaseHPOEnv):
         if 'discrete' in param_info:
             options = param_info['discrete']['choices']
             num_options = len(options)
-            choice_index = min(np.floor(normalized_value * num_options), num_options - 1)
+            choice_index = min(math.floor(normalized_value * num_options), num_options - 1)
             self.final_config_options[param_name] = options[choice_index]
         elif 'continuous' in param_info:
             cont_info = param_info['continuous']

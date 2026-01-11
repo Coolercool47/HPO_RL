@@ -13,8 +13,11 @@ environment:
   params:
     num_bins: 300
     max_steps: 100 
+    sparse_reward: false
     reward_mode: "per_step"
     step_sizes: [25, 5, 1]
+    step_size_penalty_coef: 0.0 
+    adaptive_step_penalty: false
     use_history: false  # LSTM: минимальный obs + prev_reward для RL² адаптации
   hp_space:
     x0:

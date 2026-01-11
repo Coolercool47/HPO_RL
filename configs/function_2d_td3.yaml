@@ -13,6 +13,7 @@ environment:
   params:
     num_bins: 300  # Значительно увеличено для более точного поиска
     max_steps: 1000  # Больше шагов для исследования пространства
+    sparse_reward: false
     action_type: "continuous"  # Непрерывные действия для TD3
     max_step_bins: 30  # Максимальный шаг в бинах (10% от num_bins)
   hp_space:

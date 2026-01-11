@@ -13,6 +13,7 @@ environment:
   params:
     num_bins: 300
     max_steps: 20  # Ультрамалый бюджет: 20 шагов в эпизоде
+    sparse_reward: false
     action_type: "continuous"  # Непрерывные действия для SAC
     max_step_bins: 30  # Максимальный шаг в бинах (10% от num_bins)
   hp_space:

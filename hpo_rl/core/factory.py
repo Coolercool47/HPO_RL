@@ -30,74 +30,111 @@ OPTIMIZER_BUILDER_REGISTRY: Dict[str, OptimizerBuilder] = {
 
 
 def register_model(name: str, model_class: Type[BaseModel]):
+    """Регистрирует класс модели в реестре."""
     MODEL_REGISTRY[name] = model_class
 
 
 def register_trainer(name: str, trainer_class: Type[BaseTrainer]):
+    """Регистрирует класс тренера в реестре."""
     TRAINER_REGISTRY[name] = trainer_class
 
 
 def register_env(name: str, env_class: Type[BaseHPOEnv]):
+    """Регистрирует класс среды в реестре."""
     ENV_REGISTRY[name] = env_class
 
 
 def register_backend(name: str, backend_class: Type[EvaluationBackend]):
+    """Регистрирует класс бэкенда в реестре."""
     BACKEND_REGISTRY[name] = backend_class
 
 
 def get_model_class(name: str) -> Type[BaseModel]:
-    if name not in MODEL_REGISTRY:
-        available = ", ".join(MODEL_REGISTRY.keys())
-        raise ValueError(f"Модель '{name}' не зарегистрирована. Доступные: {available}")
-    return MODEL_REGISTRY[name]
+    """
+    Возвращает класс модели по имени
+    """
+    try:
+        return MODEL_REGISTRY[name]
+    except KeyError:
+        avaliable_models = "\n".join(list(MODEL_REGISTRY.keys()))
+        raise ValueError(f"""Модель не зарегистрирована в factory.py.
+                         Доступные модели: {avaliable_models}""")
 
 
 def get_optimizer_class(name: str) -> Type[optim.Optimizer]:
-    if name not in OPTIMIZER_REGISTRY:
-        available = ", ".join(OPTIMIZER_REGISTRY.keys())
-        raise ValueError(f"Оптимизатор '{name}' не зарегистрирован. Доступные: {available}")
-    return OPTIMIZER_REGISTRY[name]
+    """
+    Возвращает класс оптимизатора по имени
+    """
+    try:
+        # ИСПРАВЛЕНО: убраны кавычки вокруг name
+        return OPTIMIZER_REGISTRY[name]
+    except KeyError:
+        avaliable_optims = "\n".join(list(OPTIMIZER_REGISTRY.keys()))
+        raise ValueError(f"""Оптимизатор не зарегистрирован в factory.py.
+                         Доступные оптимизаторы: {avaliable_optims}""")
 
 
 def get_criterion_instance(name: str) -> nn.Module:
-    if name not in CRITERION_REGISTRY:
-        available = ", ".join(CRITERION_REGISTRY.keys())
-        raise ValueError(f"Функция потерь '{name}' не зарегистрирована. Доступные: {available}")
-    return CRITERION_REGISTRY[name]()
+    """
+    Возвращает экземпляр функции потерь по имени
+    """
+    try:
+        # ИСПРАВЛЕНО: убраны кавычки вокруг name
+        criterion_class = CRITERION_REGISTRY[name]
+        return criterion_class()
+    except KeyError:
+        avaliable_losses = "\n".join(list(CRITERION_REGISTRY.keys()))
+        raise ValueError(f"""Функция потерь не зарегистрирована в factory.py.
+                         Доступные функции потерь: {avaliable_losses}""")
 
 
 def build_optimizer(model: nn.Module, hparams: Dict[str, Any]) -> optim.Optimizer:
+    """
+    Создает экземпляр оптимизатора, используя систему строителей.
+    """
     optimizer_name = hparams['optimizer']
-    if optimizer_name not in OPTIMIZER_BUILDER_REGISTRY:
-        available = ", ".join(OPTIMIZER_BUILDER_REGISTRY.keys())
-        raise ValueError(f"Строитель оптимизатора '{optimizer_name}' не зарегистрирован. Доступные: {available}")
-    return OPTIMIZER_BUILDER_REGISTRY[optimizer_name].build(model.parameters(), hparams)
+    try:
+        builder = OPTIMIZER_BUILDER_REGISTRY[optimizer_name]
+        return builder.build(model.parameters(), hparams)
+    except KeyError:
+        avaliable_optim_builders = "\n".join(list(OPTIMIZER_BUILDER_REGISTRY.keys()))
+        raise ValueError(f"""Строитель оптимизатора не зарегистрирован в factory.py.
+                         Доступные строители оптимизаторов: {avaliable_optim_builders}""")
 
 
 def build_trainer(config: Dict[str, Any]) -> BaseTrainer:
-    """Создает тренер из конфига."""
+    """
+    Создает экземпляр тренера на основе конфигурационного словаря.
+    """
     trainer_name = config.get("name")
     if not trainer_name:
-        raise ValueError("В конфигурации тренера отсутствует ключ 'name'")
+        raise ValueError("В конфигурации тренера отсутствует ключ 'name'.")
 
-    if trainer_name not in TRAINER_REGISTRY:
-        available = ", ".join(TRAINER_REGISTRY.keys())
-        raise ValueError(f"Тренер '{trainer_name}' не зарегистрирован. Доступные: {available}")
+    trainer_params = config.get("params", {})
 
-    return TRAINER_REGISTRY[trainer_name].from_config(config.get("params", {}))
+    try:
+        trainer_class = TRAINER_REGISTRY[trainer_name]
+        return trainer_class.from_config(trainer_params)
+    except KeyError:
+        avaliable_trainer_builders = "\n".join(list(TRAINER_REGISTRY.keys()))
+        raise ValueError(f"""Строитель тренера не зарегистрирован в factory.py. 
+                         Доступные строители тренеров: {avaliable_trainer_builders}""")
 
 
 def build_backend(config: Dict[str, Any]) -> EvaluationBackend:
-    """Создает бэкенд из конфига."""
+    """Создает экземпляр бэкенда из реестра."""
     backend_name = config.get("name")
     if not backend_name:
-        raise ValueError("В конфигурации бэкенда отсутствует ключ 'name'")
+        raise ValueError("В конфигурации бэкенда отсутствует ключ 'name'.")
 
-    if backend_name not in BACKEND_REGISTRY:
-        available = ", ".join(BACKEND_REGISTRY.keys())
-        raise ValueError(f"Бэкенд '{backend_name}' не зарегистрирован. Доступные: {available}")
-
-    return BACKEND_REGISTRY[backend_name](**config.get("params", {}))
+    backend_params = config.get("params", {})
+    try:
+        backend_class = BACKEND_REGISTRY[backend_name]
+        return backend_class(**backend_params)
+    except KeyError:
+        avaliable_backend_builders = "\n".join(list(BACKEND_REGISTRY.keys()))
+        raise ValueError(f"""Строитель бэкенда не зарегистрирован в factory.py. 
+                         Доступные строители бэкендов: {avaliable_backend_builders}""")
 
 
 def build_env(
@@ -105,18 +142,33 @@ def build_env(
     backend: EvaluationBackend,
     hp_space: Optional[Dict[str, Any]] = None
 ) -> BaseHPOEnv:
-    """Создает RL-среду из конфига."""
+    """
+    Создает экземпляр RL-среды на основе конфигурационного словаря.
+
+    :param config: Часть конфига environment из YAML
+    :param backend: Инициализированный объект backend
+    :param hp_space: Словарь пространства поиска. 
+                     Если передан явно (из кода) - используется он.
+                     Если None - пытается извлечься из config.
+    """
     env_name = config.get("name")
     if not env_name:
-        raise ValueError("В конфигурации среды отсутствует ключ 'name'")
+        raise ValueError("В конфигурации среды отсутствует ключ 'name'.")
 
+    env_params = config.get("params", {})
     if hp_space is None:
         hp_space = config.get("hp_space", {})
     if not hp_space:
-        raise ValueError("hp_space не может быть пустым")
+        raise ValueError(
+            "Пространство гиперпараметров (hp_space) не может быть пустым. "
+            "Укажите hp_space либо в параметрах функции, либо в конфигурации среды."
+        )
 
-    if env_name not in ENV_REGISTRY:
-        available = ", ".join(ENV_REGISTRY.keys())
-        raise ValueError(f"Среда '{env_name}' не зарегистрирована. Доступные: {available}")
-
-    return ENV_REGISTRY[env_name](hp_space=hp_space, backend=backend, **config.get("params", {}))
+    try:
+        env_class = ENV_REGISTRY[env_name]
+        # Передаем в конструктор итоговый hp_space
+        return env_class(hp_space=hp_space, backend=backend, **env_params)
+    except KeyError:
+        avaliable_env_builders = "\n".join(list(ENV_REGISTRY.keys()))
+        raise ValueError(f"""Строитель среды '{env_name}' не зарегистрирован в factory.py. 
+                         Доступные строители сред: {avaliable_env_builders}""")
