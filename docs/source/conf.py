@@ -9,7 +9,8 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+# Добавляем корень проекта в путь для импорта hpo_rl
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 project = 'HPO_RL'
 copyright = '2025, TO_BE_CHANGED'

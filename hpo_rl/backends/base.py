@@ -1,20 +1,66 @@
+"""Базовые классы для бэкендов оценки.
+
+Этот модуль содержит абстрактный базовый класс :class:`EvaluationBackend`,
+от которого наследуются все конкретные бэкенды.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Tuple
 
 CATASTROPHIC_FAILURE_REWARD: float = -1e9
+"""Большой штраф при сбое (ошибка обучения, невалидные параметры)."""
 
 
 class EvaluationBackend(ABC):
-    """Базовый класс для бэкендов оценки конфигураций."""
+    """Абстрактный базовый класс для бэкендов оценки конфигураций.
+
+    Бэкенд принимает конфигурацию гиперпараметров и возвращает числовую
+    оценку (награду). Поддерживает кэширование результатов.
+
+    Args:
+        use_cache: Включить кэширование результатов. Полезно для
+            детерминированных функций, экономит повторные вычисления.
+
+    Attributes:
+        maximize: Направление оптимизации, True — максимизация (для метрик, таких как accuracy), False — минимизация (для функций потерь).
+        use_cache: Флаг использования кэша.
+
+    Пример:
+        >>> class MyBackend(EvaluationBackend):
+        ...     def _evaluate(self, config):
+        ...         return -sum(v**2 for v in config.values())
+        >>> backend = MyBackend(use_cache=True)
+        >>> backend.evaluate({"x": 1.0, "y": 2.0})
+        -5.0
+
+    Note:
+        Подклассы должны реализовать метод :meth:`_evaluate`.
+    """
 
     def __init__(self, use_cache: bool = False):
-        self.maximize = True  # True = чем выше, тем лучше
+        """Инициализирует бэкенд.
+
+        Args:
+            use_cache: Включить кэширование результатов оценки.
+        """
+        self.maximize = True
         self.use_cache = use_cache
         self._cache: Dict[Tuple, float] = {}
         self._cache_hits = 0
         self._cache_misses = 0
 
     def evaluate(self, config: Dict[str, Any]) -> float:
+        """Оценивает конфигурацию гиперпараметров.
+
+        Если кэширование включено, сначала проверяет кэш.
+        Иначе вызывает :meth:`_evaluate`.
+
+        Args:
+            config: Словарь гиперпараметров ``{"имя": значение, ...}``.
+
+        Returns:
+            Числовая оценка конфигурации (награда).
+        """
         if not self.use_cache:
             return self._evaluate(config)
 
@@ -30,9 +76,25 @@ class EvaluationBackend(ABC):
 
     @abstractmethod
     def _evaluate(self, config: Dict[str, Any]) -> float:
+        """Внутренний метод оценки (реализуется в подклассах).
+
+        Args:
+            config: Словарь гиперпараметров.
+
+        Returns:
+            Числовая оценка конфигурации.
+        """
         pass
 
     def _config_to_key(self, config: Dict[str, Any]) -> Tuple:
+        """Преобразует конфигурацию в хэшируемый ключ для кэша.
+
+        Args:
+            config: Словарь гиперпараметров.
+
+        Returns:
+            Кортеж пар (ключ, значение), отсортированный по ключам.
+        """
         items = []
         for k in sorted(config.keys()):
             v = config[k]
@@ -42,13 +104,23 @@ class EvaluationBackend(ABC):
             items.append((k, v))
         return tuple(items)
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
+        """Очищает кэш и сбрасывает статистику."""
         self._cache.clear()
         self._cache_hits = 0
         self._cache_misses = 0
 
     @property
     def cache_stats(self) -> Dict[str, Any]:
+        """Статистика использования кэша.
+
+        Returns:
+            Словарь со статистикой:
+                - ``hits``: количество попаданий в кэш
+                - ``misses``: количество промахов
+                - ``size``: текущий размер кэша
+                - ``hit_rate``: доля попаданий (0.0 - 1.0)
+        """
         total = self._cache_hits + self._cache_misses
         hit_rate = self._cache_hits / total if total > 0 else 0.0
         return {
