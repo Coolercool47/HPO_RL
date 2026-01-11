@@ -441,7 +441,9 @@ Examples:
     parser.add_argument("--output-dir", type=str, default=None)
 
     args = parser.parse_args()
-
+    print("="*100)
+    print(args)
+    print("="*100)
     try:
         with open(args.config, 'r', encoding='utf-8') as f:
             main_config = yaml.safe_load(f)

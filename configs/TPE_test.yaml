@@ -1,0 +1,18 @@
+experiment_name: "TPE_ test"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "rastrigin"  
+    dimensions: 2
+    noise_std: 0
+    maximize: False  \
+
+algorithm:
+  name: TPE
+  params:
+    optimization_dict: {
+        "x": {"type": "float", "values": [-10, 10]},
+        "y": {"type": "float", "values": [-10, 10]}
+    }
+    

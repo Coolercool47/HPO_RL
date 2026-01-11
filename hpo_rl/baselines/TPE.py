@@ -24,7 +24,7 @@ class TPE:
             score = self.objective_func(setup)
             self.data.append((setup, score))
 
-    def optimize(self):
+    def main_loop(self):
         if len(self.data) < self.N_init:
             self.initialize()
 
