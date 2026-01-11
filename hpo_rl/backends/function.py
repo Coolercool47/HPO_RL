@@ -102,7 +102,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         if self.noise_std > 0:
             value += np.random.normal(0, self.noise_std)
 
-        return value if self.maximize else -value
+        return value if self.maximize else -value # плохое решение в общем случае, для RL корректно, где надо максимизировать reward, а для бейзлайнов где идет минимизация нет
 
     def _sphere(self, x):
         """min at (0, ..., 0) = 0"""

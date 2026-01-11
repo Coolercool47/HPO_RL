@@ -6,7 +6,7 @@ backend:
     function_name: "rastrigin"  
     dimensions: 2
     noise_std: 0
-    maximize: True
+    maximize: False
 
 algorithm:
   name: TPE

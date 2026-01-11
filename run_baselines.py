@@ -65,7 +65,7 @@ def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]
                     label='Final (result)', zorder=5, edgecolors='black', linewidths=2)
         marker_coords, marker_value = (fx, fy), fval
     else:
-        best_idx = np.argmax(metrics) if backend.maximize else np.argmin(metrics)
+        best_idx = np.argmin(metrics) if backend.maximize else np.argmax(metrics)
         ax1.scatter(x0_vals[best_idx], x1_vals[best_idx], c='yellow', s=150,
                     marker='X', label='Best', zorder=5, edgecolors='black', linewidths=2)
         marker_coords = (x0_vals[best_idx], x1_vals[best_idx])
@@ -127,6 +127,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], eval_seed: Optiona
     print(f"Output: {log_dir}")
 
     backend_cfg = config.get('backend')
+    backend_cfg['params']['maximize'] = not backend_cfg['params']['maximize'] # заплатка которая фиксит проблему с минимизацией в бейзлайнах
     backend = build_backend(backend_cfg)
         
     # Сбор траектории
@@ -135,8 +136,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], eval_seed: Optiona
         print(f"eval_seed={eval_seed}")
     
     sep_val = algorithm_params.pop("separation_value")
-    print(algorithm_cfg.get("hp_space"))
-    algorithm = algorithm(objective_func = backend._evaluate, gamma_func=lambda n: sep_val, dict_to_optimize = algorithm_cfg.get("hp_space"), **algorithm_params)
+    algorithm = algorithm(objective_func = backend.evaluate, gamma_func=lambda n: sep_val, dict_to_optimize = algorithm_cfg.get("hp_space"), **algorithm_params)
 
     trajectory, final_point = collect_trajectory_alg(algorithm, eval_seed=eval_seed)
     print(f"Points: {len(trajectory)}")
@@ -146,10 +146,10 @@ def run_experiment_with_visualization(config: Dict[str, Any], eval_seed: Optiona
         rewards = [t[1] for t in trajectory]
         if backend.maximize:
             values = rewards
-            best_value = max(values)
+            best_value = min(values)
         else:
             values = [-r for r in rewards]
-            best_value = min(values)
+            best_value = max(values)
 
         if final_point:
             final_value = final_point[1] if backend.maximize else -final_point[1]
