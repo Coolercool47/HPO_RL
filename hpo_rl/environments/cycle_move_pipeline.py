@@ -1,5 +1,4 @@
 from typing import Dict, Any, Optional, List
-import math
 import gymnasium as gym
 import numpy as np
 
@@ -262,7 +261,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
 
             if 'discrete' in info:
                 opts = info['discrete']['choices']
-                val = opts[int(np.clip(math.floor(norm * len(opts)), 0, len(opts) - 1))]
+                val = opts[int(np.clip(np.floor(norm * len(opts)), 0, len(opts) - 1))]
             else:
                 c = info['continuous']
                 lo, hi = c['range']
