@@ -1,4 +1,5 @@
 def initialize_framework():
+    """Инициализация фреймворка."""
 
     from hpo_rl.core import factory
     from hpo_rl.models.simple_cnn import SimpleCNN

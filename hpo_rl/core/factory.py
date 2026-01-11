@@ -1,12 +1,26 @@
-from typing import Type, Dict, Any, Optional
+
+from __future__ import annotations
+
+from typing import Type, Dict, Any, Optional, TYPE_CHECKING
 import torch.optim as optim
 import torch.nn as nn
 
 from hpo_rl.models.base import BaseModel
 from hpo_rl.trainers.base import BaseTrainer
 from hpo_rl.core.builder import OptimizerBuilder, AdamBuilder, SGDBuilder
-from hpo_rl.environments.base_env import BaseHPOEnv
-from hpo_rl.backends.base import EvaluationBackend
+
+
+#from hpo_rl.environments.base_env import BaseHPOEnv
+#from hpo_rl.backends.base import EvaluationBackend
+
+if TYPE_CHECKING:
+    from hpo_rl.environments.base_env import BaseHPOEnv
+    from hpo_rl.backends.base import EvaluationBackend
+
+'''
+Это заглушка, которая решает проблему с циклическим импортом из-за автодокументации Sphinx. Лечится адекватно долго так что пока что так
+'''
+
 
 MODEL_REGISTRY: Dict[str, Type[BaseModel]] = {}
 TRAINER_REGISTRY: Dict[str, Type[BaseTrainer]] = {}

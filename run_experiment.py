@@ -10,10 +10,11 @@ from stable_baselines3 import A2C, DQN, PPO, SAC, TD3
 from stable_baselines3.common.monitor import Monitor
 from sb3_contrib import MaskablePPO, TRPO, RecurrentPPO
 
-from hpo_rl.core.factory import build_backend, build_env
 from hpo_rl.core.register import initialize_framework
-
 initialize_framework()
+
+from hpo_rl.core.factory import build_backend, build_env
+
 
 AGENT_REGISTRY = {
     "A2C": A2C, "DQN": DQN, "PPO": PPO, "SAC": SAC, "TD3": TD3,
