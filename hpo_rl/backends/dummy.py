@@ -1,5 +1,8 @@
 from hpo_rl.backends.base import EvaluationBackend
 from typing import Dict, Any
+
+#TODO: заменить math на numpy
+
 import math
 import logging
 
