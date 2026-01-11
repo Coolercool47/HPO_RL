@@ -1,25 +1,15 @@
 HPO_RL API
 ==========
 
-Backends (Бэкенды оценки)
--------------------------
+Core (Вспомогательные функции и классы)
+---------------------------------------
+
+.. automodule:: hpo_rl.core
+   :show-inheritance:
+
+Backends (Вычислительные бэкенды)
+---------------------------------
 
 .. automodule:: hpo_rl.backends
-   :members:
-   :undoc-members:
    :show-inheritance:
 
-.. autoclass:: hpo_rl.backends.EvaluationBackend
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: hpo_rl.backends.OptimizationBenchmarkBackend
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: hpo_rl.backends.DummyBackend
-   :members:
-   :undoc-members:
-   :show-inheritance:

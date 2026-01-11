@@ -28,6 +28,7 @@ extensions = [
     'sphinx.ext.coverage',  # проверяет покрытие документации
     'sphinx.ext.ifconfig',  # условные операторы
     'sphinx.ext.autosummary',  # генерация заглушек
+    'sphinx.ext.mathjax',  # рендеринг математических формул
     'sphinx_autodoc_typehints',  # подсказки по типам данных
     ]
 
@@ -43,8 +44,20 @@ autodoc_mock_imports = [
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
 
+# Исключаем служебные атрибуты ABC и другие внутренние атрибуты
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'private-members': True,
+    'show-inheritance': True,
+    'exclude-members': '_abc_impl,__weakref__,__dict__,__module__,__doc__,__annotations__,FUNCTIONS,HYPERPARAMETERS'
+}
+
 templates_path = ['_templates']
 exclude_patterns = []
+
+# Подавляем предупреждения о generated файлах, которые не включены в toctree
+suppress_warnings = ['toc.not_included']
 
 language = 'ru'
 
@@ -54,6 +67,8 @@ language = 'ru'
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
+html_css_files = ['custom.css']
+
 html_theme_options = {
     'collapse_navigation': True,
     'sticky_navigation': True,
@@ -61,3 +76,7 @@ html_theme_options = {
     'includehidden': True,
     'titles_only': False,
 }
+
+# Настройка MathJax 3 для корректного отображения формул
+mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
+# MathJax 3 автоматически обрабатывает формулы из Sphinx, дополнительная конфигурация не требуется

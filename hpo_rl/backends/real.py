@@ -1,3 +1,11 @@
+"""Бэкенд для реального обучения моделей.
+
+Модуль содержит :class:`RealTrainingBackend` — бэкенд, который выполняет
+реальное обучение моделей машинного обучения для оценки конфигураций
+гиперпараметров. Подходит для оптимизации гиперпараметров реальных
+моделей (например, нейронных сетей).
+"""
+
 from typing import Dict, Any, Optional, List, Union
 import warnings
 from random import choice
@@ -10,7 +18,47 @@ from hpo_rl.models.base import BaseModel
 
 
 class RealTrainingBackend(EvaluationBackend):
-    """Бэкенд для реального обучения: создание модели -> обучение -> награда."""
+    """Бэкенд для реального обучения моделей.
+
+    Выполняет полный цикл: создание модели → обучение → вычисление награды
+    на основе метрик обучения. Использует кэширование для экономии времени
+    при повторных оценках одинаковых конфигураций.
+
+    Args:
+        model_names: Название модели или список названий. Если список,
+            используется стратегия выбора модели.
+        train_data: DataLoader с обучающими данными.
+        model_choice_strategy: Стратегия выбора модели из списка:
+            ``"random"`` — случайный выбор, ``"sequential"`` — последовательный.
+        val_data: Опциональный DataLoader с валидационными данными.
+        reward_strategy: Стратегия вычисления награды. Поддерживается:
+            ``"neg_final_val_loss"`` — отрицательное значение финального
+            валидационного loss.
+
+    Attributes:
+        model_names: Список названий моделей.
+        model_choice_strategy: Стратегия выбора модели.
+        train_data: Обучающие данные.
+        val_data: Валидационные данные (если заданы).
+        reward_strategy: Стратегия вычисления награды.
+        maximize: Всегда False (минимизируем loss).
+
+    Пример::
+
+        from torch.utils.data import DataLoader
+
+        train_loader = DataLoader(train_dataset, batch_size=32)
+        val_loader = DataLoader(val_dataset, batch_size=32)
+
+        backend = RealTrainingBackend(
+            model_names="simple_cnn",
+            train_data=train_loader,
+            val_data=val_loader,
+            reward_strategy="neg_final_val_loss"
+        )
+
+        reward = backend.evaluate({"trainer": {"epochs": 10, "lr": 0.001}})
+    """
 
     def __init__(
         self,
@@ -20,6 +68,15 @@ class RealTrainingBackend(EvaluationBackend):
         val_data: Optional[DataLoader] = None,
         reward_strategy: str = "neg_final_val_loss"
     ):
+        """Инициализирует RealTrainingBackend.
+
+        Args:
+            model_names: Название модели или список названий.
+            train_data: DataLoader с обучающими данными.
+            model_choice_strategy: Стратегия выбора модели (случайный или последовательный).
+            val_data: Опциональный DataLoader с валидационными данными.
+            reward_strategy: Стратегия вычисления награды.
+        """
         super().__init__(use_cache=True)  # кэш экономит много на повторных конфигах
         self.maximize = False  # минимизируем loss
 
@@ -45,6 +102,20 @@ class RealTrainingBackend(EvaluationBackend):
         self.prev_model_idx = 0
 
     def _evaluate(self, config: Dict[str, Any]) -> float:
+        """Выполняет обучение модели и вычисляет награду.
+
+        Создаёт модель, обучает её на заданных данных и возвращает награду
+        на основе выбранной стратегии. При ошибках возвращает
+        :const:`CATASTROPHIC_FAILURE_REWARD`.
+
+        Args:
+            config: Конфигурация гиперпараметров. Должна содержать ключ
+                ``"trainer"`` с параметрами обучения.
+
+        Returns:
+            Награда (отрицательное значение loss для минимизации).
+            При ошибках возвращает :const:`CATASTROPHIC_FAILURE_REWARD`.
+        """
         try:
             trainer_cfg = config.get("trainer", {})
             model_class = get_model_class(self._get_model_name())
@@ -57,6 +128,16 @@ class RealTrainingBackend(EvaluationBackend):
             return CATASTROPHIC_FAILURE_REWARD
 
     def _calculate_reward(self, model: BaseModel, history: Dict[str, Any], config: Dict[str, Any]) -> float:
+        """Вычисляет награду на основе истории обучения.
+
+        Args:
+            model: Обученная модель.
+            history: Словарь с историей обучения (метрики, loss и т.д.).
+            config: Конфигурация гиперпараметров.
+
+        Returns:
+            Награда на основе выбранной стратегии.
+        """
         if self.reward_strategy == "neg_final_val_loss":
             val_losses = history.get("val_loss_history", [])
             if not val_losses:
@@ -67,6 +148,11 @@ class RealTrainingBackend(EvaluationBackend):
             raise NotImplementedError(f"Неизвестная стратегия награды: {self.reward_strategy}")
 
     def _get_model_name(self) -> str:
+        """Выбирает название модели согласно стратегии.
+
+        Returns:
+            Название модели для использования.
+        """
         if len(self.model_names) == 1:
             return self.model_names[0]
 

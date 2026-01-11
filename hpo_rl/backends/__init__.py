@@ -8,10 +8,12 @@
 - :class:`DummyBackend` — простой бэкенд для отладки
 - :class:`RealTrainingBackend` — реальное обучение моделей
 
-Пример:
-    >>> from hpo_rl.backends import OptimizationBenchmarkBackend
-    >>> backend = OptimizationBenchmarkBackend("rastrigin", dimensions=2)
-    >>> reward = backend.evaluate({"x0": 0.0, "x1": 0.0})
+Пример::
+
+    from hpo_rl.backends import OptimizationBenchmarkBackend
+
+    backend = OptimizationBenchmarkBackend("rastrigin", dimensions=2)
+    reward = backend.evaluate({"x0": 0.0, "x1": 0.0})
 """
 
 from hpo_rl.backends.base import EvaluationBackend, CATASTROPHIC_FAILURE_REWARD

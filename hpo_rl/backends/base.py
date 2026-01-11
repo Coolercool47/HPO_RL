@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Tuple
 
 CATASTROPHIC_FAILURE_REWARD: float = -1e9
-"""Большой штраф при сбое (ошибка обучения, невалидные параметры)."""
+"""Большой штраф при сбое (ошибка обучения, некорректные параметры)."""
 
 
 class EvaluationBackend(ABC):
@@ -18,20 +18,20 @@ class EvaluationBackend(ABC):
     оценку (награду). Поддерживает кэширование результатов.
 
     Args:
-        use_cache: Включить кэширование результатов. Полезно для
-            детерминированных функций, экономит повторные вычисления.
+        use_cache: Включить кэширование результатов.
 
     Attributes:
         maximize: Направление оптимизации, True — максимизация (для метрик, таких как accuracy), False — минимизация (для функций потерь).
         use_cache: Флаг использования кэша.
 
-    Пример:
-        >>> class MyBackend(EvaluationBackend):
-        ...     def _evaluate(self, config):
-        ...         return -sum(v**2 for v in config.values())
-        >>> backend = MyBackend(use_cache=True)
-        >>> backend.evaluate({"x": 1.0, "y": 2.0})
-        -5.0
+    Пример::
+
+        class MyBackend(EvaluationBackend):
+            def _evaluate(self, config):
+                return -sum([v**2 for v in config.values()])
+
+        backend = MyBackend(use_cache=True)
+        result = backend.evaluate({"x": 1.0, "y": 2.0})  # -5.0
 
     Note:
         Подклассы должны реализовать метод :meth:`_evaluate`.
@@ -52,8 +52,8 @@ class EvaluationBackend(ABC):
     def evaluate(self, config: Dict[str, Any]) -> float:
         """Оценивает конфигурацию гиперпараметров.
 
-        Если кэширование включено, сначала проверяет кэш.
-        Иначе вызывает :meth:`_evaluate`.
+        Если кэширование включено, сначала проверяет кэш, если результат найден, возвращает его.
+        Иначе вызывает непосредственно метод для оценки: meth:`_evaluate`.
 
         Args:
             config: Словарь гиперпараметров ``{"имя": значение, ...}``.
