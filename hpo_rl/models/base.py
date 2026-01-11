@@ -20,9 +20,6 @@ class BaseModel(ABC, nn.Module):
 
     @classmethod
     def from_config(cls, config: Dict[str, Any]):
-        """
-        Конструктор класса для модели, принимающий словарь гиперпараметров
-        """
         init_kwargs = {}
         for param_name, meta in cls.HYPERPARAMETERS.items():
             if param_name in config:

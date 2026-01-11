@@ -13,11 +13,8 @@ environment:
   params:
     num_bins: 300  # Значительно увеличено для более точного поиска и лучшего transfer learning
     max_steps: 1000  # Больше шагов для исследования пространства
-    sparse_reward: false
     reward_mode: "per_step"  # Reward после каждого шага
     step_sizes: [25, 5, 1]  # Ограничено до 1, 5, и 25
-    step_size_penalty_coef: 0.0  # Отключён
-    adaptive_step_penalty: false
     use_history: false  # ВАЖНО: Минимальный obs для RecurrentPPO + prev_reward для RL² адаптации
   hp_space:
     x0:
