@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional
-import math
+
 
 import gymnasium as gym
 import numpy as np
@@ -73,7 +73,7 @@ class DiscretizedPipelineEnv(BaseHPOEnv):
         if param_type == 'discrete':
             options = param_info['discrete']['choices']
             num_options = len(options)
-            choice_index = min(math.floor(normalized_value * num_options), num_options - 1)
+            choice_index = min(np.floor(normalized_value * num_options), num_options - 1)
 
             # Сохраняем нормализованный индекс для observation
             self.chosen_values[self.current_step] = choice_index / max(num_options - 1, 1)

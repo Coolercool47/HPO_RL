@@ -1,9 +1,7 @@
 from hpo_rl.backends.base import EvaluationBackend
 from typing import Dict, Any
 
-#TODO: заменить math на numpy
-
-import math
+import numpy as np
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,4 +58,4 @@ class DummyBackend(EvaluationBackend):
             return 0.0
 
         mse = total_dist / count
-        return math.exp(-mse)
+        return np.exp(-mse)
