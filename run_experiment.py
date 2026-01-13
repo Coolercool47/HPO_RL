@@ -10,12 +10,12 @@ from stable_baselines3 import A2C, DQN, PPO, SAC, TD3
 from stable_baselines3.common.monitor import Monitor
 from sb3_contrib import MaskablePPO, TRPO, RecurrentPPO
 
+from hpo_rl.core.factory import build_backend, build_env
 from hpo_rl.core.register import initialize_framework
+
 initialize_framework()
 
-from hpo_rl.core.factory import build_backend, build_env
-
-
+# Это в допустимые значения
 AGENT_REGISTRY = {
     "A2C": A2C, "DQN": DQN, "PPO": PPO, "SAC": SAC, "TD3": TD3,
     "TRPO": TRPO, "MaskablePPO": MaskablePPO, "RecurrentPPO": RecurrentPPO,
@@ -23,7 +23,7 @@ AGENT_REGISTRY = {
 
 RECURRENT_ALGORITHMS = {"RecurrentPPO"}
 
-
+# Это в допустимые значения
 def generate_benchmark_hp_space(backend) -> Dict[str, Any]:
     hp_space = {}
     if hasattr(backend, 'dimensions') and hasattr(backend, 'bounds'):
@@ -33,7 +33,7 @@ def generate_benchmark_hp_space(backend) -> Dict[str, Any]:
             }
     return hp_space
 
-
+# В управление
 def _extract_point(info: Dict[str, Any]) -> Optional[Tuple[float, float, float]]:
     """Извлекает (x0, x1, reward) из info."""
     config = info.get("current_config", {})
@@ -42,7 +42,7 @@ def _extract_point(info: Dict[str, Any]) -> Optional[Tuple[float, float, float]]
         return (config["x0"], config["x1"], reward)
     return None
 
-
+# В управление
 def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
                        eval_seed: Optional[int] = None) -> Tuple[List[Tuple[float, float, float]], Optional[Tuple[float, float, float]]]:
     """Собирает траекторию поиска, выбирает эпизод с максимальной наградой."""
@@ -110,7 +110,7 @@ def collect_trajectory(agent, env, agent_name: str, num_episodes: int = 1,
 
     return best["trajectory"], best["final_point"]
 
-
+# Это плот
 def visualize_2d_trajectory(backend, trajectory: List[Tuple[float, float, float]],
                            eval_mode: str = "best",
                            final_point: Optional[Tuple[float, float, float]] = None,
@@ -209,7 +209,7 @@ def _get_attr(obj, attr, default=None):
     except (TypeError, ValueError):
         return default
 
-
+# Тут все плохо
 def _get_ent_coef(agent) -> float:
     val = _get_attr(agent, 'ent_coef')
     if val is not None:
@@ -220,7 +220,7 @@ def _get_ent_coef(agent) -> float:
             return val
     return 0.01
 
-
+# Тут все плохо
 def _get_learning_rate(agent) -> float:
     val = _get_attr(agent, 'learning_rate')
     if val is not None:
@@ -229,7 +229,7 @@ def _get_learning_rate(agent) -> float:
         return agent.lr_schedule.initial_value
     return 0.0003
 
-
+# Тут все плохо
 def _set_ent_coef(agent, value: float):
     if hasattr(agent, 'ent_coef'):
         try:
@@ -237,7 +237,7 @@ def _set_ent_coef(agent, value: float):
         except Exception as e:
             print(f"Warning: could not set ent_coef: {e}")
 
-
+# Тут все плохо
 def _set_learning_rate(agent, value: float):
     if hasattr(agent, 'policy') and hasattr(agent.policy, 'optimizer'):
         for pg in agent.policy.optimizer.param_groups:
@@ -263,7 +263,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     if output_dir:
         log_dir = output_dir
     else:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S") 
         folder = f"{ts}_{run_name}" if run_name else ts
         log_dir = os.path.join("logs", agent_name, folder)
     os.makedirs(log_dir, exist_ok=True)
@@ -275,11 +275,11 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     if backend.dimensions != 2:
         print(f"Warning: {backend.dimensions}D task, visualization is for 2D")
 
-    hp_space = config.get('hp_space') or generate_benchmark_hp_space(backend)
+    hp_space = config.get('hp_space') or generate_benchmark_hp_space(backend) # Убрать generate_benchmark_hp_space
     env_cfg = config.get('environment')
 
     # Transfer learning настройки
-    if transfer_learning and pretrained_model_path:
+    if transfer_learning and pretrained_model_path: #Выпилить transfer_learning (В управление)
         env_cfg.setdefault('params', {})
         if is_recurrent:
             env_cfg['params']['use_history'] = False
@@ -292,7 +292,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             env_cfg['params'].setdefault('reward_mode', 'per_step')
 
     # TD3/SAC требуют continuous actions
-    if agent_name in ["TD3", "SAC"]:
+    if agent_name in ["TD3", "SAC"]: #В управление
         env_cfg.setdefault('params', {})
         env_cfg['params']['action_type'] = "continuous"
         env_cfg['params'].setdefault('max_step_bins', 30)
@@ -300,7 +300,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
         print(f"{agent_name}: forced continuous actions + MultiInputPolicy")
 
     # Создание среды
-    n_envs = agent_cfg.get('params', {}).get('n_envs', 1)
+    n_envs = agent_cfg.get('params', {}).get('n_envs', 1) #В управление
     if n_envs > 1:
         from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
         env = DummyVecEnv([lambda: build_env(env_cfg, backend=backend, hp_space=hp_space) for _ in range(n_envs)])
@@ -308,7 +308,9 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     else:
         env = build_env(env_cfg, backend=backend, hp_space=hp_space)
 
-    function_name = backend_cfg.get('params', {}).get('function_name', 'unknown')
+    function_name = backend_cfg.get('params', {}).get('function_name', 'unknown') #Тут все плохо
+
+    # В outputs (script)
     if transfer_learning:
         log_suffix = f"{function_name}_transfer_finetune{fine_tune_steps}" if fine_tune_steps else f"{function_name}_transfer"
     else:
@@ -317,6 +319,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     log_path = os.path.join(log_dir, log_suffix)
     monitor_kwargs = {"info_keywords": ("best_metric", "best_config", "current_metric", "current_config")}
 
+    # В управление
     if n_envs > 1:
         from stable_baselines3.common.vec_env import VecMonitor
         env = VecMonitor(env, filename=log_path, **monitor_kwargs)
@@ -324,24 +327,25 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
         env = Monitor(env, filename=log_path, **monitor_kwargs)
 
     agent_class = AGENT_REGISTRY[agent_name]
-
-    if pretrained_model_path and os.path.exists(pretrained_model_path):
+    
+    #В управление
+    if pretrained_model_path and os.path.exists(pretrained_model_path): #Мне не нравится (допустимые значения)
         print(f"Loading: {pretrained_model_path}")
         agent = agent_class.load(pretrained_model_path, env=env)
-
-        if transfer_learning:
+        
+        if transfer_learning: # Почему тут нет device?!??!
             print(f"Transfer to: {function_name}")
 
-            orig_ent = _get_ent_coef(agent) or 0.01
-            orig_lr = _get_learning_rate(agent)
-            new_ent = orig_ent * exploration_boost
-            new_lr = orig_lr * 2.0
+            orig_ent = _get_ent_coef(agent) or 0.01 #Тут все плохо
+            orig_lr = _get_learning_rate(agent) #Тут все плохо
+            new_ent = orig_ent * exploration_boost #Не понимаю, что происходит
+            new_lr = orig_lr * 2.0 #Не понимаю, что происходит (2.0?!?!?!?)
 
             print(f"ent_coef: {orig_ent:.4f} -> {new_ent:.4f}, lr: {orig_lr:.6f} -> {new_lr:.6f}")
 
             if fine_tune_steps > 0:
-                _set_ent_coef(agent, new_ent)
-                _set_learning_rate(agent, new_lr)
+                _set_ent_coef(agent, new_ent) #Тут все плохо
+                _set_learning_rate(agent, new_lr) #Тут все плохо
                 print(f"Fine-tuning {fine_tune_steps} steps...")
                 agent.learn(total_timesteps=fine_tune_steps, reset_num_timesteps=False, progress_bar=False)
             else:
@@ -359,7 +363,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
             device = 'cpu'
         print(f"Device: {device}")
 
-        agent_params = agent_cfg.get('params', {}).copy()
+        agent_params = agent_cfg.get('params', {}).copy() #copy?
         agent_params['device'] = device
         agent_params.pop('n_envs', None)
 
@@ -371,13 +375,13 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
 
         save_path = config.get('save_path')
         if save_path:
-            if not save_path.endswith('.zip'):
+            if not save_path.endswith('.zip'): #.rar.zip
                 save_path += '.zip'
             model_path = os.path.join(log_dir, save_path)
             agent.save(model_path)
             print(f"Model saved: {model_path}")
 
-    # Сбор траектории
+    # Сбор траектории (Это script)
     print("Collecting trajectory...")
     if eval_seed is not None:
         print(f"eval_seed={eval_seed}")
@@ -387,7 +391,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     print(f"Points: {len(trajectory)}")
 
     if trajectory:
-        rewards = [t[2] for t in trajectory]
+        rewards = [t[2] for t in trajectory] #Заменить на dict
         if backend.maximize:
             values = rewards
             best_value = max(values)
@@ -417,7 +421,7 @@ def run_experiment_with_visualization(config: Dict[str, Any], pretrained_model_p
     else:
         print("Failed to collect trajectory")
 
-
+# Тут все менять
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="HPO-RL 2D Optimization with Visualization and Transfer Learning",
