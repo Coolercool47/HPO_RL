@@ -5,6 +5,15 @@ import torch
 from pathlib import Path
 from datetime import datetime
 
+# Пофиксить max/mix
+# Сделать документацию
+# Потыкать Real
+# Составить Ipynb
+# Доделать конфиги
+# Инсталлятор/Деинсталлятор
+# requirements.txt
+# Readme.md
+
 def run_experiment(config):
     parsed_config = check(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

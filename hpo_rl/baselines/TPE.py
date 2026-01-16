@@ -2,13 +2,13 @@ import numpy as np
 from scipy.stats import norm
 
 class TPE:
-    def __init__(self, objective_func, N_init, N_s, budget, dict_to_optimize, gamma_func):
+    def __init__(self, objective_func, N_init, N_s, budget, dict_to_optimize, separation_value):
         self.objective_func = objective_func
         self.N_init = N_init
         self.N_s = N_s  
         self.budget = budget
         self.dict_to_optimize = dict_to_optimize
-        self.gamma_func = gamma_func
+        self.gamma_func = lambda x: separation_value
         self.data = []
 
     def initialize(self):

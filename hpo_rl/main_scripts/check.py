@@ -58,7 +58,6 @@ def check(config):
     alg_params = {}
 
     if algorithm_name in alg_config.get("algorithms").get("RL"):
-
         mode = "RL"
         algorithm_class = ALGORITHMS.get(algorithm_name)
         for key, value in config.get("algorithm").items():
@@ -105,7 +104,10 @@ def check(config):
             raise
         min_value = functions_config.get("functions").get(function_name).get("min")
         max_value = functions_config.get("functions").get(function_name).get("max")
-        env_params["hp_space"] = {f"x{i}": {"range": (min_value, max_value), "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
+        if mode == "RL":
+            env_params["hp_space"] = {f"x{i}": {"range": (min_value, max_value), "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
+        elif mode == "baseline":
+            alg_params["dict_to_optimize"] = {f"x{i}": {"values": (min_value, max_value), "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
     
     elif backend_name == "real":
         backend_class = BACKENDS.get(backend_name)
