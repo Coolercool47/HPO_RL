@@ -47,11 +47,12 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self.num_hyperparams = len(self.hp_names)
         self.history_len = self.history_cycles * self.num_hyperparams
 
-        self.param_types = []
-        for name in self.hp_names:
-            info = self.hp_space_config[name]
-            self.param_types.append('discrete' if 'discrete' in info else 'continuous')
-
+        # self.param_types = []
+        # for name in self.hp_names:
+        #     info = self.hp_space_config[name]
+        #     self.param_types.append('discrete' if 'discrete' in info else 'continuous')
+        # print("="*25)
+        # print(info)
         self._init_action_space(step_sizes)
         self._init_observation_space()
         self._init_state()
@@ -66,6 +67,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
                     1
                 ]
             else:
+                # print(step_sizes)
                 self.step_sizes = sorted(step_sizes, reverse=True)
             # шаги с минусом + на месте + шаги с плюсом
             self.num_actions = 2 * len(self.step_sizes) + 1
@@ -258,19 +260,20 @@ class CyclicPipelineEnv(BaseHPOEnv):
             idx = self.current_indices[i]
             norm = self.action_grid[idx]
             info = self.hp_space_config[name]
+            # print(info)
 
-            if 'discrete' in info:
-                opts = info['discrete']['choices']
-                val = opts[int(np.clip(np.floor(norm * len(opts)), 0, len(opts) - 1))]
-            else:
-                c = info['continuous']
-                lo, hi = c['range']
-                if c.get('log', False):
+            if 'float' in info.get("type"):
+                # c = info['type']
+                lo, hi = info['range']
+                if info.get('log', False):
                     val = np.exp(np.log(lo) + norm * (np.log(hi) - np.log(lo)))
                 else:
                     val = lo + norm * (hi - lo)
-                if c.get('type') == 'int':
+                if info.get('type') == 'int':
                     val = int(round(val))
+            else: # Тут все плохо
+                opts = info['discrete']['choices']
+                val = opts[int(np.clip(np.floor(norm * len(opts)), 0, len(opts) - 1))]
 
             self.final_config_options[name] = val
 

@@ -74,9 +74,9 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
     def __init__(
         self,
         function_name: FUNCTIONS = "rastrigin",
-        dimensions: int = 6,
+        dimensions: int = 2,
         noise_std: float = 0.0,
-        maximize: bool = True,
+        maximize: bool = False,
         use_cache: bool = True
     ):
         """Инициализирует OptimizationBenchmarkBackend.

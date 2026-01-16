@@ -1,0 +1,4 @@
+models:
+  simple_cnn:
+    name: simple_cnn
+    hyps: [learning_rate, n_params, num_classes]

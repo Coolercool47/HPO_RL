@@ -1,0 +1,111 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from datetime import datetime
+
+class plot():
+    def __init__(self, history, best_result, save_path, backend):
+        self.history = history
+        self.best_result = best_result
+        self.save_path = save_path
+        self.backend = backend
+        
+    def set_history(self):
+        pass
+
+    def plot_3d(self):
+        # print(self.history)
+        x0_vals = [t[0]["x0"] for t in self.history]
+        x1_vals = [t[0]["x1"] for t in self.history]
+        rewards = [t[-1] for t in self.history]
+        metrics = rewards if self.backend.maximize else [-r for r in rewards]
+
+        # Сетка для contour/surface
+        bounds = self.backend.bounds
+        grid = np.linspace(bounds[0], bounds[1], 100)
+        X0, X1 = np.meshgrid(grid, grid)
+
+        Z = np.zeros_like(X0)
+        for i in range(X0.shape[0]):
+            for j in range(X0.shape[1]):
+                val = self.backend.evaluate({"x0": X0[i, j], "x1": X1[i, j]})
+                Z[i, j] = val if self.backend.maximize else -val
+
+        fig, (ax1, _) = plt.subplots(1, 2, figsize=(16, 6))
+
+        contour = ax1.contour(X0, X1, Z, levels=20, cmap='viridis', alpha=0.6)
+        ax1.clabel(contour, inline=True, fontsize=8)
+        ax1.contourf(X0, X1, Z, levels=20, cmap='viridis', alpha=0.3)
+
+        ax1.plot(x0_vals, x1_vals, 'r-', linewidth=2, alpha=0.7, label='Trajectory')
+        ax1.scatter(x0_vals[0], x1_vals[0], c='green', s=100, marker='o',
+                    label='Start', zorder=5, edgecolors='black', linewidths=2)
+        ax1.scatter(x0_vals[-1], x1_vals[-1], c='red', s=100, marker='*',
+                    label='End', zorder=5, edgecolors='black', linewidths=2)
+
+        best_idx = np.argmax(metrics) if self.backend.maximize else np.argmin(metrics)
+        ax1.scatter(x0_vals[best_idx], x1_vals[best_idx], c='yellow', s=150,
+                    marker='X', label='Best', zorder=5, edgecolors='black', linewidths=2)
+        marker_coords = (x0_vals[best_idx], x1_vals[best_idx])
+        marker_value = metrics[best_idx]
+
+        opt_type = "max" if self.backend.maximize else "min"
+        # print(opt_type)
+        ax1.set_xlabel('x0')
+        ax1.set_ylabel('x1')
+        ax1.set_title(f'Trajectory on contour ({opt_type})')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        ax1.set_aspect('equal')
+
+        # 3D поверхность
+        ax2 = fig.add_subplot(122, projection='3d')
+        ax2.plot_surface(X0, X1, Z, cmap='viridis', alpha=0.6, linewidth=0, antialiased=True)
+
+        ax2.plot(x0_vals, x1_vals, metrics, 'r-', linewidth=2, alpha=0.8, label='Trajectory')
+        ax2.scatter(x0_vals[0], x1_vals[0], metrics[0], c='green', s=100,
+                    marker='o', label='Start', edgecolors='black', linewidths=2)
+        ax2.scatter(x0_vals[-1], x1_vals[-1], metrics[-1], c='red', s=100,
+                    marker='*', label='End', edgecolors='black', linewidths=2)
+        ax2.scatter(*marker_coords, marker_value, c='yellow', s=150, marker='X',
+                    label='Best/Final', edgecolors='black', linewidths=2)
+
+        ax2.set_xlabel('x0')
+        ax2.set_ylabel('x1')
+        ax2.set_zlabel(f'Value ({opt_type})')
+        ax2.set_title(f'3D trajectory ({opt_type})')
+        ax2.legend()
+
+        plt.tight_layout()
+        temp_path = self.save_path / f"3d"
+        plt.savefig(temp_path, dpi=150, bbox_inches='tight')
+        print(f"Saved: {temp_path}")
+        plt.close()
+
+
+    def plot_trajectory(self):
+        history_scores = [d[-1] for d in self.history]
+        iterations = range(1, len(history_scores) + 1)
+        
+        best_so_far = np.minimum.accumulate(history_scores)
+        
+        plt.figure(figsize=(10, 5))
+        
+        plt.plot(iterations, history_scores, marker='o', linestyle='-', color='blue', 
+                alpha=0.3, label='Current Iteration Score')
+        
+        plt.plot(iterations, best_so_far, color='red', linewidth=2, label='Best Score So Far')
+        
+        plt.title("Optimization History (Convergence Plot)")
+        plt.xlabel("Iteration")
+        plt.ylabel("Objective Score")
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+        plt.legend()
+        
+        plt.yscale('symlog') 
+        
+        plt.tight_layout()
+        temp_path = self.save_path/ f"trajectory"
+        plt.savefig(temp_path , dpi=150, bbox_inches='tight')
+        print(f"Saved: {temp_path}")
+        plt.close()
+        # добавить сохранение
