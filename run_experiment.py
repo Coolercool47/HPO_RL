@@ -50,4 +50,19 @@ if __name__ == "__main__":
         "dimensions": 2
     }
     }
-    run_experiment(config)
+
+    config_TPE = {
+    "backend": {
+        "name": "function",
+        "function": "rastrigin",
+        "dimensions": 2
+    },
+    "algorithm": {
+        "name": "TPE",
+        "N_init": 10,
+        "N_s": 10,
+        "budget": 100,
+        "separation_value": 0.2
+    }
+    }
+    run_experiment(config_TPE)
