@@ -34,19 +34,19 @@ if __name__ == "__main__":
         "gamma": 0.95,
         "learning_rate": 0.001,
         "total_timesteps": 10000,
-        "inference_timesteps": 50,
+        "inference_timesteps": 100,
         "policy": "MultiInputPolicy"
     },
     "env": {
         "name": "cycle_move_pipeline",
         "num_bins": 300,
-        "max_steps": 20,
+        "max_steps": 100,
         "reward_mode": "per_step",
         "step_sizes": [1, 5, 25]
     },
     "backend": {
         "name": "function",
-        "function": "rastrigin",
+        "function": "goldstein_price",
         "dimensions": 2
     }
     }

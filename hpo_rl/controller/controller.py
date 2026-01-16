@@ -1,4 +1,5 @@
 from hpo_rl.controller.parallelization import parallelization
+import numpy as np
 
 class controller():
     def __init__(self, device, mode, backend, algorithm, env = None, save = None, load = None):
@@ -64,12 +65,14 @@ class controller():
             env = self.algorithm.env
             obs = env.reset()
             for _ in range(self.inference_timesteps):
-                action, _states = self.algorithm.predict(obs, deterministic = True)
-                obs, _rewards, _dones, infos = env.step(action)
+                action, _states = self.algorithm.predict(obs, deterministic=True)
+                obs, _rewards, done, infos = env.step(action)
                 info = infos[0]
                 config = info.get("current_config")
                 metric = info.get("current_metric")
-                print([config, metric])
+                if done:
+                    print("DONE")
+                    break
                 self.history.append([config, metric])
 
         elif self.mode == "baseline":

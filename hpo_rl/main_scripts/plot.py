@@ -83,7 +83,7 @@ class plot():
 
 
     def plot_trajectory(self):
-        history_scores = [d[-1] for d in self.history]
+        history_scores = [d[-1] for d in self.history] # надо фикс который будет проверять что maximize или minimize
         iterations = range(1, len(history_scores) + 1)
         
         best_so_far = np.minimum.accumulate(history_scores)

@@ -2,7 +2,9 @@ functions:
   rastrigin: 
     min: -5.12
     max: 5.12
-  sphere: sphere
+  sphere: 
+    min: -5.12
+    max: 5.12
   rosenbrock: rosenbrock
   ackley: ackley
   griewank: griewank
@@ -12,6 +14,8 @@ functions:
   nondiff: nondiff
   booth: booth
   beale: beale
-  goldstein_price: goldstein_price
+  goldstein_price:
+    min: -2.0
+    max: 2.0
   shifted_sphere: shifted_sphere
   shifted_rastrigin: shifted_rastrigin
