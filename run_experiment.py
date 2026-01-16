@@ -13,6 +13,7 @@ from datetime import datetime
 # Инсталлятор/Деинсталлятор
 # requirements.txt
 # Readme.md
+# Сделать картинки в формате Latex
 
 def run_experiment(config):
     parsed_config = check(config)
