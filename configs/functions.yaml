@@ -1,0 +1,16 @@
+functions:
+  rastrigin: rastrigin
+  sphere: sphere
+  rosenbrock: self._rosenbrock
+  rastrigin: self._rastrigin
+  ackley: self._ackley
+  griewank: self._griewank
+  schwefel: self._schwefel
+  levy: self._levy
+  michalewicz: self._michalewicz
+  nondiff: self._nondiff
+  booth: self._booth
+  beale: self._beale
+  goldstein_price: self._goldstein_price
+  shifted_sphere: self._shifted_sphere
+  shifted_rastrigin: self._shifted_rastrigin
