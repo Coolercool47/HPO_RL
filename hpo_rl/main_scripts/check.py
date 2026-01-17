@@ -11,6 +11,8 @@ from hpo_rl.baselines.BOHB import BOHB
 from hpo_rl.baselines.TPE import TPE
 from hpo_rl.baselines.hyperband import hyperband
 
+from hpo_rl.models.simple_cnn import SimpleCNN
+
 from hpo_rl.environments.cycle_move_pipeline import CyclicPipelineEnv
 
 ALGORITHMS = {
@@ -29,6 +31,10 @@ BASELINES = {
 
 ENVS = {
     "cycle_move_pipeline": CyclicPipelineEnv
+}
+
+MODELS = {
+    "simle_cnn": SimpleCNN
 }
 
 def check(config):
@@ -111,6 +117,14 @@ def check(config):
     
     elif backend_name == "real":
         backend_class = BACKENDS.get(backend_name)
+        backend_config = config.get("backend")
+        # TODO сделать проверки
+        backend_params = {"model": backend_config.get("model"), "trainer": backend_config.get("trainer"), "data_processor": backend_config.get("data_processor"), "hp_space": backend_config.get("hp_space")}
+        if mode == "RL":
+            env_params["hp_space"] = backend_config.get("hp_space")
+        elif mode == "baseline":
+            alg_params["dict_to_optimize"] = backend_config.get("hp_space")
+
     else:
         raise
     

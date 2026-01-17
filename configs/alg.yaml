@@ -25,6 +25,29 @@ algorithms:
         type: categorical
         values: MultiInputPolicy
     RecurrentPPO:
+      verbose: 
+        type: int
+        min: 0
+        max: 2
+      gamma: 
+        type: float
+        min: 0
+        max: 1
+      learning_rate: 
+        type: float
+        min: 0
+        max: 1
+      total_timesteps:
+        type: int
+        min: 1
+        max: .inf
+      inference_timesteps:
+        type: int
+        min: 1
+        max: .inf
+      policy:
+        type: categorical
+        values: MultiInputLstmPolicy
     SAC:
     DQN:
     TRPO:

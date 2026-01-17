@@ -3,8 +3,8 @@ functions:
     min: -5.12
     max: 5.12
   sphere: 
-    min: -5.12
-    max: 5.12
+    min: -5
+    max: 5
   rosenbrock: rosenbrock
   ackley: ackley
   griewank: griewank

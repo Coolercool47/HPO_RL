@@ -21,7 +21,8 @@ class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
+    
+    # получать гиперпараметры из конфига добавить
     def train(self, model: nn.Module,
               train_data: DataLoader, val_data: Optional[DataLoader] = None) -> Tuple[nn.Module, Dict[str, Any]]:
         model.to(self.device)

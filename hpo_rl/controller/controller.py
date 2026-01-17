@@ -16,8 +16,8 @@ class controller():
         self.device = device
 
         backend_class = backend.get("class")
-        self.backend = backend_class(**(backend.get("params"))) 
-
+        print(backend.get("params"))
+        self.backend = backend_class(**(backend.get("params")))
         if self.mode == "RL":
 
             self.save_loc = save
@@ -34,8 +34,7 @@ class controller():
 
             if not load_bool:
                 env_class = env.get("class")
-                print(env.get("params"))
-                self.env = env_class(backend = self.backend, **(env.get("params")))
+                self.env = env_class(backend=self.backend, **(env.get("params")))
 
                 self.total_timesteps = algorithm.get("params").pop("total_timesteps")
                 self.inference_timesteps = algorithm.get("params").pop("inference_timesteps")
