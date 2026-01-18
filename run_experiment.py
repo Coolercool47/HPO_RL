@@ -15,7 +15,6 @@ from hpo_rl.data_processing.processors import pytorch_mnist_processor
 
 # Пофиксить max/mix
 # Сделать документацию
-# Потыкать Real
 # Составить Ipynb
 # Доделать конфиги
 # Инсталлятор/Деинсталлятор
