@@ -145,6 +145,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
         return self._get_obs(), self._get_info()
 
     def step(self, action):
+        print(action)
         param_idx = self.cursor_idx
         old_idx = self.current_indices[param_idx]
 
@@ -178,7 +179,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
     def _apply_action(self, action, old_idx):
         """Возвращает (new_idx, step_size, delta_idx)."""
         if self.action_type == "discrete":
-            action = int(action)
+            # action = int(action)
             n = len(self.step_sizes)
             if action == n:
                 return old_idx, 0, 0

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, ScalarFormatter
 import numpy as np
 from datetime import datetime
 
@@ -83,29 +84,45 @@ class plot():
 
 
     def plot_trajectory(self):
-        history_scores = [d[-1] for d in self.history] # надо фикс который будет проверять что maximize или minimize
+        history_scores = [d[-1] for d in self.history]
         iterations = range(1, len(history_scores) + 1)
         
-        best_so_far = np.minimum.accumulate(history_scores)
+        is_minimize = getattr(self, 'minimize', True) 
         
-        plt.figure(figsize=(10, 5))
+        if is_minimize:
+            best_so_far = np.minimum.accumulate(history_scores)
+            label_best = 'Best Score (Min)'
+        else:
+            best_so_far = np.maximum.accumulate(history_scores)
+            label_best = 'Best Score (Max)'
         
-        plt.plot(iterations, history_scores, marker='o', linestyle='-', color='blue', 
-                alpha=0.3, label='Current Iteration Score')
-        
-        plt.plot(iterations, best_so_far, color='red', linewidth=2, label='Best Score So Far')
-        
-        plt.title("Optimization History (Convergence Plot)")
-        plt.xlabel("Iteration")
-        plt.ylabel("Objective Score")
-        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-        plt.legend()
-        
-        plt.yscale('symlog') 
-        
+        plt.figure(figsize=(10, 6))
+
+        plt.plot(iterations, history_scores, marker='o', markersize=4, linestyle='-', color='blue', 
+                alpha=0.3, label='Iteration Score $f(x)$')
+
+        plt.plot(iterations, best_so_far, color='red', linewidth=2, label=label_best)
+
+        plt.title(f"Optimization History ({'Minimization' if is_minimize else 'Maximization'})", fontsize=14)
+        plt.xlabel("Iteration", fontsize=12)
+        plt.ylabel("Objective function", fontsize=12) 
+
+        plt.yscale('linear') 
+
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+
+        y_formatter = ScalarFormatter(useOffset=False)
+        y_formatter.set_scientific(False) 
+        plt.gca().yaxis.set_major_formatter(y_formatter)
+
+        plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        plt.legend(frameon=True, loc='upper right')
         plt.tight_layout()
-        temp_path = self.save_path/ f"trajectory"
-        plt.savefig(temp_path , dpi=150, bbox_inches='tight')
+
+        # Сохранение
+        temp_path = self.save_path / "trajectory.png"
+        plt.savefig(temp_path, dpi=150, bbox_inches='tight')
         print(f"Saved: {temp_path}")
         plt.close()
         # добавить сохранение

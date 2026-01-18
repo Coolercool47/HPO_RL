@@ -37,14 +37,12 @@ def run_experiment(config):
 
     expreiment_controller = controller(device=device, **parsed_config)
     if mode == "RL":
-        # print("aaaaa")
         expreiment_controller.train()
-        # print("bbbb")
     best_result = expreiment_controller.inference()
     history = expreiment_controller.return_history()
     
     graphics = plot(history, best_result, save_path, expreiment_controller.backend)
-    #graphics.plot_3d()
+    # print(history)
     graphics.plot_trajectory()
 
 class SimpleCNN(nn.Module):
@@ -123,7 +121,7 @@ def objective_function(config, dict_config, num_epochs):
     avg_val_loss = val_loss / len(val_loader)
     val_accuracy = correct / len(val_dataset)
 
-    # print(f"Config: {param_values}, Epochs: {int(r_i)}, ValLoss: {avg_val_loss:.4f}, ValAcc: {val_accuracy:.4f}")
+    # print(f"Config: {param_values}, ValLoss: {avg_val_loss:.4f}, ValAcc: {val_accuracy:.4f}")
 
     return avg_val_loss
 
@@ -136,10 +134,10 @@ if __name__ == "__main__":
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 2,
-        "inference_timesteps": 2,
-        "n_steps": 2,
-        "batch_size": 2,
+        "total_timesteps": 5,
+        "inference_timesteps": 5,
+        "n_steps": 5,
+        "batch_size": 5,
         "policy": "MultiInputPolicy"
     },
     "env": {
