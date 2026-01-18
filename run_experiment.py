@@ -93,14 +93,16 @@ if __name__ == "__main__":
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 10000,
-        "inference_timesteps": 100,
+        "total_timesteps": 4,
+        "inference_timesteps": 4,
+        "n_steps": 2,
+        "batch_size": 2,
         "policy": "MultiInputPolicy"
     },
     "env": {
         "name": "cycle_move_pipeline",
         "num_bins": 300,
-        "max_steps": 100,
+        "max_steps": 2,
         "reward_mode": "per_step",
         "step_sizes": [1, 5, 25]
     },
@@ -124,7 +126,7 @@ if __name__ == "__main__":
             "optimizer": {
                 "refers_to": "train_loop",
                 "type": "categorical",
-                "values": [optim.SGD, optim.Adam],
+                "values": ["SGD", "Adam"],
                 "dependencies": ["learning_rate"]
             },
             "criterion": {
@@ -141,4 +143,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_experiment(config)
+    run_experiment(config_real)

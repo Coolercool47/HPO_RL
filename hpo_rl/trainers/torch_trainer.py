@@ -33,7 +33,7 @@ class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
         
         defdict_config = defaultdict(dict)
         
-        print("config:", config)
+        # print("config:", config)
 
         for key, meta in self.hp_space.items():
             target = meta.get("refers_to")
@@ -47,7 +47,6 @@ class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
         model = model(**(parsed_config.get("model")))
         model.to(self.device)
 
-        
         optimizer = build_optimizer(model, {"optimizer": optimizer_name})
         criterion = get_criterion_instance(criterion_name)
         # добавить scheduler

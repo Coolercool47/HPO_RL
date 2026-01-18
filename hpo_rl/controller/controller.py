@@ -68,10 +68,11 @@ class controller():
                 info = infos[0]
                 config = info.get("current_config")
                 metric = info.get("current_metric")
+                self.history.append([config, metric])
                 if done:
                     print("DONE")
                     break
-                self.history.append([config, metric])
+                
 
         elif self.mode == "baseline":
             self.algorithm.main_loop()
