@@ -102,6 +102,7 @@ def check(config):
     backend_params = {}
     
     if backend_name == "function":
+        # TODO сделать проверки
         backend_class = BACKENDS.get(backend_name)
         function_name = config.get("backend").get("function")
         if function_name in functions_config.get("functions"):
@@ -110,10 +111,10 @@ def check(config):
             raise
         min_value = functions_config.get("functions").get(function_name).get("min")
         max_value = functions_config.get("functions").get(function_name).get("max")
-        if mode == "RL":
-            env_params["hp_space"] = {f"x{i}": {"range": (min_value, max_value), "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
+        if mode == "RL": #Определение гиперов должно быть не тут
+            env_params["hp_space"] = {f"x{i}": {"min": min_value, "max": max_value, "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
         elif mode == "baseline":
-            alg_params["dict_to_optimize"] = {f"x{i}": {"values": (min_value, max_value), "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
+            alg_params["dict_to_optimize"] = {f"x{i}": {"min": min_value, "max": max_value, "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
     
     elif backend_name == "real":
         backend_class = BACKENDS.get(backend_name)

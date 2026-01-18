@@ -10,6 +10,7 @@ from typing import Dict, Any, Tuple
 CATASTROPHIC_FAILURE_REWARD: float = -1e9
 """Большой штраф при сбое (ошибка обучения, некорректные параметры)."""
 
+# Сделать выгрузку на диск или lru_cache
 
 class EvaluationBackend(ABC):
     """Абстрактный базовый класс для бэкендов оценки конфигураций.

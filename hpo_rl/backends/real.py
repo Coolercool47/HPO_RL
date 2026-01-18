@@ -56,7 +56,6 @@ class RealTrainingBackend(EvaluationBackend):
         super().__init__(use_cache=True)  # кэш экономит много на повторных конфигах
         self.maximize = False  # минимизируем loss
 
-
         self.model_class = model if isinstance(model, type) and issubclass(model, BaseModel) else self.get_model_class(model)
         self.trainer = trainer() if isinstance(trainer, type) and issubclass(trainer, BaseTrainer) else self.get_trainer(trainer)
         self.train_data, self.val_data = data_processor()
@@ -64,7 +63,8 @@ class RealTrainingBackend(EvaluationBackend):
        
     # получает что-то в виде словаря {"parameter_name": value}
     def _evaluate(self, config):
-        self.trainer(self.model(**(config.get("model"))), )
+        print(config)
+        self.trainer(self.model_class(**(config)), )
         return 0
         # типа обработали параметры из конфига
 

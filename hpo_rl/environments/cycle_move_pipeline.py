@@ -262,9 +262,9 @@ class CyclicPipelineEnv(BaseHPOEnv):
             info = self.hp_space_config[name]
             # print(info)
 
-            if 'float' in info.get("type"):
+            if info.get("type")== 'float' or info.get("type")== 'int':
                 # c = info['type']
-                lo, hi = info['range']
+                lo, hi = info['min'], info['max']
                 if info.get('log', False):
                     val = np.exp(np.log(lo) + norm * (np.log(hi) - np.log(lo)))
                 else:
@@ -272,7 +272,8 @@ class CyclicPipelineEnv(BaseHPOEnv):
                 if info.get('type') == 'int':
                     val = int(round(val))
             else: # Тут все плохо
-                opts = info['discrete']['choices']
+                # print(info)
+                opts = info['values']
                 val = opts[int(np.clip(np.floor(norm * len(opts)), 0, len(opts) - 1))]
 
             self.final_config_options[name] = val
