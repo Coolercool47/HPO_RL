@@ -14,9 +14,8 @@ class controller():
         self.mode = mode
         self.parallelization = parallelization(self.mode)
         self.device = device
-
         backend_class = backend.get("class")
-        print(backend.get("params"))
+        #print(backend.get("params"))
         self.backend = backend_class(**(backend.get("params")))
         if self.mode == "RL":
 

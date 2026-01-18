@@ -6,6 +6,7 @@ from sb3_contrib import MaskablePPO, TRPO, RecurrentPPO
 
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.backends.real import RealTrainingBackend
+from hpo_rl.backends.objective import ObjectiveBackend
 
 from hpo_rl.baselines.BOHB import BOHB
 from hpo_rl.baselines.TPE import TPE
@@ -22,7 +23,7 @@ ALGORITHMS = {
 }
 
 BACKENDS = {
-    "function": OptimizationBenchmarkBackend, "real": RealTrainingBackend
+    "function": OptimizationBenchmarkBackend, "real": RealTrainingBackend, "objective": ObjectiveBackend
 }
 
 BASELINES = {
@@ -114,7 +115,7 @@ def check(config):
         if mode == "RL": #Определение гиперов должно быть не тут
             env_params["hp_space"] = {f"x{i}": {"min": min_value, "max": max_value, "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
         elif mode == "baseline":
-            alg_params["dict_to_optimize"] = {f"x{i}": {"min": min_value, "max": max_value, "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
+            alg_params["dict_to_optimize"] = {f"x{i}": {"values": (min_value, max_value), "type": "float", "log": False} for i in range(int(config.get("backend").get("dimensions")))}
     
     elif backend_name == "real":
         backend_class = BACKENDS.get(backend_name)
@@ -126,6 +127,14 @@ def check(config):
         elif mode == "baseline":
             alg_params["dict_to_optimize"] = backend_config.get("hp_space")
 
+    elif backend_name == "objective":
+        backend_class = BACKENDS.get(backend_name)
+        backend_config = config.get("backend")
+        backend_params = {"num_epochs": backend_config.get("num_epochs"), "objective_function": backend_config.get("objective_function"), "hp_space":backend_config.get("hp_space")}
+        if mode == "RL":
+            env_params["hp_space"] = backend_config.get("hp_space")
+        elif mode == "baseline":
+            alg_params["dict_to_optimize"] = backend_config.get("hp_space")
     else:
         raise
     

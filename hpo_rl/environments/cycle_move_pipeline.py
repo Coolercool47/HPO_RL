@@ -57,6 +57,8 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self._init_observation_space()
         self._init_state()
 
+        self.n = 0
+
     def _init_action_space(self, step_sizes):
         if self.action_type == "discrete":
             if step_sizes is None:
@@ -227,6 +229,10 @@ class CyclicPipelineEnv(BaseHPOEnv):
             reward = 0.0
 
         self.current_metric = new_metric
+        
+        self.n+=1
+        print(self.n)
+
         return reward
 
     def _finalize_cycle_reward(self):

@@ -57,14 +57,15 @@ class RealTrainingBackend(EvaluationBackend):
         self.maximize = False  # минимизируем loss
 
         self.model_class = model if isinstance(model, type) and issubclass(model, BaseModel) else self.get_model_class(model)
-        self.trainer = trainer() if isinstance(trainer, type) and issubclass(trainer, BaseTrainer) else self.get_trainer(trainer)
+        self.trainer = trainer(hp_space) if isinstance(trainer, type) and issubclass(trainer, BaseTrainer) else self.get_trainer(trainer)
         self.train_data, self.val_data = data_processor()
         self.hp_space = hp_space.copy()
        
     # получает что-то в виде словаря {"parameter_name": value}
     def _evaluate(self, config):
-        print(config)
-        self.trainer(self.model_class(**(config)), )
+        # print(self.hp_space)
+        # print(config)
+        self.trainer.train(config, self.model_class, self.train_data, self.val_data)
         return 0
         # типа обработали параметры из конфига
 

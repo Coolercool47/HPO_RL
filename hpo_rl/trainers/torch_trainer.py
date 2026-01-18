@@ -5,30 +5,51 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 import warnings
 
+from collections import defaultdict
+
 from hpo_rl.trainers.base import BaseTrainer
 from hpo_rl.core.factory import build_optimizer, get_criterion_instance
 
 
 class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
 
-    HYPERPARAMETERS: Dict[str, Dict[str, Any]] = {
-        "optimizer": {"type": str, "default": "Adam"},
-        "learning_rate": {"type": float, "default": 0.001},
-        "epochs": {"type": int, "default": 1},
-        "criterion": {"type": str, "default": "CrossEntropyLoss"},
-    }
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, config):
+        super().__init__(config)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # получать гиперпараметры из конфига добавить
-    def train(self, model: nn.Module,
-              train_data: DataLoader, val_data: Optional[DataLoader] = None) -> Tuple[nn.Module, Dict[str, Any]]:
+    def train(self, config, model, train_data, val_data) -> Tuple[nn.Module, Dict[str, Any]]:
+        optimizer_name = config.get("optimizer", "default")
+        criterion_name = config.get("criterion", "default")
+
+        if optimizer_name == "default":
+            optimizer_name = "Adam"
+            warnings.warn("Optimizer is not specified in config, using default: optimizer=Adam")
+        
+        if criterion_name == "default":
+            criterion_name = "CrossEntropyLoss"
+            warnings.warn("Criterion is not specified in config, using default: criterion=CrossEntropyLoss")
+        
+        defdict_config = defaultdict(dict)
+        
+        print("config:", config)
+
+        for key, meta in self.hp_space.items():
+            target = meta.get("refers_to")
+            if key in config:
+                # Записываем в группу (например, 'train_loop') значение под его именем
+                defdict_config[target][key] = config[key]
+
+        # Превращаем обратно в обычный словарь для вывода
+        parsed_config = dict(defdict_config)
+
+        model = model(**(parsed_config.get("model")))
         model.to(self.device)
 
-        optimizer = build_optimizer(model, self._hparams)
-        criterion = get_criterion_instance(self._hparams['criterion'])
+        
+        optimizer = build_optimizer(model, {"optimizer": optimizer_name})
+        criterion = get_criterion_instance(criterion_name)
         # добавить scheduler
 
         history = {
@@ -36,7 +57,7 @@ class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
             "val_loss_history": [],
         }
 
-        num_epochs = self._hparams['epochs']
+        num_epochs = parsed_config.get("train_loop", 2).get('epochs', 2)
         epoch_iterator = tqdm(
             range(num_epochs),
             desc="Training Progress",
@@ -89,3 +110,5 @@ class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
             epoch_iterator.set_postfix(postfix_stats)
 
         return model, history
+
+

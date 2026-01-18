@@ -2,12 +2,17 @@ from hpo_rl.main_scripts.plot import plot
 from hpo_rl.main_scripts.check import check
 from hpo_rl.controller.controller import controller
 import torch
+import torch.optim as optim
+import torch.nn as nn
+from torch.utils.data import DataLoader, random_split
+from torchvision import datasets, transforms
 from pathlib import Path
 from datetime import datetime
 
 from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
+
 # Пофиксить max/mix
 # Сделать документацию
 # Потыкать Real
@@ -20,7 +25,7 @@ from hpo_rl.data_processing.processors import pytorch_mnist_processor
 
 def run_experiment(config):
     parsed_config = check(config)
-    print(parsed_config)
+    # print(parsed_config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mode = parsed_config.get("mode")
 
@@ -35,26 +40,26 @@ def run_experiment(config):
         expreiment_controller.train()
     best_result = expreiment_controller.inference()
     history = expreiment_controller.return_history()
-    
     graphics = plot(history, best_result, save_path, expreiment_controller.backend)
-    graphics.plot_3d()
+    # graphics.plot_3d()
     graphics.plot_trajectory()
+
 
 if __name__ == "__main__":
     config = {
     "algorithm": {
-        "name": "RecurrentPPO", 
+        "name": "PPO", 
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 10000,
-        "inference_timesteps": 100,
-        "policy": "MultiInputLstmPolicy"
+        "total_timesteps": 10,
+        "inference_timesteps": 10,
+        "policy": "MultiInputPolicy"
     },
     "env": {
         "name": "cycle_move_pipeline",
         "num_bins": 300,
-        "max_steps": 100,
+        "max_steps": 10,
         "reward_mode": "per_step",
         "step_sizes": [1, 5, 25]
     },
@@ -104,19 +109,34 @@ if __name__ == "__main__":
         "data_processor": pytorch_mnist_processor,
         "hp_space": {
             "n_params": {
+                "refers_to": "model",
                 "type": "int",
                 "min": 1,
                 "max": 512
             },
+            "learning_rate":{
+                "type": "float",
+                "min": 0,
+                "max": 0.1
+            },
             "optimizer": {
+                "refers_to": "train_loop",
                 "type": "categorical",
-                "values": ["SGD", "Adam"]
+                "values": [optim.SGD, optim.Adam],
+                "dependencies": ["learning_rate"]
             },
             "criterion": {
+                "refers_to": "train_loop",
                 "type": "categorical",
-                "values": ["CrossEntorpyLoss"]
+                "values": ["CrossEntropyLoss"]
+            },
+            "learning_rate": {
+                "refers_to": "optimizer",
+                "type": "float",
+                "min": 0,
+                "max": 1
             }
         }
     }
     }
-    run_experiment(config_real)
+    run_experiment(config)
