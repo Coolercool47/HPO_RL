@@ -65,18 +65,6 @@ class RealTrainingBackend(EvaluationBackend):
     def _evaluate(self, config):
         # print(self.hp_space)
         # print(config)
-        self.trainer.train(config, self.model_class, self.train_data, self.val_data)
-        return 0
+        model, losses = self.trainer.train(config, self.model_class, self.train_data, self.val_data)
+        return losses["val_loss_history"][-1]
         # типа обработали параметры из конфига
-
-    def get_model_class():
-        '''
-        Получает название класса модели возвращает класс из YAML с дефолтными моделями. Возможно будет определять сразу тренер? 
-        '''
-        pass
-    
-    def get_trainer():
-        '''
-        Получает название класса тренера возвращает класс из YAML с дефолтными тренерами
-        '''
-        pass

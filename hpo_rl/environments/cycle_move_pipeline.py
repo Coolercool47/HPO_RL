@@ -147,7 +147,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
     def step(self, action):
         param_idx = self.cursor_idx
         old_idx = self.current_indices[param_idx]
-
+        print(action)
         new_idx, step_size, delta_idx = self._apply_action(action, old_idx)
         reward = self._compute_reward(param_idx, old_idx, new_idx)
         normalized_action = self._normalize_action(delta_idx if self.action_type == "discrete" else new_idx - old_idx)
@@ -205,7 +205,8 @@ class CyclicPipelineEnv(BaseHPOEnv):
     def _compute_reward(self, param_idx, old_idx, new_idx):
         if new_idx == old_idx:
             self.steps_without_improvement += 1
-            return -0.05
+            print("MC LOVIN")
+            return -0.05 * self.steps_without_improvement
 
         self.current_indices[param_idx] = new_idx
         self._update_config_from_indices()
@@ -265,7 +266,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
             info = self.hp_space_config[name]
             # print(info)
 
-            if info.get("type")== 'float' or info.get("type")== 'int':
+            if info.get("type") == 'float' or info.get("type")== 'int':
                 # c = info['type']
                 lo, hi = info['min'], info['max']
                 if info.get('log', False):
