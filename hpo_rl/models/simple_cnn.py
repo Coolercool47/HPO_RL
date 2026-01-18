@@ -9,7 +9,7 @@ class SimpleCNN(BaseModel):
         "n_params": {"type": int, "default": 128}     # Size of the penultimate layer
     }  # Can be extended with NAS parameters like number of conv layers
 
-    def __init__(self, num_classes, n_params):
+    def __init__(self, n_params, num_classes=10):
         super(SimpleCNN, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)

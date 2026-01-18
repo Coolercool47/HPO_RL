@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Type, Dict, Any, Optional, TYPE_CHECKING
 import torch.optim as optim
 import torch.nn as nn
+from torch.optim import optimizer
 
 from hpo_rl.models.base import BaseModel
 from hpo_rl.trainers.base import BaseTrainer
@@ -74,6 +75,7 @@ def get_optimizer_class(name: str) -> Type[optim.Optimizer]:
 
 
 def get_criterion_instance(name: str) -> nn.Module:
+    print(name, CRITERION_REGISTRY)
     if name not in CRITERION_REGISTRY:
         available = ", ".join(CRITERION_REGISTRY.keys())
         raise ValueError(f"Функция потерь '{name}' не зарегистрирована. Доступные: {available}")
@@ -82,6 +84,7 @@ def get_criterion_instance(name: str) -> nn.Module:
 
 def build_optimizer(model: nn.Module, hparams: Dict[str, Any]) -> optim.Optimizer:
     optimizer_name = hparams['optimizer']
+    print(optimizer_name)
     if optimizer_name not in OPTIMIZER_BUILDER_REGISTRY:
         available = ", ".join(OPTIMIZER_BUILDER_REGISTRY.keys())
         raise ValueError(f"Строитель оптимизатора '{optimizer_name}' не зарегистрирован. Доступные: {available}")

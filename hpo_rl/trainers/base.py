@@ -9,15 +9,15 @@ class BaseTrainer(ABC, Generic[ModelType, DataType]):
 
     HYPERPARAMETERS: Dict[str, Dict[str, Any]] = {}
 
-    def __init__(self, **kwargs):
+    def __init__(self, config):
         super().__init__()
-        self._hparams = kwargs
+        self.hp_space = config
 
     @abstractmethod
     def train(self, model: ModelType, train_loader: DataType, val_data: Optional[DataType] = None):
         pass
 
-    @classmethod
+    @classmethod # убрать это булщит
     def from_config(cls, config: Dict[str, Any]):
         init_kwargs = {}
         for param_name, meta in cls.HYPERPARAMETERS.items():
