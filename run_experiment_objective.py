@@ -44,7 +44,7 @@ def run_experiment(config):
     history = expreiment_controller.return_history()
     
     graphics = plot(history, best_result, save_path, expreiment_controller.backend)
-    graphics.plot_3d()
+    #graphics.plot_3d()
     graphics.plot_trajectory()
 
 class SimpleCNN(nn.Module):
@@ -136,14 +136,16 @@ if __name__ == "__main__":
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 1,
-        "inference_timesteps": 1,
+        "total_timesteps": 2,
+        "inference_timesteps": 2,
+        "n_steps": 2,
+        "batch_size": 2,
         "policy": "MultiInputPolicy"
     },
     "env": {
         "name": "cycle_move_pipeline",
         "num_bins": 300,
-        "max_steps": 1,
+        "max_steps": 6,
         "reward_mode": "per_step",
         "step_sizes": [1, 5, 25]
     },

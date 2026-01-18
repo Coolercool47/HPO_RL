@@ -39,19 +39,19 @@ class controller():
                 self.inference_timesteps = algorithm.get("params").pop("inference_timesteps")
 
                 algorithm_class = algorithm.get("class")
-                self.algorithm = algorithm_class(device = self.device, env = self.env, **(algorithm.get("params")))
+                self.algorithm = algorithm_class(device=self.device, env=self.env, **(algorithm.get("params")))
             else:
                 algorithm_class = algorithm.get("class")
-                self.algorithm = algorithm_class.load(load_loc, device = device)
+                self.algorithm = algorithm_class.load(load_loc, device=device)
 
         elif self.mode == "baseline":
             algorithm_class = algorithm.get("class")
-            self.algorithm = algorithm_class(objective_func = self.backend.evaluate, **(algorithm.get("params"))) #интегрировать backend в baseline'ы  
+            self.algorithm = algorithm_class(objective_func=self.backend.evaluate, **(algorithm.get("params"))) #интегрировать backend в baseline'ы  
 
     def train(self):
         if self.mode == "RL":
             # print(type(self.total_timesteps))
-            self.algorithm.learn(total_timesteps = self.total_timesteps)
+            self.algorithm.learn(total_timesteps=self.total_timesteps)
             if self.save_bool:
                 self.algorithm.save(self.save_loc)
     

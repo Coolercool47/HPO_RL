@@ -49,6 +49,7 @@ class EvaluationBackend(ABC):
         self._cache: Dict[Tuple, float] = {}
         self._cache_hits = 0
         self._cache_misses = 0
+        self.n = 0 # для 10: 1901 для 1: 3822 для 5: 2138 для 100: 1763
 
     def evaluate(self, config: Dict[str, Any]) -> float:
         """Оценивает конфигурацию гиперпараметров.
@@ -62,6 +63,8 @@ class EvaluationBackend(ABC):
         Returns:
             Числовая оценка конфигурации (награда).
         """
+        self.n += 1
+        # print(self.n)
         if not self.use_cache:
             return self._evaluate(config)
 

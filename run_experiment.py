@@ -24,8 +24,9 @@ from hpo_rl.data_processing.processors import pytorch_mnist_processor
 # Сделать картинки в формате Latex
 
 def run_experiment(config):
+    
     parsed_config = check(config)
-    # print(parsed_config)
+    # print(config, parsed_config, sep="\n\n", end="\n\n")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mode = parsed_config.get("mode")
 
@@ -52,8 +53,10 @@ if __name__ == "__main__":
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 10,
-        "inference_timesteps": 10,
+        "total_timesteps": 100,
+        "inference_timesteps": 100,
+        "n_steps": 100,
+        "batch_size": 50,
         "policy": "MultiInputPolicy"
     },
     "env": {

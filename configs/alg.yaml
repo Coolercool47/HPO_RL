@@ -13,13 +13,21 @@ algorithms:
         type: float
         min: 0
         max: 1
+      n_steps:
+        type: int
+        min: 2
+        max: .inf
+      batch_size:
+        type: int
+        min: 2
+        max: .inf
       total_timesteps:
         type: int
-        min: 1
+        min: 2
         max: .inf
       inference_timesteps:
         type: int
-        min: 1
+        min: 2
         max: .inf
       policy:
         type: categorical
