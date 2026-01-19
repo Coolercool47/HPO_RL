@@ -3,7 +3,7 @@ from scipy.stats import norm
 from .TPE import TPE
 
 class BOHB:
-    def __init__(self, R, nu, objective_function, dict_config, 
+    def __init__(self, R, nu, objective_func, dict_to_optimize, 
                  min_points_in_model=None, 
                  top_n_percent=0.15, 
                  num_samples=64, 
@@ -11,15 +11,15 @@ class BOHB:
         
         self.R = R
         self.nu = nu
-        self.objective_function = objective_function
-        self.dict_config = dict_config
+        self.objective_func = objective_func
+        self.dict_to_optimize = dict_to_optimize
         
         self.s_max = int(np.floor(np.log(self.R)/np.log(self.nu)))
         self.B = (self.s_max+1)*R
         
         self.data = [] 
         
-        dim = len(dict_config)
+        dim = len(dict_to_optimize)
         self.min_points_in_model = min_points_in_model if min_points_in_model else dim + 1
         
         self.top_n_percent = top_n_percent
@@ -42,7 +42,7 @@ class BOHB:
                 
                 L = []
                 for t in T:
-                    loss = self.objective_function(t, r_i, self.dict_config)
+                    loss = self.objective_func(t)
                     L.append(loss)
                     
                     self.data.append((t, loss, r_i))
@@ -90,7 +90,7 @@ class BOHB:
                     N_init=0,             
                     N_s=self.num_samples,
                     budget=0,             
-                    dict_to_optimize=self.dict_config,
+                    dict_to_optimize=self.dict_to_optimize,
                     gamma_func=gamma_f
                 )
                 
@@ -102,9 +102,9 @@ class BOHB:
 
     def sample_random_config(self):
         config = {}
-        for param_name, info in self.dict_config.items():
+        for param_name, info in self.dict_to_optimize.items():
             if info["type"] == "float":
-                config[param_name] = np.random.uniform(info["values"][0], info["values"][1])
+                config[param_name] = np.random.uniform(info["min"], info["max"])
             elif info["type"] == "categorical":
                 config[param_name] = np.random.choice(info["values"])
         return config

@@ -1,14 +1,14 @@
 import numpy as np
 
 class hyperband:
-    def __init__(self, R, nu, objective_function, dict_config):
+    def __init__(self, R, nu, objective_func, dict_to_optimize):
         self.R = R
         self.nu = nu
-        self.objective_function = objective_function
-        self.dict_config = dict_config
+        self.objective_func = objective_func
+        self.dict_to_optimize = dict_to_optimize
         self.s_max = int(np.floor(np.log(self.R)/np.log(self.nu)))
         self.B = (self.s_max+1)*R
-        self.N_min = len(dict_config)+1
+        self.N_min = len(dict_to_optimize)+1
 
     def main_loop(self):
         for s in range(self.s_max, -1, -1):
@@ -23,7 +23,7 @@ class hyperband:
                 
                 L = []
                 for t in T:
-                    loss = self.objective_function(t, r_i, self.dict_config)
+                    loss = self.objective_func(t)
                     L.append(loss)
                 
                 if i < s:
@@ -31,7 +31,7 @@ class hyperband:
                     k = int(np.floor(n_i / self.nu))
                     T = self.top_k(params_with_loss, max(1, k))
         
-        best_idx = np.argmin([self.objective_function(t, self.R, self.dict_config) for t in T])
+        best_idx = np.argmin([self.objective_func(t, self.R, self.dict_to_optimize) for t in T])
         return T[best_idx]
      
     def get_config(self, n):
@@ -39,10 +39,10 @@ class hyperband:
         for _ in range(n):
             config = {} 
             
-            for param_name, param_info in self.dict_config.items():
+            for param_name, param_info in self.dict_to_optimize.items():
                 if param_info["type"] == "float":
                     config[param_name] = np.random.uniform(
-                        param_info["values"][0], param_info["values"][1]
+                        param_info["min"], param_info["max"]
                     )
                 elif param_info["type"] == "categorical":
                     config[param_name] = np.random.choice(param_info["values"])
