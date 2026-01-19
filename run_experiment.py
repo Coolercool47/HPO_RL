@@ -28,6 +28,7 @@ def run_experiment(config):
     mode = parsed_config.get("mode")
 
     algorithm_name = config.get("algorithm").get("name")
+    backend_name = config.get("backend").get("name")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_dir = Path("logs") / algorithm_name / timestamp 
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -39,7 +40,8 @@ def run_experiment(config):
     best_result = expreiment_controller.inference()
     history = expreiment_controller.return_history()
     graphics = plot(history, best_result, save_path, expreiment_controller.backend)
-    # graphics.plot_3d()
+    if backend_name == "function" and expreiment_controller.backend.dimensions == 2:
+        graphics.plot_3d()
     graphics.plot_trajectory()
 
 
@@ -50,10 +52,10 @@ if __name__ == "__main__":
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 100,
+        "total_timesteps": 10000,
         "inference_timesteps": 100,
-        "n_steps": 100,
-        "batch_size": 50,
+        "n_steps": 1000,
+        "batch_size": 500,
         "policy": "MultiInputPolicy"
     },
     "env": {
@@ -141,4 +143,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_experiment(config_real)
+    run_experiment(config_TPE)

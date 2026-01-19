@@ -84,12 +84,11 @@ class plot():
 
 
     def plot_trajectory(self):
-        history_scores = [d[-1] for d in self.history]
+        is_maximize = self.backend.maximize
+        history_scores = [d[-1] if is_maximize else -d[-1] for d in self.history]
         iterations = range(1, len(history_scores) + 1)
         
-        is_minimize = getattr(self, 'minimize', True) 
-        
-        if is_minimize:
+        if not is_maximize:
             best_so_far = np.minimum.accumulate(history_scores)
             label_best = 'Best Score (Min)'
         else:
@@ -103,7 +102,7 @@ class plot():
 
         plt.plot(iterations, best_so_far, color='red', linewidth=2, label=label_best)
 
-        plt.title(f"Optimization History ({'Minimization' if is_minimize else 'Maximization'})", fontsize=14)
+        plt.title(f"Optimization History ({'Minimization' if not is_maximize else 'Maximization'})", fontsize=14)
         plt.xlabel("Iteration", fontsize=12)
         plt.ylabel("Objective function", fontsize=12) 
 
