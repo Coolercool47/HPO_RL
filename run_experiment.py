@@ -1,4 +1,4 @@
-from hpo_rl.main_scripts.plot import plot
+from hpo_rl.main_scripts.plot import plot_and_save
 from hpo_rl.main_scripts.check import check
 from hpo_rl.controller.controller import controller
 import torch
@@ -38,10 +38,13 @@ def run_experiment(config):
         expreiment_controller.train()
     best_result = expreiment_controller.inference()
     history = expreiment_controller.return_history()
-    graphics = plot(history, best_result, save_path, expreiment_controller.backend)
+    outputs = plot_and_save(history, best_result, save_path, expreiment_controller.backend)
     if backend_name == "function" and expreiment_controller.backend.dimensions == 2:
-        graphics.plot_3d()
-    graphics.plot_trajectory()
+        outputs.plot_3d()
+    outputs.plot_trajectory()
+    outputs.save_history(as_latex=True)
+    outputs.save_history(as_latex=False)
+
 
 
 if __name__ == "__main__":

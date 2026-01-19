@@ -1,3 +1,4 @@
+from sympy.integrals.transforms import Max
 from hpo_rl.controller.parallelization import parallelization
 import numpy as np
 from tqdm.auto import tqdm
@@ -47,7 +48,7 @@ class controller():
 
         elif self.mode == "baseline":
             algorithm_class = algorithm.get("class")
-            self.algorithm = algorithm_class(objective_func=self.backend.evaluate, **(algorithm.get("params"))) #интегрировать backend в baseline'ы  
+            self.algorithm = algorithm_class(objective_func=lambda *args, **kwargs: -self.backend.evaluate(*args, **kwargs), **(algorithm.get("params"))) #интегрировать backend в baseline'ы  
 
     def train(self):
         if self.mode == "RL":
@@ -77,9 +78,8 @@ class controller():
 
         elif self.mode == "baseline":
             self.algorithm.main_loop()
-            self.history = self.algorithm.data
-        # print(self.history)
-        return min(self.history, key=lambda x: x[-1])
+            self.history = [(i[0], -i[1]) for i in self.algorithm.data]
+        return min(self.history, key=lambda x: x[-1]) if not self.backend.maximize else max(self.history, key=lambda x: x[-1])
 
     def return_history(self):
         return self.history

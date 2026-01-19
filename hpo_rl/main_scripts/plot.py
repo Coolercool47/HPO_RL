@@ -2,16 +2,15 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 import numpy as np
 from datetime import datetime
+import pandas as pd
+import re
 
-class plot():
+class plot_and_save():
     def __init__(self, history, best_result, save_path, backend):
         self.history = history
         self.best_result = best_result
         self.save_path = save_path
         self.backend = backend
-        
-    def set_history(self):
-        pass
 
     def plot_3d(self):
         # print(self.history)
@@ -77,7 +76,7 @@ class plot():
         ax2.legend()
 
         plt.tight_layout()
-        temp_path = self.save_path / f"3d"
+        temp_path = self.save_path / "3d.png"
         plt.savefig(temp_path, dpi=150, bbox_inches='tight')
         print(f"Saved: {temp_path}")
         plt.close()
@@ -125,3 +124,61 @@ class plot():
         print(f"Saved: {temp_path}")
         plt.close()
         # добавить сохранение
+    
+    def save_history(self, as_latex=True):
+        data = []
+        for i, (params, score) in enumerate(self.history, 1):
+            row = {"Iteration": i}
+            row.update(params)
+            row["Objective"] = -score
+            data.append(row)
+
+        df = pd.DataFrame(data).set_index("Iteration")
+        
+        if not as_latex:
+            out_path = self.save_path / "history.csv"
+            df.to_csv(out_path)
+            print(f"Saved CSV history: {out_path}")
+            return
+
+        obj_col = "Objective"
+        min_idx = df[obj_col].idxmin()
+        max_idx = df[obj_col].idxmax()
+
+        df_latex = df.copy().astype(object) 
+        
+        for idx in df_latex.index:
+            val = df.loc[idx, obj_col]
+            formatted_val = f"{val:.5g}"
+            if idx == min_idx:
+                df_latex.loc[idx, obj_col] = f"\\cellcolor{{cyan!30}}{formatted_val}"
+            elif idx == max_idx:
+                df_latex.loc[idx, obj_col] = f"\\cellcolor{{orange!30}}{formatted_val}"
+            else:
+                df_latex.loc[idx, obj_col] = formatted_val
+
+        col_format = 'r' * (len(df.columns)) + 'l' 
+        
+        latex_table = df_latex.to_latex(
+            index=True,
+            longtable=True,
+            escape=False,
+            caption=("Optimization History", "tab:opt_history"),
+            column_format=col_format,
+            label="tab:opt_history"
+        )
+
+        
+        latex_table = re.sub(r'\\multicolumn\{\d+\}\{r\}\{Continued on next page\} \\\\', '', latex_table)
+        
+        # По желанию: если вы хотите, чтобы шапка повторялась на каждой странице (стандарт longtable),
+        # Pandas уже это сделал через \endhead. 
+        # Если вам нужно подправить конкретно разделители, делаем это точечно:
+        latex_table = latex_table.replace(r'\bottomrule', r'\midrule') # Чтобы в конце промежуточных страниц была линия
+        latex_table = latex_table.replace(r'\endlastfoot', r'\bottomrule' + '\n' + r'\endlastfoot')
+
+        out_path = self.save_path / "history_table.tex"
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(latex_table)
+        print(f"Saved TEX history: {out_path}")
+
