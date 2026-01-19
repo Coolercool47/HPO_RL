@@ -182,7 +182,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
             # action = int(action)
             n = len(self.step_sizes)
             if action == n:
-                print("ЖЖЖЖЖПАЖПажп", action)
+                # print("действие стоять на месте", action)
                 return old_idx, 0, 0
             elif action < n:
                 step = self.step_sizes[action]
@@ -205,7 +205,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
             return new_idx, abs(new_idx - old_idx), new_idx - old_idx
 
     def _compute_reward(self, param_idx, old_idx, new_idx):
-        print("IDXs:",old_idx,new_idx)
+        # print("IDXs:",old_idx,new_idx)
         if new_idx == old_idx:
             self.steps_without_improvement += 1
             return -0.05 * self.steps_without_improvement
