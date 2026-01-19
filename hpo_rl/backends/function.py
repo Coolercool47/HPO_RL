@@ -172,6 +172,9 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         """
         x = np.array([config[f"x{i}"] for i in range(self.dimensions)])
 
+        if isinstance(self.bounds, tuple):
+            x = np.clip(x, self.bounds[0], self.bounds[1])
+
         func = self.func_map.get(self.function_name)
         if func is None:
             raise ValueError(f"Неизвестная функция: {self.function_name}")

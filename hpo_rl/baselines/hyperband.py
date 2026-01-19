@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm.auto import tqdm
 
 class hyperband:
     def __init__(self, R, nu, objective_func, dict_to_optimize):
@@ -11,6 +12,7 @@ class hyperband:
         self.N_min = len(dict_to_optimize)+1
 
     def main_loop(self):
+        parent_bar = tqdm(total=self.s_max, position=0)
         for s in range(self.s_max, -1, -1):
             n = int(np.ceil(self.B*self.nu**s/(self.R*(s+1))))
             r = self.R/(self.nu**s)
@@ -30,7 +32,8 @@ class hyperband:
                     params_with_loss = list(zip(T, L))
                     k = int(np.floor(n_i / self.nu))
                     T = self.top_k(params_with_loss, max(1, k))
-        
+            parent_bar.update(1)
+        parent_bar.close()
         best_idx = np.argmin([self.objective_func(t, self.R, self.dict_to_optimize) for t in T])
         return T[best_idx]
      

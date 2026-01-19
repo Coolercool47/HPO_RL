@@ -13,7 +13,6 @@ from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
 
-# Пофиксить max/mix
 # Сделать документацию
 # Инсталлятор/Деинсталлятор (Коля)
 # requirements.txt (Коля)

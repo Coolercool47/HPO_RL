@@ -1,5 +1,6 @@
 from hpo_rl.controller.parallelization import parallelization
 import numpy as np
+from tqdm.auto import tqdm
 
 class controller():
     def __init__(self, device, mode, backend, algorithm, env = None, save = None, load = None):
@@ -51,7 +52,7 @@ class controller():
     def train(self):
         if self.mode == "RL":
             # print(type(self.total_timesteps))
-            self.algorithm.learn(total_timesteps=self.total_timesteps)
+            self.algorithm.learn(total_timesteps=self.total_timesteps, progress_bar = True)
             if self.save_bool:
                 self.algorithm.save(self.save_loc)
     

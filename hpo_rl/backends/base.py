@@ -71,11 +71,13 @@ class EvaluationBackend(ABC):
         key = self._config_to_key(config)
         if key in self._cache:
             self._cache_hits += 1
+            # print(self._cache[key])
             return self._cache[key]
 
         self._cache_misses += 1
         result = self._evaluate(config)
         self._cache[key] = result
+        # print(result)
         return result
 
     @abstractmethod

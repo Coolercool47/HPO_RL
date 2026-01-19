@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import norm
+from tqdm.auto import tqdm
 
 class TPE:
     def __init__(self, objective_func, N_init, N_s, budget, dict_to_optimize, separation_value):
@@ -30,7 +31,9 @@ class TPE:
 
         param_names = list(self.dict_to_optimize.keys())
 
-        while len(self.data) < self.budget:
+        parent_bar = tqdm(total=self.budget, position=0)
+
+        for _ in range(self.budget):
             n = len(self.data)
             gamma = self.gamma_func(n)
             
@@ -72,10 +75,12 @@ class TPE:
 
             result = self.objective_func(best_sample)
             self.data.append((best_sample, result))
+
+            parent_bar.update(1)
             
             # if len(self.data) % 10 == 0:
             #     print(f"Iter {len(self.data)}/{self.budget}: Best Score = {min(d[1] for d in self.data)}")
-
+        parent_bar.close()
         best_overall = min(self.data, key=lambda x: x[1])
         return best_overall
 
