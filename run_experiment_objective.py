@@ -159,4 +159,36 @@ if __name__ == "__main__":
         }
     }
     }
-    run_experiment(config)
+    config_BOHB = {
+    "algorithm": {
+        "name": "BOHB",
+        "R": 2,
+        "nu": 2,
+    },
+    "backend": {
+        "name": "objective",
+        "num_epochs": 1,
+        "objective_function": objective_function,
+        "hp_space": {
+            "lr": {
+                "type": "float", 
+                "min": 1e-6,
+                "max": 1e-2
+            },
+            "batch_size": {
+                "type": "categorical", 
+                "values": [32, 64, 128]
+            },
+            "optimizer": {
+                "type": "categorical", 
+                "values": ["Adam", "SGD"]
+            },
+            "n_params": {
+                "type": "categorical", 
+                "values": [16, 32, 64] 
+            }
+        }
+    }
+    }
+    
+    run_experiment(config_BOHB)
