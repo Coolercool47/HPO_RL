@@ -11,15 +11,6 @@ from pathlib import Path
 from datetime import datetime
 from tqdm.auto import tqdm
 
-# Пофиксить max/mix
-# Сделать документацию
-# Составить Ipynb
-# Доделать конфиги
-# Инсталлятор/Деинсталлятор
-# requirements.txt
-# Readme.md
-# Сделать картинки в формате Latex
-
 def run_experiment(config):
     parsed_config = check(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

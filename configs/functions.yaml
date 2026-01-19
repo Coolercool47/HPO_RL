@@ -5,17 +5,36 @@ functions:
   sphere: 
     min: -5
     max: 5
-  rosenbrock: rosenbrock
-  ackley: ackley
-  griewank: griewank
-  schwefel: schwefel
-  levy: levy
-  michalewicz: michalewicz
-  nondiff: nondiff
-  booth: booth
-  beale: beale
+  rosenbrock: 
+    min: -1.0
+    max:  1.0
+  ackley: 
+    min: -32.768
+    max: 32.768
+  griewank: 
+    min: -600.0
+    max: 600.0
+  schwefel: 
+    min: -500.0
+    max: 500.0
+  levy: 
+    min: -10.0
+    max: 10.0
+  michalewicz: 
+    min: 0.0
+    max: np.pi
+  booth: 
+    min: -10.0
+    max: 10.0
+  beale: 
+    min: -4.5
+    max: 4.5
   goldstein_price:
     min: -2.0
     max: 2.0
-  shifted_sphere: shifted_sphere
-  shifted_rastrigin: shifted_rastrigin
+  shifted_sphere: 
+    min: -5.0
+    max: 5.0
+  shifted_rastrigin: 
+    min: -5.12
+    max: 5.12

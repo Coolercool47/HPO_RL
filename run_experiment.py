@@ -15,9 +15,8 @@ from hpo_rl.data_processing.processors import pytorch_mnist_processor
 
 # Пофиксить max/mix
 # Сделать документацию
-# Доделать конфиги
-# Инсталлятор/Деинсталлятор
-# requirements.txt
+# Инсталлятор/Деинсталлятор (Коля)
+# requirements.txt (Коля)
 # Readme.md
 # Сделать картинки в формате Latex
 

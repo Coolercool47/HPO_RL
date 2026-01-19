@@ -45,6 +45,16 @@ def check(config):
     config_path_alg = os.path.normpath(config_path_alg)
     with open(config_path_alg, 'r', encoding='utf-8') as a:
         alg_config = yaml.safe_load(a)
+    
+    config_path_env = os.path.join(current_dir, '..', '..', 'configs', 'env.yaml')
+    config_path_env = os.path.normpath(config_path_env)
+    with open(config_path_env, 'r', encoding='utf-8') as e:
+        env_config = yaml.safe_load(e)
+    
+    config_path_real = os.path.join(current_dir, '..', '..', 'configs', 'real.yaml')
+    config_path_real = os.path.normpath(config_path_real)
+    with open(config_path_real, 'r', encoding='utf-8') as r:
+        real_config = yaml.safe_load(r)
 
     config_path_functions = os.path.join(current_dir, '..', '..', 'configs', 'functions.yaml')
     config_path_functions = os.path.normpath(config_path_functions)
@@ -59,22 +69,33 @@ def check(config):
         algorithm_class = ALGORITHMS.get(algorithm_name)
         for key, value in config.get("algorithm").items():
             if key != "name":
-                alg_params[key] = value
+                if key in alg_config.get("algorithms").get("RL").get(algorithm_name):
+                    alg_params[key] = value
+                else:
+                    raise 
 
         env_name = config.get("env").get("name")
         env_params = {}
-        env_class = ENVS.get(env_name)
+        if env_name in env_config.get("envs"):
+            env_class = ENVS.get(env_name)
+        else: 
+            raise
         for key, value in config.get("env").items():
             if key != "name":
-                print(key, value)
-                env_params[key] = value
+                if key in env_config.get("envs").get(env_name):
+                    env_params[key] = value
+                else:
+                    raise
 
     elif algorithm_name in alg_config.get("algorithms").get("baselines"):
         mode = "baseline"
         algorithm_class = ALGORITHMS.get(algorithm_name)
         for key, value in config.get("algorithm").items():
             if key != "name":
-                alg_params[key] = value
+                if key in alg_config.get("algorithms").get("baselines").get(algorithm_name):
+                    alg_params[key] = value
+                else:
+                    raise
     else:
         raise
 

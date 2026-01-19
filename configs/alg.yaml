@@ -1,83 +1,12 @@
 algorithms:
   RL:
-    PPO: 
-      verbose: 
-        type: int
-        min: 0
-        max: 2
-      gamma: 
-        type: float
-        min: 0
-        max: 1
-      learning_rate: 
-        type: float
-        min: 0
-        max: 1
-      n_steps:
-        type: int
-        min: 2
-        max: .inf
-      batch_size:
-        type: int
-        min: 2
-        max: .inf
-      total_timesteps:
-        type: int
-        min: 2
-        max: .inf
-      inference_timesteps:
-        type: int
-        min: 2
-        max: .inf
-      policy:
-        type: categorical
-        values: MultiInputPolicy
-    RecurrentPPO:
-      verbose: 
-        type: int
-        min: 0
-        max: 2
-      gamma: 
-        type: float
-        min: 0
-        max: 1
-      learning_rate: 
-        type: float
-        min: 0
-        max: 1
-      total_timesteps:
-        type: int
-        min: 1
-        max: .inf
-      inference_timesteps:
-        type: int
-        min: 1
-        max: .inf
-      policy:
-        type: categorical
-        values: MultiInputLstmPolicy
+    PPO:
     SAC:
     DQN:
     TRPO:
     A2C:
     TD3:
   baselines:
-    TPE: 
-      N_init: 
-        type: int
-        min: 1
-        max: .inf
-      N_s: 
-        type: int
-        min: 1
-        max: .inf
-      budget: 
-        type: int
-        min: 1
-        max: .inf
-      separation_value: 
-        type: float
-        min: 0
-        max: 1
+    TPE:
     hyperband:
     BOHB:
