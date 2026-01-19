@@ -145,10 +145,10 @@ class CyclicPipelineEnv(BaseHPOEnv):
         return self._get_obs(), self._get_info()
 
     def step(self, action):
-        print(action)
+        # print(action)
         param_idx = self.cursor_idx
         old_idx = self.current_indices[param_idx]
-        # print(action)
+
         new_idx, step_size, delta_idx = self._apply_action(action, old_idx)
         reward = self._compute_reward(param_idx, old_idx, new_idx)
         normalized_action = self._normalize_action(delta_idx if self.action_type == "discrete" else new_idx - old_idx)
