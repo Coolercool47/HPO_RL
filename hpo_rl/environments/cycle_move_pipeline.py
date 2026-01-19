@@ -208,7 +208,6 @@ class CyclicPipelineEnv(BaseHPOEnv):
         print("IDXs:",old_idx,new_idx)
         if new_idx == old_idx:
             self.steps_without_improvement += 1
-            print("MC LOVIN")
             return -0.05 * self.steps_without_improvement
 
         self.current_indices[param_idx] = new_idx
