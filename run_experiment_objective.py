@@ -11,12 +11,8 @@ from pathlib import Path
 from datetime import datetime
 from tqdm.auto import tqdm
 
-from hpo_rl.trainers.torch_trainer import TorchTrainer
-from hpo_rl.data_processing.processors import pytorch_mnist_processor
-
 # Пофиксить max/mix
 # Сделать документацию
-# Потыкать Real
 # Составить Ipynb
 # Доделать конфиги
 # Инсталлятор/Деинсталлятор
@@ -121,7 +117,7 @@ def objective_function(config, dict_config, num_epochs):
     avg_val_loss = val_loss / len(val_loader)
     val_accuracy = correct / len(val_dataset)
 
-    # print(f"Config: {param_values}, ValLoss: {avg_val_loss:.4f}, ValAcc: {val_accuracy:.4f}")
+    print(f"Config: {param_values}, ValLoss: {avg_val_loss:.4f}, ValAcc: {val_accuracy:.4f}")
 
     return avg_val_loss
 
@@ -149,7 +145,7 @@ if __name__ == "__main__":
     },
     "backend": {
         "name": "objective",
-        "num_epochs": 3,
+        "num_epochs": 1,
         "objective_function": objective_function,
         "hp_space": {
             "lr": {

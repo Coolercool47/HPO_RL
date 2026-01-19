@@ -16,7 +16,7 @@ class ObjectiveBackend(EvaluationBackend):
         num_epochs: int
     ):
 
-        super().__init__(use_cache=True)  # кэш экономит много на повторных конфигах
+        super().__init__(use_cache=False)  # кэш экономит много на повторных конфигах
         self.maximize = False  # минимизируем loss
 
         self.objective_function = objective_function
