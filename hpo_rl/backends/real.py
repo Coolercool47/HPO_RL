@@ -68,3 +68,9 @@ class RealTrainingBackend(EvaluationBackend):
         model, losses = self.trainer.train(config, self.model_class, self.train_data, self.val_data)
         return losses["val_loss_history"][-1]
         # типа обработали параметры из конфига
+
+    def get_model_class(self, model_name):
+        raise NotImplementedError("Method is yet to implement")
+    
+    def get_trainer(self, trainer_name):
+        raise NotImplementedError("Method is yet to implement")
