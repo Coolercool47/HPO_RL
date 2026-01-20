@@ -7,3 +7,5 @@ Core classes and functions
    :maxdepth: 2
 
    api
+
+   baselines
