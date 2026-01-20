@@ -21,7 +21,7 @@ pandas>=2.0.0  # Используется в plot.py для работы с да
 matplotlib>=3.7.0  # Для построения графиков (plot.py)
 
 # Utilities
-tqdm>=4.65.0  # Прогресс-бары в torch_trainer.py
+tqdm>=4.65.0  # Прогресс-бары 
 
 # Testing
 pytest>=7.4.0
