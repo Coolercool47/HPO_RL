@@ -14,10 +14,7 @@ from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
 
 # Сделать документацию
-# Инсталлятор/Деинсталлятор (Коля)
-# requirements.txt (Коля)
 # Readme.md
-# Сделать картинки в формате Latex
 
 def run_experiment(config):
     
