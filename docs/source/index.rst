@@ -19,3 +19,5 @@ Core classes and functions
    models
 
    trainers
+
+   experiments
