@@ -6,6 +6,8 @@ from hpo_rl.backends.base import EvaluationBackend
 from hpo_rl.environments.base_env import BaseHPOEnv
 
 
+# Попробовать сделать преобразования дискретных гиперпараметров в непрерывное при помощи ядра?
+
 class CyclicPipelineEnv(BaseHPOEnv):
     """
     Среда для HPO с циклическим перебором параметров.

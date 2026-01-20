@@ -66,7 +66,7 @@ class controller():
             env = self.algorithm.env
             obs = env.reset()
             # print(int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit))
-            inference_bar = tqdm(total=int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit),desc="Inference", position=1, leave=False)
+            inference_bar = tqdm(total=int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit),desc="Inference", position=0, leave=True)
             for _ in range(self.inference_timesteps):
                 action, _states = self.algorithm.predict(obs, deterministic=True)
                 obs, _rewards, done, infos = env.step(action)
@@ -76,9 +76,12 @@ class controller():
                 self.history.append([config, metric])
                 inference_bar.update(1)
                 if done:
+                    inference_bar.close()
                     print("DONE")
                     break
-            inference_bar.close()
+            if not done:
+                inference_bar.close()
+                print("Did not finish inference episode")
                 
 
         elif self.mode == "baseline":

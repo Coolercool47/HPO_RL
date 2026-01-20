@@ -9,6 +9,7 @@ class BOHB:
                  top_n_percent=0.15, 
                  num_samples=64, 
                  random_fraction=1/3.0):
+        '''ыаыаыаыыыыы'''
         
         self.R = R
         self.nu = nu
