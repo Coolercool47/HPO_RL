@@ -1,0 +1,44 @@
+experiment_name: "2d_function_optimization_recurrent_ppo"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "rastrigin"  # Можно изменить на sphere, rosenbrock и т.д.
+    dimensions: 2
+    noise_std: 0
+    maximize: False  # False = минимизация (reward = -value, больший reward = меньшее значение)
+
+environment:
+  name: "CyclicPipelineEnv"
+  params:
+    num_bins: 300  # Значительно увеличено для более точного поиска и лучшего transfer learning
+    max_steps: 1000  # Больше шагов для исследования пространства
+    reward_mode: "per_step"  # Reward после каждого шага
+    step_sizes: [25, 5, 1]  # Ограничено до 1, 5, и 25
+    use_history: false  # ВАЖНО: Минимальный obs для RecurrentPPO + prev_reward для RL² адаптации
+  hp_space:
+    x0:
+      continuous:
+        type: float
+        log: False
+        range: [-5.12, 5.12]
+    x1:
+      continuous:
+        type: float
+        log: False
+        range: [-5.12, 5.12]
+
+agent:
+  name: "RecurrentPPO"
+  policy: "MultiInputLstmPolicy"
+  params:
+    verbose: 1
+    # seed: 42  # Закомментировано для случайного старта обучения
+    gamma: 0.95
+    learning_rate: 0.0003  # Исправлено: было 0.003 (слишком много), стандарт для PPO: 0.0003
+
+training:
+  total_timesteps: 200000  # Увеличено для лучшего обучения с большим пространством действий (300 бинов, 15 размеров шагов)
+
+save_path: "model_2d_recurrent_ppo"
+

@@ -1,0 +1,27 @@
+experiment_name: "TPE_test"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "rastrigin"  
+    dimensions: 2
+    noise_std: 0
+    maximize: False
+
+algorithm:
+  name: TPE
+  params:
+    N_init: 10
+    N_s: 10
+    budget: 100
+    separation_value: 0.2
+  hp_space:
+    x0:
+      type: float
+      log: False
+      values: [-5.0, 5.0]  # Для визуализации используем меньший диапазон
+    x1:
+      type: float
+      log: False
+      values: [-5.0, 5.0]
+    

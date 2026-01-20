@@ -1,0 +1,49 @@
+experiment_name: "2d_function_optimization_sac_ultra_low_budget"
+
+backend:
+  name: "OptimizationBenchmarkBackend"
+  params:
+    function_name: "rastrigin"  # Можно изменить на sphere, rosenbrock и т.д.
+    dimensions: 2
+    noise_std: 0
+    maximize: False  # False = минимизация
+
+environment:
+  name: "CyclicPipelineEnv"
+  params:
+    num_bins: 300
+    max_steps: 20  # Ультрамалый бюджет: 20 шагов в эпизоде
+    action_type: "continuous"  # Непрерывные действия для SAC
+    max_step_bins: 30  # Максимальный шаг в бинах (10% от num_bins)
+  hp_space:
+    x0:
+      continuous:
+        type: float
+        log: False
+        range: [-5.12, 5.12]
+    x1:
+      continuous:
+        type: float
+        log: False
+        range: [-5.12, 5.12]
+
+agent:
+  name: "SAC"
+  policy: "MultiInputPolicy"
+  params:
+    verbose: 1
+    # seed: 42
+    gamma: 0.95
+    learning_rate: 0.003
+    buffer_size: 100000
+    batch_size: 512
+    tau: 0.005
+    train_freq: 4
+    gradient_steps: 4
+    n_envs: 4
+
+training:
+  total_timesteps: 2000  # 100 эпизодов (20 шагов * 100 эпизодов)
+
+save_path: "model_2d_sac_ultra_low_budget"
+
