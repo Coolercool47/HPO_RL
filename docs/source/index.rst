@@ -13,3 +13,11 @@ Core classes and functions
    controller
 
    data_processing
+
+   environments
+
+   models
+
+   trainers
+
+   experiments

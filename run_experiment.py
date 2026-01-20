@@ -1,18 +1,9 @@
-from hpo_rl.main_scripts.plot import plot_and_save
-from hpo_rl.main_scripts.check import check
-from hpo_rl.controller.controller import controller
-import torch
-import torch.optim as optim
-import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
-from torchvision import datasets, transforms
-from pathlib import Path
-from datetime import datetime
-
+from hpo_rl.experiments.run_experiment import run_experiment
 from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
 
+<<<<<<< HEAD
 
 def run_experiment(config):
     
@@ -41,6 +32,10 @@ def run_experiment(config):
     outputs.save_history(as_latex=False)
 
 
+=======
+# Сделать документацию
+# Readme.md
+>>>>>>> 2f7a713cd3cd93cccbd15d4d3307ac124b0b7c1e
 
 if __name__ == "__main__":
     config = {

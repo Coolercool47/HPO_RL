@@ -1,36 +1,12 @@
-from hpo_rl.main_scripts.plot import plot
-from hpo_rl.main_scripts.check import check
-from hpo_rl.controller.controller import controller
+from hpo_rl.experiments.run_experiment import run_experiment
 import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
-from pathlib import Path
-from datetime import datetime
 from tqdm.auto import tqdm
 
-def run_experiment(config):
-    parsed_config = check(config)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    mode = parsed_config.get("mode")
-
-    algorithm_name = config.get("algorithm").get("name")
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_dir = Path("logs") / algorithm_name / timestamp 
-    log_dir.mkdir(parents=True, exist_ok=True)
-    save_path = parsed_config.get("log_save_path", log_dir)
-
-    expreiment_controller = controller(device=device, **parsed_config)
-    if mode == "RL":
-        expreiment_controller.train()
-    best_result = expreiment_controller.inference()
-    history = expreiment_controller.return_history()
-    
-    graphics = plot(history, best_result, save_path, expreiment_controller.backend)
-    # print(history)
-    graphics.plot_trajectory()
 
 class SimpleCNN(nn.Module):
     def __init__(self, num_classes=100, n_params=128):

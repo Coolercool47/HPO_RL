@@ -1,8 +1,6 @@
-from typing import Callable, Dict, Any, Optional, List, Union
-import numpy as np
+from typing import Callable, Dict, Any
 
 from hpo_rl.backends.base import EvaluationBackend, CATASTROPHIC_FAILURE_REWARD
-from hpo_rl.core.factory import get_model_class, build_trainer
 from hpo_rl.models.base import BaseModel
 from hpo_rl.trainers.base import BaseTrainer
 

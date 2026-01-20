@@ -25,7 +25,7 @@ def parse_requirements(filename):
 setup(
     name='HPO_RL',
     version='0.1.0',
-    description='Hyperparm optimization using reinforcement learning methods',
+    description='Hyperparmeter optimization using reinforcement learning methods',
     long_description=read_file('README.md'),
     long_description_content_type='text/markdown',
     
