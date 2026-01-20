@@ -85,7 +85,10 @@ def objective_function(config, dict_config, num_epochs):
         optimizer = optim.SGD(model.parameters(), lr=lr)
 
     model.train()
-    for epoch in tqdm(range(int(num_epochs))):
+    
+    sub_bar = tqdm(total=int(num_epochs),desc="Model training", position=1, leave=False)
+    
+    for epoch in range(int(num_epochs)):
         for X, y in train_loader:
             X, y = X.to(device), y.to(device)
             optimizer.zero_grad()
@@ -93,6 +96,9 @@ def objective_function(config, dict_config, num_epochs):
             loss = criterion(outputs, y)
             loss.backward()
             optimizer.step()
+        sub_bar.update(1)
+    
+    sub_bar.close()
 
     model.eval()
     val_loss, correct = 0.0, 0

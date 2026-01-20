@@ -1,4 +1,4 @@
-from hpo_rl.main_scripts.plot import plot
+from hpo_rl.main_scripts.plot import plot_and_save
 from hpo_rl.main_scripts.check import check
 from hpo_rl.controller.controller import controller
 import torch
@@ -13,7 +13,6 @@ from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
 
-# Пофиксить max/mix
 # Сделать документацию
 # Инсталлятор/Деинсталлятор (Коля)
 # requirements.txt (Коля)
@@ -39,10 +38,13 @@ def run_experiment(config):
         expreiment_controller.train()
     best_result = expreiment_controller.inference()
     history = expreiment_controller.return_history()
-    graphics = plot(history, best_result, save_path, expreiment_controller.backend)
+    outputs = plot_and_save(history, best_result, save_path, expreiment_controller.backend)
     if backend_name == "function" and expreiment_controller.backend.dimensions == 2:
-        graphics.plot_3d()
-    graphics.plot_trajectory()
+        outputs.plot_3d()
+    outputs.plot_trajectory()
+    outputs.save_history(as_latex=True)
+    outputs.save_history(as_latex=False)
+
 
 
 if __name__ == "__main__":
@@ -52,7 +54,7 @@ if __name__ == "__main__":
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 10000,
+        "total_timesteps": 1000,
         "inference_timesteps": 100,
         "n_steps": 1000,
         "batch_size": 500,
@@ -143,4 +145,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_experiment(config_TPE)
+    run_experiment(config)

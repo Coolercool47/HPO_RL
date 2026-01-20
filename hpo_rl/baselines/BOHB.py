@@ -1,13 +1,14 @@
 import numpy as np
 from scipy.stats import norm
 from .TPE import TPE
+from tqdm.auto import tqdm
 
 class BOHB:
     def __init__(self, R, nu, objective_func, dict_to_optimize, 
                  min_points_in_model=None, 
                  top_n_percent=0.15, 
                  num_samples=64, 
-                 random_fraction=1/3.0):
+                 random_fraction=0.3):
         
         self.R = R
         self.nu = nu
@@ -30,12 +31,14 @@ class BOHB:
         best_overall_config = None
         best_overall_loss = np.inf
 
+        parent_bar = tqdm(total=self.s_max, desc="Overall", position=0)
+
         for s in range(self.s_max, -1, -1):
             n = int(np.ceil(self.B * self.nu**s / (self.R * (s+1))))
             r = self.R / (self.nu**s)
             
             T = self.get_config(n)
-            
+
             for i in range(0, s + 1):
                 n_i = int(np.floor(n / self.nu**(i)))
                 r_i = r * self.nu**i
@@ -54,7 +57,8 @@ class BOHB:
                 if i < s:
                     params_with_loss = list(zip(T, L))
                     T = self.top_k(params_with_loss, int(np.floor(n_i / self.nu)))
-        
+            parent_bar.update(1)
+        parent_bar.close()
         return best_overall_config
 
     def get_config(self, n):

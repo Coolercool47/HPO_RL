@@ -7,6 +7,7 @@
 - :class:`OptimizationBenchmarkBackend` — тестовые функции оптимизации
 - :class:`DummyBackend` — простой бэкенд для отладки
 - :class:`RealTrainingBackend` — реальное обучение моделей
+- :class:`ObjectiveBackend` — обучение моделей через целевую функцию
 
 Пример::
 
@@ -20,6 +21,7 @@ from hpo_rl.backends.base import EvaluationBackend, CATASTROPHIC_FAILURE_REWARD
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.backends.dummy import DummyBackend
 from hpo_rl.backends.real import RealTrainingBackend
+from hpo_rl.backends.objective import ObjectiveBackend
 
 __all__ = [
     "EvaluationBackend",
@@ -27,5 +29,6 @@ __all__ = [
     "OptimizationBenchmarkBackend",
     "DummyBackend",
     "RealTrainingBackend",
+    "ObjectiveBackend",
 ]
 

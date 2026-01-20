@@ -1,4 +1,4 @@
-HPO_RL API
+Сore
 ==========
 
 Core (Вспомогательные функции и классы)
@@ -12,4 +12,6 @@ Backends (Вычислительные бэкенды)
 
 .. automodule:: hpo_rl.backends
    :show-inheritance:
+
+
 
