@@ -8,8 +8,7 @@ class BOHB:
                  min_points_in_model=None, 
                  top_n_percent=0.15, 
                  num_samples=64, 
-                 random_fraction=1/3.0):
-        '''ыаыаыаыыыыы'''
+                 random_fraction=0.3):
         
         self.R = R
         self.nu = nu

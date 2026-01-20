@@ -2,17 +2,6 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 
-def process_images_pytorch(train_data: str, val_data: str = None, split_ratio=0.2):
-    '''
-    Собирает картинки находящиеся по пути train_data и val_data (если существует)
-    Если val_data не существует, то разбивает train_data на train и val
-    ПРИМЕР
-    '''
-    # бла бла делаем dataloader-ы train_loader и val_loader
-    train_loader, val_loader = 0, 0
-    return train_loader, val_loader
-
-
 def pytorch_mnist_processor(batch_size: int = 64, val_split: float = 0.2, seed: int = 42):
     """
     Загружает MNIST и делит тренировочную выборку на train и val.

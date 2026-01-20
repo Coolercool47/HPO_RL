@@ -1,20 +1,16 @@
-from sympy.integrals.transforms import Max
-from hpo_rl.controller.parallelization import parallelization
-import numpy as np
 from tqdm.auto import tqdm
 
 class controller():
     def __init__(self, device, mode, backend, algorithm, env = None, save = None, load = None):
-        """ 
-        mode: "baseline"/"RL"
-        backend: {class: backend_style_class, params: function_or_real_params}
-        algorithm: {class: algorithm_style_class, params: alg_params}
-        env: {class: env_style_class, params: env_params}
-        save: save_location
-        load: load_location
-        """
+ 
+        # mode: "baseline"/"RL"
+        # backend: {class: backend_style_class, params: function_or_real_params}
+        # algorithm: {class: algorithm_style_class, params: alg_params}
+        # env: {class: env_style_class, params: env_params}
+        # save: save_location
+        # load: load_location
+
         self.mode = mode
-        self.parallelization = parallelization(self.mode)
         self.device = device
         backend_class = backend.get("class")
         #print(backend.get("params"))
