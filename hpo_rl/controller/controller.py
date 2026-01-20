@@ -59,11 +59,14 @@ class controller():
     
     def inference(self):
         # Добавить сохранение лучшей модели
+    
         if self.mode == "RL":
+            
             self.history = []
-            # print(self.history)
             env = self.algorithm.env
             obs = env.reset()
+            # print(int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit))
+            inference_bar = tqdm(total=int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit),desc="Inference", position=1, leave=False)
             for _ in range(self.inference_timesteps):
                 action, _states = self.algorithm.predict(obs, deterministic=True)
                 obs, _rewards, done, infos = env.step(action)
@@ -71,9 +74,11 @@ class controller():
                 config = info.get("current_config")
                 metric = info.get("current_metric")
                 self.history.append([config, metric])
+                inference_bar.update(1)
                 if done:
                     print("DONE")
                     break
+            inference_bar.close()
                 
 
         elif self.mode == "baseline":

@@ -54,7 +54,7 @@ if __name__ == "__main__":
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 10000,
+        "total_timesteps": 1000,
         "inference_timesteps": 100,
         "n_steps": 1000,
         "batch_size": 500,
@@ -145,4 +145,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_experiment(config_TPE)
+    run_experiment(config)
