@@ -41,12 +41,12 @@ MODELS = {
 def check(config):
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    config_path_alg = os.path.join(current_dir, '..', '..', 'configs', 'alg.yaml')
+    config_path_alg = os.path.join(current_dir, '..', 'configs', 'alg.yaml')
     config_path_alg = os.path.normpath(config_path_alg)
     with open(config_path_alg, 'r', encoding='utf-8') as a:
         alg_config = yaml.safe_load(a)
 
-    config_path_functions = os.path.join(current_dir, '..', '..', 'configs', 'functions.yaml')
+    config_path_functions = os.path.join(current_dir, '..', 'configs', 'functions.yaml')
     config_path_functions = os.path.normpath(config_path_functions)
     with open(config_path_functions, 'r', encoding='utf-8') as f:
         functions_config = yaml.safe_load(f)
