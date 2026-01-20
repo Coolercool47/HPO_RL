@@ -1,8 +1,42 @@
 from tqdm.auto import tqdm
 
 class controller():
-    def __init__(self, device, mode, backend, algorithm, env = None, save = None, load = None):
- 
+    """
+    Класс, скрепляющий конфигурацию с `backend` и `algorithm`.
+
+    Args:
+        device: device для подсчета RL алгоритмов
+        mode: режим работы "RL" или "baseline"
+        backend: получает класс `backend` и конфигурацию для него
+        algorithm: алгоритм выбора гиперпараметров 
+        env: среда для RL алгоритма
+        save: путь сохранения RL модели
+        load: путь загрузки RL модели
+
+    Attributes:
+        device: device для подсчета RL алгоритмов
+        mode: режим работы "RL" или "baseline"
+        backend: класс `backend`
+        algorithm: алгоритм выбора гиперпараметров 
+        env: среда для RL алгоритма
+        save_loc: путь сохранения RL модели
+        
+    Note:
+        `device`, `env`, `save_loc`, `load_loc` задаются только для случая `mode` = "RL"
+    """
+    def __init__(self, mode, backend, algorithm, device = None, env = None, save = None, load = None):
+        """Инициализация класса controller
+
+        Args:
+            device: device для подсчета RL алгоритмов
+            mode: режим работы "RL" или "baseline"
+            backend: получает класс `backend` и конфигурацию для него
+            algorithm: алгоритм выбора гиперпараметров 
+            env: среда для RL алгоритма
+            save: путь сохранения RL модели
+            load: путь загрузки RL модели
+
+        """
         # mode: "baseline"/"RL"
         # backend: {class: backend_style_class, params: function_or_real_params}
         # algorithm: {class: algorithm_style_class, params: alg_params}
@@ -13,7 +47,6 @@ class controller():
         self.mode = mode
         self.device = device
         backend_class = backend.get("class")
-        #print(backend.get("params"))
         self.backend = backend_class(**(backend.get("params")))
         if self.mode == "RL":
 
@@ -47,13 +80,24 @@ class controller():
             self.algorithm = algorithm_class(objective_func=lambda *args, **kwargs: -self.backend.evaluate(*args, **kwargs), **(algorithm.get("params"))) #интегрировать backend в baseline'ы  
 
     def train(self):
+        """Запускает обучение модели
+        
+        note:
+            Работает только для `mode` == "RL"
+
+        """
         if self.mode == "RL":
-            # print(type(self.total_timesteps))
             self.algorithm.learn(total_timesteps=self.total_timesteps, progress_bar = True)
             if self.save_bool:
                 self.algorithm.save(self.save_loc)
     
     def inference(self):
+        """Запускает инференс модели
+        
+        Returns:
+            Лучшие параметры модели
+        """
+
         # Добавить сохранение лучшей модели
     
         if self.mode == "RL":
@@ -61,7 +105,6 @@ class controller():
             self.history = []
             env = self.algorithm.env
             obs = env.reset()
-            # print(int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit))
             inference_bar = tqdm(total=int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit),desc="Inference", position=0, leave=True)
             for _ in range(self.inference_timesteps):
                 action, _states = self.algorithm.predict(obs, deterministic=True)
@@ -86,4 +129,9 @@ class controller():
         return min(self.history, key=lambda x: x[-1]) if not self.backend.maximize else max(self.history, key=lambda x: x[-1])
 
     def return_history(self):
+        """Возвращает историю гиперпараметров работы инференса
+        
+        Returns:
+            История гиперпараметров 
+        """
         return self.history

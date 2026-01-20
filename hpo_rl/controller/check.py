@@ -26,10 +26,6 @@ BACKENDS = {
     "function": OptimizationBenchmarkBackend, "real": RealTrainingBackend, "objective": ObjectiveBackend
 }
 
-BASELINES = {
-    "TPE": TPE, "BOHB": BOHB, "hyperband": hyperband
-}
-
 ENVS = {
     "cycle_move_pipeline": CyclicPipelineEnv
 }
@@ -39,6 +35,42 @@ MODELS = {
 }
 
 def check(config):
+    """Функция проверки конфигурации и задачи классов для последующей передачи в :class:`controller`.
+    Проверки делаются через yaml файлы, лежащие в configs.
+
+    Args: 
+        config: Необработанная конфигурация
+
+    Поддерживаемые алгоритмы:
+        - Обучение с подкреплением:
+            - A2C
+            - DQN
+            - PPO
+            - SAC
+            - TD3
+            - TRPO
+            - MaskablePPO
+            - RecurrentPPO
+        - Классические
+            - TPE
+            - BOHB
+            - hyperband
+    
+    Поддерживаемые `backend`:
+        - function
+        - real
+        - objective
+
+    Поддерживемые среды:
+        - cycle_move_pipeline
+
+    Встренные модели для подбора гиперпараметров:
+        - simle_cnn
+    
+    Returns:
+        Конфигурацию для :class:`controller`
+    
+    """
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     config_path_alg = os.path.join(current_dir, '..', 'configs', 'alg.yaml')
@@ -108,7 +140,7 @@ def check(config):
     elif backend_name == "objective":
         backend_class = BACKENDS.get(backend_name)
         backend_config = config.get("backend")
-        backend_params = {"num_epochs": backend_config.get("num_epochs"), "objective_function": backend_config.get("objective_function"), "hp_space":backend_config.get("hp_space")}
+        backend_params = {"objective_function": backend_config.get("objective_function"), "hp_space":backend_config.get("hp_space")}
         if mode == "RL":
             env_params["hp_space"] = backend_config.get("hp_space")
         elif mode == "baseline":

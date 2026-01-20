@@ -6,7 +6,9 @@ Core classes and functions
 .. toctree::
    :maxdepth: 2
 
-   api
+   core
+
+   backends
 
    baselines
 

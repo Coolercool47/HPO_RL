@@ -25,7 +25,7 @@ class SimpleCNN(nn.Module):
         x = self.fc2(x)
         return x
 
-def objective_function(config, dict_config, num_epochs):
+def objective_function(config, dict_config):
     param_values = {}
     for name in dict_config.keys():
         param_values[name] = config[name]
@@ -62,9 +62,9 @@ def objective_function(config, dict_config, num_epochs):
 
     model.train()
     
-    sub_bar = tqdm(total=int(num_epochs),desc="Model training", position=1, leave=False)
+    sub_bar = tqdm(total=int(2),desc="Model training", position=1, leave=False)
     
-    for epoch in range(int(num_epochs)):
+    for epoch in range(int(2)):
         for X, y in train_loader:
             X, y = X.to(device), y.to(device)
             optimizer.zero_grad()

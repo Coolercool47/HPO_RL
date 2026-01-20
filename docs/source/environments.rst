@@ -1,7 +1,7 @@
-Environment
+Environments
 ============
 
-Environment (Среды)
+Environments (Среды)
 ----------------------------------
 
 .. automodule:: hpo_rl.environments

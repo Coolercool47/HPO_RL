@@ -7,7 +7,11 @@ from datetime import datetime
 
 
 def run_experiment(config):
+    """Функция запускающая полный пайплайн, начиная с конфигурации пользователя, заканчивая отображением изображений и истории поиска.
     
+    Args: 
+        config: необработанная конфигурация
+    """
     parsed_config = check(config)
     # print(config, parsed_config, sep="\n\n", end="\n\n")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

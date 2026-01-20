@@ -3,7 +3,57 @@ from scipy.stats import norm
 from tqdm.auto import tqdm
 
 class TPE:
+    """Класс, реализурующий алгоритм BOHB.
+        
+        Статьи:  
+            `Algorithms for Hyper-Parameter Optimization <https://papers.nips.cc/paper_files/paper/2011/file/86e8f7ab32cfd12577bc2619bc635690-Paper.pdf>`_
+            `Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance <https://arxiv.org/pdf/2304.11127>`_
+
+        Args:
+            objective_func: целевая функция, возвращающая оценку
+            N_init: количество изначальных конфигураций
+            N_s: количество кандидатов для оптимизации функции получения
+            budget: количество итераций работы алгоритма, отвечающее за количество вызовов целевой функции
+            dict_to_optimize: конфигурация допустимых гиперпараметров
+            separation_value: перцентиль данных, попадающих в "хорошую" и "плохую" выборку 
+
+        Attributes:
+            objective_func: целевая функция
+            N_init: количество изначальных конфигураций
+            N_s: количество кандидатов для функции получения
+            budget: количество итераций алгоритма
+            dict_to_optimize: конфигурация допустимых гиперпараметров
+            gamma_func: функция, задающая перцентиль данных, которые попадают "хорошую" и "плохую" выборку
+            data: датасет с посчитанными оценками
+
+        Пример::
+           
+            def objective_function(params): 
+                score = ...
+                return score
+
+            dict_config = {
+                "x0": {type: float, min: 0.0, max:1.0} , 
+                "x1": {type: categorical, values: ["a", "b"]}
+            }
+
+            tpe = TPE()
+            best_config = tpe.main_loop(objective_func = objective_function, N_init = 3, N_s = 3, budget = 200, dict_to_optimize = dict_config, separation_value = 0.3)
+            
+        """
     def __init__(self, objective_func, N_init, N_s, budget, dict_to_optimize, separation_value):
+        """
+        Инициализирует TPE
+
+        Args:
+            objective_func: целевая функция, возвращающая оценку
+            N_init: количество изначальных конфигураций
+            N_s: количество кандидатов для оптимизации функции получения
+            budget: количество итераций работы алгоритма, отвечающее за количество вызовов целевой функции
+            dict_to_optimize: конфигурация допустимых гиперпараметров
+            separation_value: перцентиль данных, попадающих в "хорошую" и "плохую" выборку 
+        
+        """
         self.objective_func = objective_func
         self.N_init = N_init
         self.N_s = N_s  
@@ -13,6 +63,7 @@ class TPE:
         self.data = []
 
     def initialize(self):
+        """Семплирует `N_init` раз гиперпараметры, согласно равномерному распределению"""
         print(f"Initializing with {self.N_init} random samples...")
         for _ in range(self.N_init):
             setup = {}
@@ -26,6 +77,12 @@ class TPE:
             self.data.append((setup, score))
 
     def main_loop(self):
+        """Исполняет логику алгоритма TPE с учетом введленных параметров
+
+        Returns: 
+            наилучшая найденная конфигурация гиперпараметров
+
+        """
         if len(self.data) < self.N_init:
             self.initialize()
 
@@ -85,6 +142,16 @@ class TPE:
         return best_overall
 
     def D_split(self, n, gamma):
+        """Разделение датасета на "плохой" и "хороший"
+        
+        Args: 
+            n: количество данных в self.data
+            gamma: условие роазделения данных
+
+        Returns: 
+            Возвращает "плохой" и "хороший" датасет
+
+        """
         sorted_data = sorted(self.data, key=lambda x: x[1])
         split_idx = int(np.ceil(n * gamma))
         split_idx = max(1, min(n - 1, split_idx))
@@ -93,10 +160,28 @@ class TPE:
         return D_l, D_g
 
     def count_weights_uniform(self, N_group):
+        """Подсчет весов
+        
+        Args: 
+            N_group: количество данных в датасете
+
+        Returns: 
+            1 / количество данных в датасете
+
+        """
         if N_group == 0: return []
         return [1.0 / N_group]
 
     def count_bandwidths(self, D_group):
+        """Подсчет ширины окна согласно правилу Скотта и magic_clipping
+        
+        Args: 
+            D_group: количество данных в датасете
+
+        Returns: 
+            массив с шириной окна
+
+        """
         bandwidths = {}
         param_names = list(self.dict_to_optimize.keys())
         N = len(D_group)
@@ -132,6 +217,19 @@ class TPE:
         return bandwidths
 
     def evaluate_kde(self, x, param_name, D_group, weights, bandwidth):
+        """Подсчет ядер. Для категориальных данных используется ядро Этчисона-Эйткена, для нерерывных - усеченное нормальное распределение
+        
+        Args: 
+            x: значение, для которого ведется подсчет ядра
+            param_name: название праматра, для которого составляется ядро
+            D_group: датасет, по которому строится ядро
+            weights: веса при ядрах и априорной верятности
+            bandwidth: ширина окна ядер
+
+        Returns: 
+            правдоподобие каждого ядра
+
+        """
         info = self.dict_to_optimize[param_name]
         w_prior = weights[0]
         w_obs = weights[0]
@@ -183,6 +281,18 @@ class TPE:
             return probability
 
     def sample_from_kde(self, param_name, D_group, bandwidth, weights):
+        """Семплирование из ядер. Для категориальных данных используется равномерное распределение, для нерерывных - усеченное нормальное распределение
+        
+        Args: 
+            param_name: название праматра, для которого составляется ядро
+            D_group: датасет, по которому строится ядро
+            bandwidth: ширина окна ядер
+            weights: веса при ядрах и априорной верятности
+
+        Returns: 
+            сэмпл данных
+
+        """
         info = self.dict_to_optimize[param_name]
         
         if info["type"] == "categorical":
@@ -218,6 +328,18 @@ class TPE:
                     return sample   
         
     def suggest(self):
+        """Выполняет `main_loop`, только без подсчета целевой функции
+        
+        Args: 
+            param_name: название праматра, для которого составляется ядро
+            D_group: датасет, по которому строится ядро
+            bandwidth: ширина окна ядер
+            weights: веса при ядрах и априорной верятности
+
+        Returns: 
+             наилучшая найденная конфигурация гиперпараметров
+
+        """
         param_names = list(self.dict_to_optimize.keys())
         n = len(self.data)
         

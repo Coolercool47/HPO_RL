@@ -6,13 +6,38 @@ import pandas as pd
 import re
 
 class plot_and_save():
+    """Класс для создания таблиц и изображений.
+    
+    Args:
+        history: история сгенерированных гиперпараметров
+        best_result: лучший результат 
+        save_path: папка для сохранения таблиц и изображений
+        backend: выбранный `backend`
+
+    Attributes:
+        history: история сгенерированных гиперпараметров
+        best_result: лучший результат 
+        save_path: папка для сохранения таблиц и изображений
+        backend: выбранный `backend`
+    
+    """
     def __init__(self, history, best_result, save_path, backend):
+        """Инициализация plot_and_save
+
+        Args:
+            history: история сгенерированных гиперпараметров
+            best_result: лучший результат 
+            save_path: папка для сохранения таблиц и изображений
+            backend: выбранный `backend`
+
+        """
         self.history = history
         self.best_result = best_result
         self.save_path = save_path
         self.backend = backend
 
     def plot_3d(self):
+        """Функция, создающая изображение функции на плоскости и в трехмерии"""
         # print(self.history)
         x0_vals = [t[0]["x0"] for t in self.history]
         x1_vals = [t[0]["x1"] for t in self.history]
@@ -83,6 +108,7 @@ class plot_and_save():
 
 
     def plot_trajectory(self):
+        """Функция, создающая изображение с историей наград"""
         is_maximize = self.backend.maximize
         history_scores = [d[-1] if is_maximize else -d[-1] for d in self.history]
         iterations = range(1, len(history_scores) + 1)
@@ -126,6 +152,7 @@ class plot_and_save():
         # добавить сохранение
     
     def save_history(self, as_latex=True):
+        """Функция, сохраняющая историю в виде таблицы и Latex кода"""
         data = []
         for i, (params, score) in enumerate(self.history, 1):
             row = {"Iteration": i}

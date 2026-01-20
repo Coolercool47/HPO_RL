@@ -4,12 +4,67 @@ from .TPE import TPE
 from tqdm.auto import tqdm
 
 class BOHB:
+    """Класс, реализурующий алгоритм BOHB.
+        
+        Статья:  `BOHB: Robust and Efficient Hyperparameter Optimization at Scale <https://arxiv.org/pdf/1807.01774>`_
+
+        Args:
+            R: максимальное количество ресурсов, выделяемое под единственную конфигурацию
+            nu: контролирует пропорцию отбрасываемых конгфигураций
+            objective_func: целевая функция, возвращающая оценку
+            dict_to_optimize: конфигурация допустимых гиперпараметров
+            min_points_in_model: минимальное количество точек для запуска алгоритма :class:`TPE`
+            top_n_percent: перцентиль данных, попадающих в "хорошую" выборку :class:`TPE`
+            num_samples: сколько сделать сэмплирований в логике :class:`TPE`
+            random_fraction: вероятность запуска случайного поиска, вместо :class:`TPE`
+
+        Attributes:
+            R: ресурсы под конфигурацию
+            nu: пропорция отбрасываемых конгфигураций
+            objective_func: целевая функция
+            dict_to_optimize: конфигурация допустимых гиперпараметров
+            min_points_in_model: минимальное количество точек для :class:`TPE`
+            top_n_percent: перцентиль
+            num_samples: количество сэмплов для :class:`TPE`
+            random_fraction: вероятность случайного поиска
+            s_max: количество итераций для каждого из бюджетов
+            B: бюджет, контролирующий выделение ресурсов для модели
+            data: датасет с посчитанными оценками
+
+        Пример::
+           
+            def objective_function(params): 
+                score = ...
+                return score
+
+            dict_config = {
+                "x0": {type: float, min: 0.0, max:1.0} , 
+                "x1": {type: categorical, values: ["a", "b"]}
+            }
+
+            bohb = BOHB(R=9, nu=3, objective_function=objective_function, dict_to_optimize=dict_config, min_points_in_model=5, num_samples=64)
+            best_config = bohb.main_loop()
+            
+        """
     def __init__(self, R, nu, objective_func, dict_to_optimize, 
                  min_points_in_model=None, 
                  top_n_percent=0.15, 
                  num_samples=64, 
                  random_fraction=0.3):
+        """
+        Инициализирует BOHB
+
+        Args:
+            R: максимальное количество ресурсов, выделяемое под единственную конфигурацию
+            nu: контролирует пропорцию отбрасываемых конгфигураций
+            objective_func: целевая функция, возвращающая оценку, согласно которой будут отбрасываться значения
+            dict_to_optimize: конфигурация допустимых гиперпараметров
+            min_points_in_model: минимальное количество точек для запуска алгоритма :class:`TPE`
+            top_n_percent: перцентиль данных, попадающих в "хорошую" выборку :class:`TPE`
+            num_samples: сколько сделать сэмплирований в логике :class:`TPE`
+            random_fraction: вероятность запуска случайного поиска, вместо :class:`TPE`
         
+        """
         self.R = R
         self.nu = nu
         self.objective_func = objective_func
@@ -28,6 +83,11 @@ class BOHB:
         self.random_fraction = random_fraction
 
     def main_loop(self):
+        """Исполняет логику алгоритма BOHB с учетом введленных параметров
+
+        Returns: 
+            наилучшая найденная конфигурация гиперпараметров
+        """
         best_overall_config = None
         best_overall_loss = np.inf
 
@@ -62,6 +122,17 @@ class BOHB:
         return best_overall_config
 
     def get_config(self, n):
+        """
+        Функция возвращающее определенное количество конфигураций гиперпараметров
+
+        Args: 
+            n: количество возвращемых конфигураций гиперпароаметров
+
+        Returns: 
+            Конфигурации гиперпараметров
+
+        """
+        
         configs = []
         for _ in range(n):
             if np.random.rand() < self.random_fraction:
@@ -105,6 +176,12 @@ class BOHB:
         return configs
 
     def sample_random_config(self):
+        """Функция возращающая единственную конфигурацию гиперпараметров из равномерного распределения
+
+        Returns: 
+            конфигурация гиперпараметров
+
+        """
         config = {}
         for param_name, info in self.dict_to_optimize.items():
             if info["type"] == "float":
@@ -114,5 +191,15 @@ class BOHB:
         return config
 
     def top_k(self, params_with_loss, k):
+        """Функция возвращающая k лучших значений гиперпараметров
+
+        Args: 
+            params_with_loss: выболрка гиперпараметров
+            k: количество лучших возвращаемых значений
+
+        Returns: 
+            k лучших значений гиперпараметров
+        
+        """
         params_with_loss = sorted(params_with_loss, key=lambda x: x[1])
         return [x[0] for x in params_with_loss[:k]]
