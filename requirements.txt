@@ -1,25 +1,28 @@
 # Core Libraries
-numpy>=1.21.0
-torch>=1.9.0
-torchvision>=0.10.0  # Для работы с данными (datasets, transforms)
+numpy>=1.24.0
+torch>=2.0.0
+torchvision>=0.15.0  # Для работы с данными (datasets, transforms)
 
 # Reinforcement Learning
-gymnasium>=0.26.0
-stable-baselines3>=1.5.0
-sb3-contrib>=1.5.0  # Required for MaskablePPO and RecurrentPPO
+gymnasium>=1.0.0  # Современная замена gym (gym устарел)
+stable-baselines3>=2.0.0
+sb3-contrib>=2.0.0  # Required for MaskablePPO and RecurrentPPO
 
 # Configuration
-pyyaml>=5.4.0
+pyyaml>=6.0.0
 
 # Scientific Computing
-scipy>=1.7.0  # Используется в TPE и BOHB для статистических функций
+scipy>=1.10.0  # Используется в TPE и BOHB для статистических функций
+
+# Data Processing
+pandas>=2.0.0  # Используется в plot.py для работы с данными
 
 # Visualization
-matplotlib>=3.4.0  # Для построения графиков (plot.py)
+matplotlib>=3.7.0  # Для построения графиков (plot.py)
 
 # Utilities
-tqdm>=4.62.0  # Прогресс-бары в torch_trainer.py
+tqdm>=4.65.0  # Прогресс-бары в torch_trainer.py
 
 # Testing
-pytest>=6.2.0
-mypy>=0.910
+pytest>=7.4.0
+mypy>=1.5.0
