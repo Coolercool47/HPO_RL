@@ -36,6 +36,7 @@ autosummary_generate = True
 
 autodoc_mock_imports = [
     "torch",
+    "torchvision",
     "gymnasium",
     "stable_baselines3",
     "sb3_contrib",
