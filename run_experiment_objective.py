@@ -1,5 +1,5 @@
-from hpo_rl.main_scripts.plot import plot
-from hpo_rl.main_scripts.check import check
+from hpo_rl.controller.plot import plot_and_save
+from hpo_rl.controller.check import check
 from hpo_rl.controller.controller import controller
 import torch
 import torch.optim as optim
@@ -28,7 +28,7 @@ def run_experiment(config):
     best_result = expreiment_controller.inference()
     history = expreiment_controller.return_history()
     
-    graphics = plot(history, best_result, save_path, expreiment_controller.backend)
+    graphics = plot_and_save(history, best_result, save_path, expreiment_controller.backend)
     # print(history)
     graphics.plot_trajectory()
 

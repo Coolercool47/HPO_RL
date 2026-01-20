@@ -1,5 +1,5 @@
-from hpo_rl.main_scripts.plot import plot_and_save
-from hpo_rl.main_scripts.check import check
+from hpo_rl.controller.plot import plot_and_save
+from hpo_rl.controller.check import check
 from hpo_rl.controller.controller import controller
 import torch
 import torch.optim as optim
