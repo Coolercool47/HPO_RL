@@ -1,4 +1,5 @@
 from hpo_rl.experiments.run_experiment import run_experiment
+from hpo_rl.experiments.run_experiment import run_n_experiments
 import torch
 import torch.optim as optim
 import torch.nn as nn

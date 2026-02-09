@@ -1,4 +1,5 @@
 from hpo_rl.experiments.run_experiment import run_experiment
+from hpo_rl.experiments.run_experiment import run_n_experiments
 from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
@@ -101,4 +102,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_experiment(config)
+    run_n_experiments(config, 3)
