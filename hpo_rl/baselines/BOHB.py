@@ -82,6 +82,10 @@ class BOHB:
         self.num_samples = num_samples
         self.random_fraction = random_fraction
 
+    def reset(self):
+        """Сбрасывает состояние алгоритма для повторного запуска (run_n_experiments)."""
+        self.data = []
+
     def main_loop(self):
         """Исполняет логику алгоритма BOHB с учетом введленных параметров
 

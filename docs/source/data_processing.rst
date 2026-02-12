@@ -1,7 +1,7 @@
-Data_processing
+Data processing
 ===============
 
-Data_processing (Обработка дынных)
+Data processing (Обработка данных)
 ----------------------------------
 
 .. automodule:: hpo_rl.data_processing

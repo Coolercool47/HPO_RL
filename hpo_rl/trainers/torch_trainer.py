@@ -60,6 +60,7 @@ class TorchTrainer(BaseTrainer[nn.Module, DataLoader]):
         epoch_iterator = tqdm(
             range(num_epochs),
             desc="Training Progress",
+            position=1,
             leave=True
         )
 

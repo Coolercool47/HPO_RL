@@ -46,6 +46,23 @@ if __name__ == "__main__":
     }
     }
 
+    config_SimpleGA = {
+        "backend": {
+            "name": "function",
+            "function": "rastrigin",
+            "dimensions": 2
+        },
+        "algorithm": {
+            "name": "SimpleGA",
+            "N_pop": 20,
+            "budget": 100,
+            "mutation_prob": 0.1,
+            "crossover_prob": 0.8,
+            "tournament_size": 30,
+            "elitism": True
+        }
+    }
+
     config_real = {
         "algorithm": {
         "name": "PPO", 
@@ -102,4 +119,7 @@ if __name__ == "__main__":
         }
     }
     }
-    run_n_experiments(config, 3)
+    # Варианты запуска:
+    # run_experiment(config_SimpleGA)
+    # run_n_experiments(config_SimpleGA, 3)
+    run_n_experiments(config_SimpleGA, 3)

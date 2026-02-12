@@ -12,6 +12,7 @@ from hpo_rl.backends.objective import ObjectiveBackend
 from hpo_rl.baselines.BOHB import BOHB
 from hpo_rl.baselines.TPE import TPE
 from hpo_rl.baselines.hyperband import hyperband
+from hpo_rl.baselines.SimpleGA import SimpleGA
 
 from hpo_rl.models.simple_cnn import SimpleCNN
 
@@ -39,7 +40,7 @@ ALGORITHMS_RL = {
 }
 
 ALGORITHMS_BASELINE = {
-    "TPE": TPE,  "BOHB": BOHB, "hyperband": hyperband
+    "TPE": TPE,  "BOHB": BOHB, "hyperband": hyperband, "SimpleGA": SimpleGA
 }
 
 BACKENDS = {
@@ -73,7 +74,8 @@ def check(config):
         - Классические
             - TPE
             - BOHB
-            - hyperband
+            - Hyperband 
+            - SimpleGA
     
     Поддерживаемые `backend`:
         - function
@@ -106,7 +108,6 @@ def check(config):
         env_class = ENVS[env_name]
         for key, value in config["env"].items():
             if key != "name":
-                print(key, value)
                 env_params[key] = value
 
     elif algorithm_name in ALGORITHMS_BASELINE:

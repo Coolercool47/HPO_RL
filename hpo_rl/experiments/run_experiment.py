@@ -59,13 +59,15 @@ def run_n_experiments(config, n_experiments):
     save_path = parsed_config.get("log_save_path", log_dir)
 
     expreiment_controller = controller(device=device, **parsed_config)
-
     if mode == "RL":
         expreiment_controller.train()
-    
+
     full_history = []
 
     for i_experiment in range(n_experiments):
+        if mode == "baseline" and i_experiment > 0:
+            if hasattr(expreiment_controller.algorithm, "reset"):
+                expreiment_controller.algorithm.reset()
         best_result = expreiment_controller.inference()
         history = expreiment_controller.return_history()
         outputs = plot_and_save(history, best_result, save_path, expreiment_controller.backend, experiment_number=i_experiment)
