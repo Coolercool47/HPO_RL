@@ -1,9 +1,35 @@
 import yaml
 import os
 import numpy as np
+import tianshou as ts
 
-from stable_baselines3 import A2C, DQN, PPO, SAC, TD3
-from sb3_contrib import MaskablePPO, TRPO, RecurrentPPO
+import tianshou.algorithm.optim as opt
+
+from tianshou.algorithm.modelfree.a2c import A2C
+from tianshou.algorithm.modelfree.bdqn import BDQNPolicy, BDQN
+from tianshou.algorithm.modelfree.c51 import C51Policy, C51
+from tianshou.algorithm.modelfree.ddpg import DDPG, ContinuousDeterministicPolicy
+from tianshou.algorithm.modelfree.discrete_sac import DiscreteSAC, DiscreteSACPolicy
+from tianshou.algorithm.modelfree.dqn import DQN, DiscreteQLearningPolicy
+from tianshou.algorithm.modelfree.fqf import FQF,FQFPolicy
+from tianshou.algorithm.modelfree.iqn import IQN,IQNPolicy
+from tianshou.algorithm.modelfree.npg import NPG
+from tianshou.algorithm.modelfree.ppo import PPO
+from tianshou.algorithm.modelfree.qrdqn import QRDQN, QRDQNPolicy
+from tianshou.algorithm.modelfree.rainbow import RainbowDQN
+from tianshou.algorithm.modelfree.redq import REDQ, REDQPolicy
+from tianshou.algorithm.modelfree.reinforce import Reinforce, ProbabilisticActorPolicy, DiscreteActorPolicy
+from tianshou.algorithm.modelfree.sac import SAC, SACPolicy
+from tianshou.algorithm.modelfree.td3 import TD3
+from tianshou.algorithm.modelfree.trpo import TRPO
+
+from torch.utils.tensorboard import SummaryWriter
+from tianshou.utils import TensorboardLogger
+
+from tianshou.trainer import OffPolicyTrainerParams
+from tianshou.trainer import OnPolicyTrainerParams
+
+from tianshou.data import VectorReplayBuffer
 
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.backends.real import RealTrainingBackend
@@ -34,8 +60,33 @@ functions = {
 }
 
 ALGORITHMS_RL = {
-    "A2C": A2C, "DQN": DQN, "PPO": PPO, "SAC": SAC, "TD3": TD3,
-    "TRPO": TRPO, "MaskablePPO": MaskablePPO, "RecurrentPPO": RecurrentPPO,
+    "onpolicy": {
+        "a2c": A2C,
+        "npg": NPG,
+        "ppo": PPO,
+        "reinforce": Reinforce,
+        "trpo": TRPO,
+    },
+    "offpolicy": {
+        "bdqn": BDQN,
+        "c51": C51,
+        "ddpg": DDPG,
+        "discrete_sac": DiscreteSAC,
+        "dqn": DQN,
+        "fqf": FQF,
+        "iqn": IQN,
+        "qrdqn": QRDQN,
+        "rainbow": RainbowDQN,
+        "redq": REDQ,
+        "sac": SAC,
+        "td3": TD3,
+    }
+}
+
+OPTIMIZERS = {
+    "TorchOptimizerFactory": opt.TorchOptimizerFactory,
+    "AdamOptimizerFactory": opt.AdamOptimizerFactory,
+    "RMSpropOptimizerFactory": opt.RMSpropOptimizerFactory
 }
 
 ALGORITHMS_BASELINE = {
@@ -91,15 +142,11 @@ def check(config):
     
     """
 
-    algorithm_name = config["algorithm"]["name"]
+    algorithm_name = config["full_args"]["algorithm"]["name"]
     alg_params = {}
 
-    if algorithm_name in ALGORITHMS_RL:
+    if algorithm_name in ALGORITHMS_RL["offpolicy"] or ALGORITHMS_RL["onpolicy"]:
         mode = "RL"
-        algorithm_class = ALGORITHMS_RL[algorithm_name]
-        for key, value in config["algorithm"].items():
-            if key != "name":
-                alg_params[key] = value
 
         env_name = config["env"]["name"]
         env_params = {}
@@ -108,6 +155,73 @@ def check(config):
             if key != "name":
                 print(key, value)
                 env_params[key] = value
+        # env = env_class(**env_params)
+        
+
+        if algorithm_name in ALGORITHMS_RL["offpolicy"]:
+            algorithm_class = ALGORITHMS_RL["offpolicy"][algorithm_name]
+        else: 
+            algorithm_class = ALGORITHMS_RL["onpolicy"][algorithm_name]
+        for key, value in config["full_args"]["algorithm"].items():
+            if key != "name":
+                alg_params[key] = value
+        if config["full_args"]["net"].get("critic"):
+            alg_params["critic"] = config["full_args"]["net"]["critic"]
+
+        optim_name = config["full_args"]["optim"]["name"]
+        optim_class = OPTIMIZERS[optim_name]
+        optim_params = {}
+        for key, value in config["full_args"]["optim"].items():
+            if key != "name":
+                optim_params[key] = value
+        alg_params["optim"] = optim_class(**optim_params)
+        
+        if algorithm_name in ALGORITHMS_RL["offpolicy"]:
+            trainer_class = OffPolicyTrainerParams
+        else:
+            trainer_class = OnPolicyTrainerParams
+        
+        trainer_params = {}
+        for key, value in config["full_args"]["trainer"].items():
+            trainer_params[key] = value
+
+        if config["full_args"].get("buffer"):
+            buffer_params = {}
+            if config["full_args"].get("buffer"):
+                for key, value in config["full_args"]["buffer"].items():
+                    trainer_params[key] = value
+            buffer = VectorReplayBuffer(**buffer_params)
+
+        training_collector_params = {}
+        if config["full_args"].get("training_collector_kwargs"):
+            for key, value in config["full_args"]["training_collector_kwargs"].items():
+                    training_collector_params[key] = value
+            if config["full_args"].get("buffer"):
+                training_collector_params["buffer"] = buffer
+
+        test_collector_params = {}
+        if config["full_args"].get("test_collector_kwargs"):
+            for key, value in config["full_args"]["test_collector_kwargs"].items():
+                    test_collector_params[key] = value
+
+        policy_params = {}
+        policy_class = config["full_args"]["policy"]["class"]
+        for key, value in config["full_args"]["policy"].items():
+                if key != "class":
+                    policy_params[key] = value
+        policy_params["actor"] = config["full_args"]["net"]["actor"]
+        
+
+        inference_params = {}
+        if config["full_args"].get("inference"):
+            for key, value in config["full_args"]["inference"].items():
+                    inference_params[key] = value
+
+        logger = TensorboardLogger(SummaryWriter(f"log/{algorithm_name}"))
+        
+        if config["full_args"]["net"].get("net"):
+            net = config["full_args"]["net"]["net"]
+        hidden_states = config["full_args"]["net"]["hidden_states"]
 
     elif algorithm_name in ALGORITHMS_BASELINE:
         mode = "baseline"
@@ -169,10 +283,22 @@ def check(config):
     if mode == "RL":
         config_for_controller = {
             "mode": mode,
+            "net": net,
+            "policy": {"class": policy_class, "params": policy_params},
+            "trainer": {"class": trainer_class, "params": trainer_params},
+            "logger": logger,
             "backend": {"class": backend_class, "params": backend_params},
             "algorithm": {"class": algorithm_class, "params": alg_params},
-            "env": {"class": env_class, "params": env_params}
+            "env": {"class": env_class, "params": env_params},
+            "training_collector_kwargs": training_collector_params,
+            "test_collector_kwargs": test_collector_params,
+            "inference_kwargs": inference_params,
+            "n_training_envs": config["full_args"]["num_training_envs"],
+            "n_inference_envs": config["full_args"]["num_test_envs"],
+            "alg_name": algorithm_name,
+            "hidden_states": hidden_states
             }
+        
     elif mode == "baseline":
         config_for_controller = {
             "mode": mode,

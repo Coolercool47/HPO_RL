@@ -3,30 +3,70 @@ from hpo_rl.experiments.run_experiment import run_n_experiments
 from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
+from torch.optim import Adam
+from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
+from tianshou.utils.net.discrete import DiscreteActor
+from tianshou.utils.net.discrete import DiscreteCritic
+import torch
+from tianshou.utils.net.common import Net
 
 if __name__ == "__main__":
     config = {
-    "algorithm": {
-        "name": "PPO", 
-        "verbose": 1,
-        "gamma": 0.95,
-        "learning_rate": 0.001,
-        "total_timesteps": 1000,
-        "inference_timesteps": 100,
-        "n_steps": 1000,
-        "batch_size": 500,
-        "policy": "MultiInputPolicy"
+    "full_args": {
+        "algorithm":
+        {
+            "name": "ppo",
+            "gamma": 0.9,
+            # "n_step_return_horizon": 3,
+            # "target_update_freq": 320,
+        },  
+        "optim":
+        {
+            "name": "TorchOptimizerFactory",
+            "optim_class": Adam,
+            "lr": 1e-3,
+        },
+        "net":
+        {
+            "actor": DiscreteActor,
+            "critic": DiscreteCritic, 
+            "hidden_states": [64, 64],
+            "net": Net
+        },
+        "trainer":
+        {
+            "max_epochs": 1,
+            "epoch_num_steps": 10000,
+            "batch_size": 64,
+            "collection_step_num_env_steps": 10
+        },
+        "policy":
+        {
+            "class": ProbabilisticActorPolicy,
+            "dist_fn": torch.distributions.Categorical,
+            "action_scaling": False,
+            # "eps_training": 0.1,
+            # "eps_inference": 0.05,
+        },
+        "inference": 
+        {
+            "n_episode": 1,
+            "reset_before_collect": True,
+        },
+        "num_training_envs": 10,
+        "num_test_envs": 10,
     },
     "env": {
         "name": "cycle_move_pipeline",
         "num_bins": 300,
-        "max_steps": 10,
+        # "action_type": "continuous",
+        "max_steps": 100,
         "reward_mode": "per_step",
         "step_sizes": [1, 5, 25]
     },
     "backend": {
         "name": "function",
-        "function": "sphere",
+        "function": "rastrigin",
         "dimensions": 2
     }
     }

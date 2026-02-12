@@ -19,7 +19,7 @@ def run_experiment(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mode = parsed_config.get("mode")
 
-    algorithm_name = config.get("algorithm").get("name")
+    algorithm_name = config["full_args"].get("algorithm").get("name")
     backend_name = config.get("backend").get("name")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_dir = Path("logs") / algorithm_name / timestamp 
@@ -51,7 +51,7 @@ def run_n_experiments(config, n_experiments):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mode = parsed_config.get("mode")
 
-    algorithm_name = config.get("algorithm").get("name")
+    algorithm_name = config["full_args"].get("algorithm").get("name")
     backend_name = config.get("backend").get("name")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_dir = Path("logs") / algorithm_name / timestamp 

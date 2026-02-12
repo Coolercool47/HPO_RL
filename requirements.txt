@@ -5,8 +5,7 @@ torchvision>=0.15.0  # Для работы с данными (datasets, transfor
 
 # Reinforcement Learning
 gymnasium>=1.0.0  # Современная замена gym (gym устарел)
-stable-baselines3>=2.0.0
-sb3-contrib>=2.0.0  # Required for MaskablePPO and RecurrentPPO
+tianshou>=2.0.0
 
 # Configuration
 pyyaml>=6.0.0

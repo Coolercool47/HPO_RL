@@ -1,4 +1,12 @@
 from tqdm.auto import tqdm
+import gymnasium as gym
+import tianshou as ts
+from tianshou.data import CollectStats
+from tianshou.utils.space_info import SpaceInfo
+import gymnasium
+from gymnasium.spaces import flatdim
+from gymnasium.wrappers import FlattenObservation
+from gymnasium.spaces.utils import unflatten
 
 class controller():
     """
@@ -24,7 +32,25 @@ class controller():
     Note:
         `device`, `env`, `save_loc`, `load_loc` задаются только для случая `mode` = "RL"
     """
-    def __init__(self, mode, backend, algorithm, device = None, env = None, save = None, load = None):
+    def __init__(self, 
+                 mode, 
+                 backend, 
+                 algorithm,
+                 alg_name = None,
+                 policy = None, 
+                 trainer = None,
+                 logger = None,
+                 net = None,
+                 hidden_states = None,
+                 training_collector_kwargs= {}, 
+                 test_collector_kwargs = {}, 
+                 inference_kwargs = {},
+                 n_training_envs = 1,
+                 n_inference_envs = 1,
+                 device = None, 
+                 env = None, 
+                 save = None, 
+                 load = None):
         """Инициализация класса controller
 
         Args:
@@ -39,7 +65,7 @@ class controller():
         """
         # mode: "baseline"/"RL"
         # backend: {class: backend_style_class, params: function_or_real_params}
-        # algorithm: {class: algorithm_style_class, params: alg_params}
+        # algorithm: {name:name, class: algorithm_style_class, params: alg_params}
         # env: {class: env_style_class, params: env_params}
         # save: save_location
         # load: load_location
@@ -61,19 +87,57 @@ class controller():
                 load_bool = True
             else:
                 load_bool = False
-
             if not load_bool:
-                env_class = env.get("class")
-                self.env = env_class(backend=self.backend, **(env.get("params")))
+                if alg_name in ["ppo"]:
+                    env_class = env.get("class")
+                    self.env = env_class(backend=self.backend, **(env.get("params")))
 
-                self.total_timesteps = algorithm.get("params").pop("total_timesteps")
-                self.inference_timesteps = algorithm.get("params").pop("inference_timesteps")
+                    self.env = FlattenObservation(self.env)
 
-                algorithm_class = algorithm.get("class")
-                self.algorithm = algorithm_class(device=self.device, env=self.env, **(algorithm.get("params")))
-            else:
-                algorithm_class = algorithm.get("class")
-                self.algorithm = algorithm_class.load(load_loc, device=device)
+                    training_envs = ts.env.DummyVectorEnv([lambda: FlattenObservation(env_class(backend=self.backend, **(env.get("params")))) for _ in range(n_training_envs)])
+                    test_envs = ts.env.DummyVectorEnv([lambda: FlattenObservation(env_class(backend=self.backend, **(env.get("params")))) for _ in range(n_inference_envs)])
+
+                    self.inference_kwargs = inference_kwargs
+                    
+                    state_shape = flatdim(self.env.observation_space)
+                    if isinstance(self.env.action_space, gym.spaces.Discrete):
+                        action_shape = self.env.action_space.n
+                    elif isinstance(self.env.action_space, gym.spaces.Box):
+                        action_shape = self.env.action_space.shape
+
+                    print(state_shape,action_shape)
+
+                    net_c = net(state_shape=state_shape,action_shape=action_shape, hidden_sizes=hidden_states)
+                    net_a = net(state_shape=state_shape,action_shape=action_shape, hidden_sizes=hidden_states)
+
+                    actor_class = policy["params"].pop("actor")(preprocess_net=net_a, action_shape=action_shape)
+                    policy_class = policy["class"]
+                    policy_initialized = policy_class(actor = actor_class, action_space = self.env.action_space, **policy["params"])
+
+                    critic_class = algorithm["params"].pop("critic")(preprocess_net=net_c)
+                    algorithm_class = algorithm["class"]
+                    self.algorithm_initialized = algorithm_class(critic = critic_class, policy = policy_initialized, **algorithm["params"])
+                    
+                    training_collector = ts.data.Collector[CollectStats](
+                        self.algorithm_initialized,
+                        training_envs,
+                        **training_collector_kwargs
+                    )
+                    test_collector = ts.data.Collector[CollectStats](
+                        self.algorithm_initialized,
+                        test_envs,
+                        **test_collector_kwargs
+                    )
+
+                    trainer_class = trainer["class"]
+                    self.trainer_initialized = trainer_class(
+                            training_collector=training_collector,
+                            test_collector=test_collector,
+                            logger=logger,
+                            **trainer["params"])
+                else:
+                    algorithm_class = algorithm.get("class")
+                    self.algorithm = algorithm_class.load(load_loc, device=device)
 
         elif self.mode == "baseline":
             algorithm_class = algorithm.get("class")
@@ -87,9 +151,10 @@ class controller():
 
         """
         if self.mode == "RL":
-            self.algorithm.learn(total_timesteps=self.total_timesteps, progress_bar = True)
+            result = self.algorithm_initialized.run_training(self.trainer_initialized)
             if self.save_bool:
-                self.algorithm.save(self.save_loc)
+                self.algorithm_initialized.save(self.save_loc)
+            print(f"Finished training in {result.timing.total_time} seconds")
     
     def inference(self):
         """Запускает инференс модели
@@ -101,28 +166,18 @@ class controller():
         # Добавить сохранение лучшей модели
     
         if self.mode == "RL":
-            
+            collector = ts.data.Collector[CollectStats](self.algorithm_initialized, self.env, exploration_noise=True)
+            collector.reset_buffer()
+            result = collector.collect(**self.inference_kwargs)     
+            n_steps = result.n_collected_steps         
+            buffer = collector.buffer
             self.history = []
-            env = self.algorithm.env
-            obs = env.reset()
-            inference_bar = tqdm(total=int(self.inference_timesteps if self.inference_timesteps <= self.env.max_steps_limit else self.env.max_steps_limit),desc="Inference", position=0, leave=True)
-            for _ in range(self.inference_timesteps):
-                action, _states = self.algorithm.predict(obs, deterministic=True)
-                obs, _rewards, done, infos = env.step(action)
-                info = infos[0]
-                config = info.get("current_config")
-                metric = info.get("current_metric")
-                self.history.append([config, metric])
-                inference_bar.update(1)
-                if done:
-                    inference_bar.close()
-                    print("DONE")
-                    break
-            if not done:
-                inference_bar.close()
-                print("Did not finish inference episode")
-                
-
+            for i in range(n_steps):
+                step_info = buffer.info[i]
+                current_config = step_info["current_config"]
+                step_rew = buffer.rew[i]
+                self.history.append((current_config, step_rew))
+            # print(self.history)
         elif self.mode == "baseline":
             self.algorithm.main_loop()
             self.history = [(i[0], -i[1]) for i in self.algorithm.data]

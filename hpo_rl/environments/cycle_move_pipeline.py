@@ -287,22 +287,28 @@ class CyclicPipelineEnv(BaseHPOEnv):
             self.final_config_options[name] = val
 
     def _get_obs(self) -> Dict[str, np.ndarray]:
-        norm_values = self.current_indices.astype(np.float32) / (self.num_bins - 1)
+        indices = np.array(self.current_indices, dtype=np.int32).flatten()
+        norm_values = (indices.astype(np.float32) / (self.num_bins - 1))
 
-        one_hot = np.zeros(self.num_hyperparams, dtype=np.float32)
-        one_hot[self.cursor_idx] = 1.0
+        norm_values = np.atleast_1d(norm_values)
+
+        active_param = np.zeros(self.num_hyperparams, dtype=np.float32)
+        active_param[self.cursor_idx] = 1.0
+        active_param = np.atleast_1d(active_param)
 
         obs = {
-            "active_param": one_hot,
+            "active_param": active_param,
             "chosen_values": norm_values,
         }
 
         if self.use_history:
-            obs["prev_values"] = self.prev_cycle_indices.astype(np.float32) / (self.num_bins - 1)
-            obs["reward_history"] = self.reward_history_buffer.copy()
-            obs["action_history"] = self.action_history_buffer.copy()
+            obs["prev_values"] = np.atleast_1d(
+                (self.prev_cycle_indices.astype(np.float32) / (self.num_bins - 1)).flatten()
+            )
+            obs["reward_history"] = np.atleast_1d(self.reward_history_buffer.astype(np.float32))
+            obs["action_history"] = np.atleast_1d(self.action_history_buffer.astype(np.float32))
         else:
-            obs["prev_reward"] = np.array([self.prev_reward / (1.0 + abs(self.prev_reward))], dtype=np.float32)
+            obs["prev_reward"] = np.array([self.prev_reward], dtype=np.float32)
             obs["prev_action"] = np.array([self.prev_action], dtype=np.float32)
 
         return obs
