@@ -5,13 +5,17 @@ from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
 from torch.optim import Adam
 from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
+from tianshou.algorithm.modelfree.dqn import DiscreteQLearningPolicy
 from tianshou.utils.net.discrete import DiscreteActor
 from tianshou.utils.net.discrete import DiscreteCritic
 import torch
 from tianshou.utils.net.common import Net
 
+# def stop_fn(score):
+#     return False
+
 if __name__ == "__main__":
-    config = {
+    config_ppo = {
     "full_args": {
         "algorithm":
         {
@@ -35,10 +39,13 @@ if __name__ == "__main__":
         },
         "trainer":
         {
-            "max_epochs": 1,
-            "epoch_num_steps": 10000,
+            "max_epochs": 10,
+            "epoch_num_steps": 1000,
             "batch_size": 64,
-            "collection_step_num_env_steps": 10
+            "collection_step_num_env_steps": 10,
+            "update_step_num_repetitions": 5,
+            # "test_in_training": True,
+            # "stop_fn": stop_fn
         },
         "policy":
         {
@@ -60,6 +67,137 @@ if __name__ == "__main__":
         "name": "cycle_move_pipeline",
         "num_bins": 300,
         # "action_type": "continuous",
+        "max_steps": 100,
+        "reward_mode": "per_step",
+        "step_sizes": [1, 5, 25]
+    },
+    "backend": {
+        "name": "function",
+        "function": "rastrigin",
+        "dimensions": 2
+    }
+    }
+
+    config_dqn = {
+    "full_args": {
+        "algorithm":
+        {
+            "name": "dqn",
+            "gamma": 0.9,
+            # "n_step_return_horizon": 3,
+            # "target_update_freq": 320,
+        },
+        "buffer":
+        {
+            "total_size": 10000,
+            "buffer_num": 10,
+        },  
+        "optim":
+        {
+            "name": "TorchOptimizerFactory",
+            "optim_class": Adam,
+            "lr": 1e-3,
+        },
+        "net":
+        {
+            # "actor": DiscreteActor,
+            # "critic": DiscreteCritic, 
+            "hidden_states": [64, 64],
+            "net": Net
+        },
+        "trainer":
+        {
+            "max_epochs": 10,
+            "epoch_num_steps": 1000,
+            "batch_size": 64,
+            "collection_step_num_env_steps": 10,
+            # "update_step_num_repetitions": 5,
+            # "test_in_training": True,
+            # "stop_fn": stop_fn
+        },
+        "policy":
+        {
+            "class": DiscreteQLearningPolicy,
+            # "dist_fn": torch.distributions.Categorical,
+            # "action_scaling": False,
+            # "eps_training": 0.1,
+            # "eps_inference": 0.05,
+        },
+        "inference": 
+        {
+            "n_episode": 1,
+            "reset_before_collect": True,
+        },
+        "num_training_envs": 10,
+        "num_test_envs": 10,
+    },
+    "env": {
+        "name": "cycle_move_pipeline",
+        "num_bins": 300,
+        # "action_type": "continuous",
+        "max_steps": 100,
+        "reward_mode": "per_step",
+        "step_sizes": [1, 5, 25]
+    },
+    "backend": {
+        "name": "function",
+        "function": "rastrigin",
+        "dimensions": 2
+    }
+    }
+
+    config_reinforce = {
+    "full_args": {
+        "algorithm":
+        {
+            "name": "sac",
+            "gamma": 0.9,
+            # "n_step_return_horizon": 3,
+            # "target_update_freq": 320,
+        },
+        "optim":
+        {
+            "name": "TorchOptimizerFactory",
+            "optim_class": Adam,
+            "lr": 1e-3,
+        },
+        "net":
+        {
+            "actor": DiscreteActor,
+            "critic": DiscreteCritic, 
+            "hidden_states": [64, 64],
+            "net": Net
+        },
+        "trainer":
+        {
+            "max_epochs": 10,
+            "epoch_num_steps": 1000,
+            "batch_size": 64,
+            "collection_step_num_env_steps": 10,
+            # "update_step_num_repetitions": 5,
+            # "test_in_training": True,
+            # "stop_fn": stop_fn
+        },
+        "policy":
+        {
+            "class": ProbabilisticActorPolicy,
+            "dist_fn": torch.distributions.Categorical,
+            "action_scaling": False,
+            # "eps_training": 0.1,
+            # "eps_inference": 0.05,
+        },
+        "inference": 
+        {
+            "n_episode": 1,
+            "reset_before_collect": True,
+        },
+        "num_training_envs": 10,
+        "num_test_envs": 10,
+    },
+    "env": {
+        "name": "cycle_move_pipeline",
+        # "num_bins": 300,
+        "action_type": "continuous",
         "max_steps": 100,
         "reward_mode": "per_step",
         "step_sizes": [1, 5, 25]
@@ -142,4 +280,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_n_experiments(config, 3)
+    run_n_experiments(config_dqn, 3)

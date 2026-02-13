@@ -2,6 +2,7 @@ import yaml
 import os
 import numpy as np
 import tianshou as ts
+import datetime
 
 import tianshou.algorithm.optim as opt
 
@@ -187,9 +188,8 @@ def check(config):
 
         if config["full_args"].get("buffer"):
             buffer_params = {}
-            if config["full_args"].get("buffer"):
-                for key, value in config["full_args"]["buffer"].items():
-                    trainer_params[key] = value
+            for key, value in config["full_args"]["buffer"].items():
+                buffer_params[key] = value
             buffer = VectorReplayBuffer(**buffer_params)
 
         training_collector_params = {}
@@ -209,7 +209,8 @@ def check(config):
         for key, value in config["full_args"]["policy"].items():
                 if key != "class":
                     policy_params[key] = value
-        policy_params["actor"] = config["full_args"]["net"]["actor"]
+        if config["full_args"]["net"].get("actor"):
+            policy_params["actor"] = config["full_args"]["net"]["actor"]
         
 
         inference_params = {}
@@ -217,7 +218,8 @@ def check(config):
             for key, value in config["full_args"]["inference"].items():
                     inference_params[key] = value
 
-        logger = TensorboardLogger(SummaryWriter(f"log/{algorithm_name}"))
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        logger = TensorboardLogger(SummaryWriter(f"log/{algorithm_name}/{timestamp}"))
         
         if config["full_args"]["net"].get("net"):
             net = config["full_args"]["net"]["net"]

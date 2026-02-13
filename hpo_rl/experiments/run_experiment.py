@@ -26,7 +26,7 @@ def run_experiment(config):
     log_dir.mkdir(parents=True, exist_ok=True)
     save_path = parsed_config.get("log_save_path", log_dir)
 
-    expreiment_controller = controller(device=device, **parsed_config)
+    expreiment_controller = controller(**parsed_config)
     if mode == "RL":
         expreiment_controller.train()
     best_result = expreiment_controller.inference()
@@ -58,7 +58,7 @@ def run_n_experiments(config, n_experiments):
     log_dir.mkdir(parents=True, exist_ok=True)
     save_path = parsed_config.get("log_save_path", log_dir)
 
-    expreiment_controller = controller(device=device, **parsed_config)
+    expreiment_controller = controller(**parsed_config)
 
     if mode == "RL":
         expreiment_controller.train()
