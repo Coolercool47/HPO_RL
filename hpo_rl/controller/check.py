@@ -13,6 +13,7 @@ from hpo_rl.baselines.BOHB import BOHB
 from hpo_rl.baselines.TPE import TPE
 from hpo_rl.baselines.hyperband import hyperband
 from hpo_rl.baselines.SimpleGA import SimpleGA
+from hpo_rl.baselines.CMA_ES import CMA_ES
 
 from hpo_rl.models.simple_cnn import SimpleCNN
 
@@ -40,7 +41,7 @@ ALGORITHMS_RL = {
 }
 
 ALGORITHMS_BASELINE = {
-    "TPE": TPE,  "BOHB": BOHB, "hyperband": hyperband, "SimpleGA": SimpleGA
+    "TPE": TPE,  "BOHB": BOHB, "hyperband": hyperband, "SimpleGA": SimpleGA, "CMA_ES": CMA_ES
 }
 
 BACKENDS = {
@@ -76,6 +77,7 @@ def check(config):
             - BOHB
             - Hyperband 
             - SimpleGA
+            - CMA_ES
     
     Поддерживаемые `backend`:
         - function
