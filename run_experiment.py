@@ -136,4 +136,4 @@ if __name__ == "__main__":
     # Варианты запуска:
     # run_experiment(config_SimpleGA)
     # run_n_experiments(config_SimpleGA, 3)
-    run_n_experiments(config_CMA_ES, 3)
+    run_n_experiments(config_CMA_ES, 1)
