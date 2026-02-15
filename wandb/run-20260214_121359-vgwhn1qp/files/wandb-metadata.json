@@ -1,0 +1,16 @@
+{
+  "os":  "Windows-10-10.0.19042-SP0",
+  "python":  "CPython 3.13.9",
+  "startedAt":  "2026-02-14T09:13:59.817002Z",
+  "program":  "c:\\Users\\Administrator\\Documents\\!prog\\HPO_RL\\HPO_RL\\run_experiment.py",
+  "codePath":  "run_experiment.py",
+  "codePathLocal":  "run_experiment.py",
+  "git":  {
+    "remote":  "https://github.com/Coolercool47/HPO_RL.git",
+    "commit":  "57e34342ceb3c62fae0e58fd39422ebfc5079a77"
+  },
+  "root":  "C:\\Users\\Administrator\\Documents\\!prog\\HPO_RL\\HPO_RL",
+  "host":  "WIN-3AVFC38GS69",
+  "executable":  "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+  "writerId":  "l507j7x3dhzd1yxllftrhdao49cwufqk"
+}

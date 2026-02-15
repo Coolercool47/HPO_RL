@@ -1,0 +1,56 @@
+_wandb:
+    value:
+        cli_version: 0.25.0
+        e:
+            rbub3by7acmddjeqh1v18yrai9hbncbb:
+                codePath: run_experiment.py
+                codePathLocal: run_experiment.py
+                cpu_count: 6
+                cpu_count_logical: 12
+                cudaVersion: "12.6"
+                disk:
+                    /:
+                        total: "499985149952"
+                        used: "444856999936"
+                executable: C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe
+                git:
+                    commit: 57e34342ceb3c62fae0e58fd39422ebfc5079a77
+                    remote: https://github.com/Coolercool47/HPO_RL.git
+                gpu: NVIDIA GeForce GTX 970
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Maxwell
+                      cudaCores: 1664
+                      memoryTotal: "4294967296"
+                      name: NVIDIA GeForce GTX 970
+                      uuid: GPU-5478feae-2f6d-1f63-a978-65a848036551
+                host: WIN-3AVFC38GS69
+                memory:
+                    total: "17099829248"
+                os: Windows-10-10.0.19042-SP0
+                program: c:\Users\Administrator\Documents\!prog\HPO_RL\HPO_RL\run_experiment.py
+                python: CPython 3.13.9
+                root: C:\Users\Administrator\Documents\!prog\HPO_RL\HPO_RL
+                startedAt: "2026-02-14T10:36:36.952054Z"
+                writerId: rbub3by7acmddjeqh1v18yrai9hbncbb
+        m: []
+        python_version: 3.13.9
+        t:
+            "1":
+                - 1
+                - 41
+            "2":
+                - 1
+                - 41
+            "3":
+                - 13
+                - 35
+                - 41
+            "4": 3.13.9
+            "5": 0.25.0
+            "8":
+                - 3
+            "9":
+                "2": tianshou
+            "12": 0.25.0
+            "13": windows-amd64
