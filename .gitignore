@@ -715,4 +715,3 @@ FodyWeavers.xsd
 # Additional files built by Visual Studio
 data/
 tmp_data/
-wandb/

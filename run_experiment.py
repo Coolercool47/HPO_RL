@@ -46,16 +46,20 @@ if __name__ == "__main__":
     }
     }
 
-    config_CMA_ES = {
+    config_SimpleGA = {
         "backend": {
             "name": "function",
             "function": "rastrigin",
             "dimensions": 2
         },
         "algorithm": {
-            "name": "CMA_ES",
+            "name": "SimpleGA",
             "N_pop": 20,
             "budget": 100,
+            "mutation_prob": 0.1,
+            "crossover_prob": 0.8,
+            "tournament_size": 3,
+            "elitism": True
         }
     }
 
@@ -67,8 +71,8 @@ if __name__ == "__main__":
         },
         "algorithm": {
             "name": "CMA_ES",
-            "N_pop": 5,
-            "budget": 50,
+            "N_pop": 20,
+            "budget": 100,
             "initial_step_size": 0.5
         }
     }
@@ -132,4 +136,4 @@ if __name__ == "__main__":
     # Варианты запуска:
     # run_experiment(config_SimpleGA)
     # run_n_experiments(config_SimpleGA, 3)
-    run_n_experiments(config_CMA_ES, 1)
+    run_n_experiments(config_CMA_ES, 3)
