@@ -25,6 +25,7 @@ from tianshou.algorithm.modelfree.td3 import TD3
 from tianshou.algorithm.modelfree.trpo import TRPO
 
 from torch.utils.tensorboard import SummaryWriter
+from tianshou.utils import WandbLogger
 from tianshou.utils import TensorboardLogger
 
 from tianshou.trainer import OffPolicyTrainerParams
@@ -146,7 +147,7 @@ def check(config):
     algorithm_name = config["full_args"]["algorithm"]["name"]
     alg_params = {}
 
-    if algorithm_name in ALGORITHMS_RL["offpolicy"] or ALGORITHMS_RL["onpolicy"]:
+    if algorithm_name in ALGORITHMS_RL["offpolicy"] or algorithm_name in ALGORITHMS_RL["onpolicy"]:
         mode = "RL"
 
         env_name = config["env"]["name"]
@@ -219,16 +220,25 @@ def check(config):
                     inference_params[key] = value
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        logger = TensorboardLogger(SummaryWriter(f"log/{algorithm_name}/{timestamp}"))
-        
+        # logger = TensorboardLogger(SummaryWriter(f"log/{algorithm_name}/{timestamp}"), update_interval=1, training_interval=1)
+        logger = WandbLogger(update_interval=1, training_interval=1, save_interval = 1, entity = "hpo_rl", project="HPO_RL_stats_and_models", name=f"log/{algorithm_name}/{timestamp}")
+        logger.load(SummaryWriter(f"log/{algorithm_name}/{timestamp}"))
+
+        save = os.path.join(f"log/{algorithm_name}/{timestamp}", "best_policy.pth")
+
         if config["full_args"]["net"].get("net"):
             net = config["full_args"]["net"]["net"]
-        hidden_states = config["full_args"]["net"]["hidden_states"]
+        net_params = {}
+        for key, value in config["full_args"]["net"].items():
+            if key != "net" and key != "critic" and key != "actor":
+                net_params[key] = value
+        # print(net_params)
+        # hidden_states = config["full_args"]["net"]["hidden_states"]
 
     elif algorithm_name in ALGORITHMS_BASELINE:
         mode = "baseline"
         algorithm_class = ALGORITHMS_BASELINE[algorithm_name]
-        for key, value in config["algorithm"].items():
+        for key, value in config["full_args"]["algorithm"].items():
             if key != "name":
                 alg_params[key] = value
     else:
@@ -298,7 +308,8 @@ def check(config):
             "n_training_envs": config["full_args"]["num_training_envs"],
             "n_inference_envs": config["full_args"]["num_test_envs"],
             "alg_name": algorithm_name,
-            "hidden_states": hidden_states
+            "net_params": net_params,
+            "save": save
             }
         
     elif mode == "baseline":

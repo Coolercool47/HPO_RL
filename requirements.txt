@@ -21,6 +21,7 @@ matplotlib>=3.7.0  # Для построения графиков (plot.py)
 
 # Utilities
 tqdm>=4.65.0  # Прогресс-бары 
+wandb>=0.25.0
 
 # Testing
 pytest>=7.4.0

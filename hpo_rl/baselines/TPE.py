@@ -67,10 +67,11 @@ class TPE:
         print(f"Initializing with {self.N_init} random samples...")
         for _ in range(self.N_init):
             setup = {}
+            # print(self.dict_to_optimize.items())
             for param_name, info in self.dict_to_optimize.items():
                 if info["type"] == "float":
                     value = np.random.uniform(info["values"][0], info["values"][1])
-                elif info["type"] == "categorical":
+                elif info["type"] == "categorical" or info["type"] == "int":
                     value = np.random.choice(info["values"])
                 setup[param_name] = value
             score = self.objective_func(setup)
@@ -211,7 +212,7 @@ class TPE:
                 b_final = max(b_scott,b_min)
                 bandwidths[param] = b_final
             
-            elif info["type"] == "categorical":
+            elif info["type"] == "categorical" or info["type"] == "int":
                 bandwidths[param] = 0.2
 
         return bandwidths
@@ -234,7 +235,7 @@ class TPE:
         w_prior = weights[0]
         w_obs = weights[0]
         
-        if info["type"] == "categorical":
+        if info["type"] == "categorical" or info["type"] == "int":
             num_categories = len(info["values"])
             prior_prob = 1.0 / num_categories
             probability = w_prior * prior_prob
@@ -295,7 +296,7 @@ class TPE:
         """
         info = self.dict_to_optimize[param_name]
         
-        if info["type"] == "categorical":
+        if info["type"] == "categorical" or info["type"]=="int":
             w_prior = weights[0]
             if np.random.rand() < w_prior or len(D_group) == 0:
                 return np.random.choice(info["values"])

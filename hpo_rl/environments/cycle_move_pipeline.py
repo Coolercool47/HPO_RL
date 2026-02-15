@@ -175,7 +175,6 @@ class CyclicPipelineEnv(BaseHPOEnv):
             'steps_without_improvement': self.steps_without_improvement,
             'cycle_completed': cycle_completed
         })
-
         return self._get_obs(), reward, False, truncated, info
 
     def _apply_action(self, action, old_idx):
@@ -216,6 +215,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self._update_config_from_indices()
         config = self._assemble_config(self.final_config_options)
         new_metric = self.backend.evaluate(config)
+        # return new_metric
 
         if new_metric > self.best_metric_so_far:
             self.best_metric_so_far = new_metric
@@ -232,8 +232,6 @@ class CyclicPipelineEnv(BaseHPOEnv):
             reward = 0.0
 
         self.current_metric = new_metric
-        
-        
 
         return reward
 
