@@ -214,11 +214,12 @@ class controller():
 
         elif self.mode == "baseline":
             algorithm_class = algorithm.get("class")
-            self.algorithm = algorithm_class(
-                objective_func=lambda *args, **kwargs: -self.backend.evaluate(*args, **kwargs),
-                **(algorithm.get("params"))
-            )
-    
+            if self.backend.maximize:
+                objective_func = lambda *args, **kwargs: -self.backend.evaluate(*args, **kwargs)
+            else:
+                objective_func = self.backend.evaluate
+            self.algorithm = algorithm_class(objective_func=objective_func, **(algorithm.get("params")))
+
     def train(self):
         if self.mode == "RL":
             result = self.algo.run_training(self.trainer_initialized)
@@ -251,8 +252,10 @@ class controller():
         
         elif self.mode == "baseline":
             self.algorithm.main_loop()
-            self.history = [(i[0], -i[1]) for i in self.algorithm.data]
-
+            if self.backend.maximize:
+                self.history = [(cfg, -score) for cfg, score in self.algorithm.data]
+            else:
+                self.history = list(self.algorithm.data)
         return min(self.history, key=lambda x: x[-1]) if not self.backend.maximize else max(self.history, key=lambda x: x[-1])
     
     def return_history(self):

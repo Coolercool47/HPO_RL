@@ -62,6 +62,10 @@ class TPE:
         self.gamma_func = lambda x: separation_value
         self.data = []
 
+    def reset(self):
+        """Сбрасывает состояние алгоритма для повторного запуска (run_n_experiments)."""
+        self.data = []
+
     def initialize(self):
         """Семплирует `N_init` раз гиперпараметры, согласно равномерному распределению"""
         print(f"Initializing with {self.N_init} random samples...")

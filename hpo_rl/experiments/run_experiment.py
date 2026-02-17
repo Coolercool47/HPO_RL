@@ -59,13 +59,15 @@ def run_n_experiments(config, n_experiments):
     save_path = parsed_config.get("log_save_path", log_dir)
 
     expreiment_controller = controller(**parsed_config)
-
     if mode == "RL":
         expreiment_controller.train()
-    
+
     full_history = []
 
     for i_experiment in range(n_experiments):
+        if mode == "baseline" and i_experiment > 0:
+            if hasattr(expreiment_controller.algorithm, "reset"):
+                expreiment_controller.algorithm.reset()
         best_result = expreiment_controller.inference()
         history = expreiment_controller.return_history()
         outputs = plot_and_save(history, best_result, save_path, expreiment_controller.backend, experiment_number=i_experiment)
@@ -76,15 +78,27 @@ def run_n_experiments(config, n_experiments):
         outputs.save_history(as_latex=False)
         full_history.append(history)
 
+    is_maximize = expreiment_controller.backend.maximize
+
     results = np.array([[trial[1] for trial in inference] for inference in full_history])
-    best_trial_indices = np.argmax(results, axis=1) 
+    best_trial_indices = np.argmax(results, axis=1) if is_maximize else np.argmin(results, axis=1)
     best = np.array([full_history[i][best_trial_indices[i]] for i in range(len(full_history))], dtype=object)
-    sorted_idx = np.argsort([item[1] for item in best])
+
+    # Сортируем так, чтобы worst был первым (idx 0), best — последним (idx -1)
+    best_scores = [item[1] for item in best]
+    if is_maximize:
+        sorted_idx = np.argsort(best_scores)
+    else:
+        sorted_idx = np.argsort(best_scores)[::-1]
 
     worst_of_best, best_of_best, median_of_best = best[sorted_idx[0]],  best[sorted_idx[-1]], best[sorted_idx[len(sorted_idx) // 2]]
 
     last = np.array([inference[-1] for inference in full_history], dtype=object)
-    last_idxs = np.argsort([item[1] for item in last])
+    last_scores = [item[1] for item in last]
+    if is_maximize:
+        last_idxs = np.argsort(last_scores)
+    else:
+        last_idxs = np.argsort(last_scores)[::-1]
 
     worst_of_last, best_of_last, median_of_last = last[last_idxs[0]], last[last_idxs[-1]], last[last_idxs[len(last_idxs)//2]]
 

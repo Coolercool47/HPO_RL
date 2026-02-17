@@ -105,20 +105,20 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self.prev_cycle_indices = np.zeros(self.num_hyperparams, dtype=np.int32)
 
         self.current_metric = 0.0
+        self.current_raw_metric = 0.0
         self.prev_reward = 0.0
         self.prev_action = 0.0
 
         self.reward_history_buffer = np.zeros(self.history_len, dtype=np.float32)
         self.action_history_buffer = np.zeros(self.history_len, dtype=np.float32)
 
-        self.best_metric_so_far = -float('inf')
+        self.best_raw_metric = float('inf') if not self.backend.maximize else -float('inf')
         self.best_config_so_far = {}
         self.final_config_options = {}
         self.steps_without_improvement = 0
 
         self.cycle_metrics = []
         self.cycle_start_metric = 0.0
-        self.cycle_start_best_metric = 0.0
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed)
@@ -135,14 +135,15 @@ class CyclicPipelineEnv(BaseHPOEnv):
 
         self._update_config_from_indices()
         config = self._assemble_config(self.final_config_options)
-        self.current_metric = self.backend.evaluate(config)
+        raw = self.backend.evaluate(config)
+        self.current_raw_metric = raw
+        self.current_metric = self._to_reward(raw)
 
-        self.best_metric_so_far = self.current_metric
+        self.best_raw_metric = raw
         self.best_config_so_far = config.copy()
         self.steps_without_improvement = 0
         self.cycle_metrics = []
         self.cycle_start_metric = self.current_metric
-        self.cycle_start_best_metric = self.best_metric_so_far
 
         return self._get_obs(), self._get_info()
 
@@ -214,11 +215,11 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self.current_indices[param_idx] = new_idx
         self._update_config_from_indices()
         config = self._assemble_config(self.final_config_options)
-        new_metric = self.backend.evaluate(config)
-        # return new_metric
+        raw = self.backend.evaluate(config)
+        new_metric = self._to_reward(raw)
 
-        if new_metric > self.best_metric_so_far:
-            self.best_metric_so_far = new_metric
+        if self._is_improvement(raw, self.best_raw_metric):
+            self.best_raw_metric = raw
             self.best_config_so_far = config.copy()
             self.steps_without_improvement = 0
         else:
@@ -232,7 +233,8 @@ class CyclicPipelineEnv(BaseHPOEnv):
             reward = 0.0
 
         self.current_metric = new_metric
-
+        self.current_raw_metric = raw
+        
         return reward
 
     def _finalize_cycle_reward(self):
@@ -243,7 +245,6 @@ class CyclicPipelineEnv(BaseHPOEnv):
             reward = -0.05
 
         self.cycle_start_metric = self.current_metric
-        self.cycle_start_best_metric = self.best_metric_so_far
         self.cycle_metrics = []
         return reward
 
@@ -317,7 +318,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
     def _get_info(self) -> Dict[str, Any]:
         return {
             "best_config": self.best_config_so_far,
-            "best_metric": self.best_metric_so_far,
+            "best_metric": self.best_raw_metric,
             "current_config": self.final_config_options.copy(),
-            "current_metric": self.current_metric
+            "current_metric": self.current_raw_metric
         }

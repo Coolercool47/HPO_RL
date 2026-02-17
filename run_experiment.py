@@ -169,7 +169,8 @@ if __name__ == "__main__":
         # "action_type": "continuous",
         "max_steps": 100,
         "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25]
+        "step_sizes": [1, 5, 25],
+        "action_type": "continuous"
     },
     "backend": {
         "name": "function",
@@ -196,7 +197,7 @@ if __name__ == "__main__":
         {
             # "actor": DiscreteActor,
             # "critic": DiscreteCritic, 
-            "hidden_states": [64, 64],
+            "hidden_sizes": [64, 64],
             "net": Net
         },
         "trainer":
@@ -258,7 +259,7 @@ if __name__ == "__main__":
         {
             "actor": ContinuousActorProbabilistic,
             "critic": ContinuousCritic, 
-            "hidden_states": [64, 64],
+            "hidden_sizes": [64, 64],
             "net": Net
         },
         "trainer":
@@ -470,6 +471,37 @@ if __name__ == "__main__":
         }
     }
 
+    config_SimpleGA = {
+        "backend": {
+            "name": "function",
+            "function": "rastrigin",
+            "dimensions": 2
+        },
+        "algorithm": {
+            "name": "SimpleGA",
+            "N_pop": 20,
+            "budget": 100,
+            "mutation_prob": 0.1,
+            "crossover_prob": 0.8,
+            "tournament_size": 3,
+            "elitism": True
+        }
+    }
+
+    config_CMA_ES = {
+        "backend": {
+            "name": "function",
+            "function": "rastrigin",
+            "dimensions": 2
+        },
+        "algorithm": {
+            "name": "CMA_ES",
+            "N_pop": 10,
+            "budget": 100,
+            "initial_step_size": 0.5
+        }
+    }
+
     config_real = {
         "full_args": {
         "algorithm":
@@ -564,4 +596,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_n_experiments(config_TPE, 1)
+    run_n_experiments(config_rainbow, 1)
