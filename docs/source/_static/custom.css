@@ -1,0 +1,29 @@
+/* CSS для корректного отображения математических формул */
+.math {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+div.math {
+    text-align: left;
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+/* Обеспечиваем перенос длинных формул */
+.MathJax {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+}
+
+/* Для мобильных устройств */
+@media screen and (max-width: 768px) {
+    .math {
+        font-size: 0.9em;
+    }
+    
+    div.math {
+        padding: 0.5em;
+    }
+}
+

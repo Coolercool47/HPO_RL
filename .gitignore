@@ -8,6 +8,9 @@
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+environments/cycle_move_pipeline_copy.py
+environments/reccurent_cmp.py
+environments/feed_forward_cmp.py
 
 # AWS User-specific
 .idea/**/aws.xml
@@ -35,11 +38,12 @@
 # .idea/artifacts
 # .idea/compiler.xml
 # .idea/jarRepositories.xml
-# .idea/modules.xml
+.idea/modules.xml
 # .idea/*.iml
-# .idea/modules
+.idea/modules
 # *.iml
 # *.ipr
+.idea
 
 # CMake
 cmake-build-*/
@@ -80,9 +84,9 @@ fabric.properties
 ### PyCharm Patch ###
 # Comment Reason: https://github.com/joeblau/gitignore.io/issues/186#issuecomment-215987721
 
-# *.iml
+HPO_RL.iml
 # modules.xml
-# .idea/misc.xml
+.idea/misc.xml
 # *.ipr
 
 # Sonarlint plugin
@@ -295,13 +299,16 @@ pyrightconfig.json
 pyvenv.cfg
 pip-selfcheck.json
 
+*.zip
 ### VisualStudioCode ###
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
+.vscode
+#.vscode/*
+# в теории полезно для одинаковости настроек, на практике я не хочу чтобы этот мусор лежал в гите
+# !.vscode/settings.json 
+# !.vscode/tasks.json
+# !.vscode/launch.json
+# !.vscode/extensions.json
+# !.vscode/*.code-snippets
 
 # Local History for Visual Studio Code
 .history/
@@ -706,3 +713,6 @@ FodyWeavers.xsd
 
 ### VisualStudio Patch ###
 # Additional files built by Visual Studio
+data/
+tmp_data/
+wandb/
