@@ -45,8 +45,7 @@ class plot_and_save():
         """Функция, создающая изображение функции на плоскости и в трехмерии"""
         x0_vals = np.array([t[0]["x0"] for t in self.history])
         x1_vals = np.array([t[0]["x1"] for t in self.history])
-        rewards = [t[-1] for t in self.history]
-        metrics = np.array(rewards if self.backend.maximize else [-r for r in rewards])
+        metrics = np.array([t[-1] for t in self.history])
         
         n_points = len(x0_vals)
         colors = np.linspace(0, 1, n_points)
@@ -62,8 +61,7 @@ class plot_and_save():
         Z = np.zeros_like(X0)
         for i in range(X0.shape[0]):
             for j in range(X0.shape[1]):
-                val = self.backend.evaluate({"x0": X0[i, j], "x1": X1[i, j]})
-                Z[i, j] = val if self.backend.maximize else -val
+                Z[i, j] = self.backend.evaluate({"x0": X0[i, j], "x1": X1[i, j]})
 
         fig, (ax1, _) = plt.subplots(1, 2, figsize=(16, 7))
 
@@ -116,7 +114,7 @@ class plot_and_save():
     def plot_trajectory(self):
         """Функция, создающая изображение с историей наград"""
         is_maximize = self.backend.maximize
-        history_scores = [d[-1] if is_maximize else -d[-1] for d in self.history]
+        history_scores = [d[-1] for d in self.history]
         iterations = range(1, len(history_scores) + 1)
         
         if not is_maximize:
@@ -165,7 +163,7 @@ class plot_and_save():
         for i, (params, score) in enumerate(self.history, 1):
             row = {"Iteration": i}
             row.update(params)
-            row["Objective"] = -score
+            row["Objective"] = score
             data.append(row)
 
         df = pd.DataFrame(data).set_index("Iteration")

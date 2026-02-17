@@ -77,7 +77,11 @@ class controller():
 
         elif self.mode == "baseline":
             algorithm_class = algorithm.get("class")
-            self.algorithm = algorithm_class(objective_func=lambda *args, **kwargs: -self.backend.evaluate(*args, **kwargs), **(algorithm.get("params"))) #интегрировать backend в baseline'ы  
+            if self.backend.maximize:
+                objective_func = lambda *args, **kwargs: -self.backend.evaluate(*args, **kwargs)
+            else:
+                objective_func = self.backend.evaluate
+            self.algorithm = algorithm_class(objective_func=objective_func, **(algorithm.get("params")))
 
     def train(self):
         """Запускает обучение модели
@@ -125,7 +129,10 @@ class controller():
 
         elif self.mode == "baseline":
             self.algorithm.main_loop()
-            self.history = [(i[0], -i[1]) for i in self.algorithm.data]
+            if self.backend.maximize:
+                self.history = [(cfg, -score) for cfg, score in self.algorithm.data]
+            else:
+                self.history = list(self.algorithm.data)
         return min(self.history, key=lambda x: x[-1]) if not self.backend.maximize else max(self.history, key=lambda x: x[-1])
 
     def return_history(self):

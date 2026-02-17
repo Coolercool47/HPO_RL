@@ -159,15 +159,15 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         """Вычисляет значение тестовой функции для заданной конфигурации.
 
         Извлекает координаты из конфигурации (``x0``, ``x1``, ...), применяет
-        функцию, добавляет шум (если задан) и возвращает значение с учётом
-        направления оптимизации.
+        функцию и добавляет шум (если задан). Всегда возвращает сырое значение
+        функции; ответственность за интерпретацию направления оптимизации
+        (``maximize``) лежит на потребителе (RL-среда, baseline и т.д.).
 
         Args:
             config: Словарь с координатами ``{"x0": val, "x1": val, ...}``.
 
         Returns:
-            Значение функции. Если ``maximize=False``, возвращается отрицательное
-            значение (для минимизации через максимизацию награды).
+            Сырое значение тестовой функции (с шумом, если задан).
 
         """
         x = np.array([config[f"x{i}"] for i in range(self.dimensions)])
@@ -181,7 +181,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         if self.noise_std > 0:
             value += np.random.normal(0, self.noise_std)
 
-        return value if self.maximize else -value # плохое решение в общем случае, для RL корректно, где надо максимизировать reward, а для бейзлайнов где идет минимизация нет
+        return value
 
     def _sphere(self, x: np.ndarray) -> float:
         """Сфера (Sphere function).

@@ -7,27 +7,28 @@ from hpo_rl.data_processing.processors import pytorch_mnist_processor
 if __name__ == "__main__":
     config = {
     "algorithm": {
-        "name": "PPO", 
+        "name": "SAC", 
         "verbose": 1,
         "gamma": 0.95,
         "learning_rate": 0.001,
-        "total_timesteps": 1000,
-        "inference_timesteps": 100,
-        "n_steps": 1000,
+        "total_timesteps": 50000,
+        "inference_timesteps": 250,
+        #"n_steps": 1000,
         "batch_size": 500,
         "policy": "MultiInputPolicy"
     },
     "env": {
         "name": "cycle_move_pipeline",
         "num_bins": 300,
-        "max_steps": 10,
+        "max_steps": 250,
         "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25]
+        "step_sizes": [1, 5, 25],
+        "action_type": "continuous"
     },
     "backend": {
         "name": "function",
-        "function": "sphere",
-        "dimensions": 2
+        "function": "rastrigin",
+        "dimensions": 10
     }
     }
 
@@ -71,7 +72,7 @@ if __name__ == "__main__":
         },
         "algorithm": {
             "name": "CMA_ES",
-            "N_pop": 20,
+            "N_pop": 10,
             "budget": 100,
             "initial_step_size": 0.5
         }
@@ -136,4 +137,4 @@ if __name__ == "__main__":
     # Варианты запуска:
     # run_experiment(config_SimpleGA)
     # run_n_experiments(config_SimpleGA, 3)
-    run_n_experiments(config_CMA_ES, 1)
+    run_n_experiments(config, 1)

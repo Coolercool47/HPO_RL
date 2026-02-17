@@ -24,6 +24,36 @@ class BaseHPOEnv(gym.Env, ABC):
         self.hp_space_config = hp_space
         self.hp_names = list(hp_space.keys())
 
+    def _to_reward(self, raw_metric: float) -> float:
+        """Конвертирует сырое значение бэкенда в RL-reward (больше = лучше).
+
+        При минимизации (``maximize=False``) инвертирует знак, чтобы
+        RL-агент мог максимизировать reward.
+
+        Args:
+            raw_metric: Сырое значение от ``backend.evaluate()``.
+
+        Returns:
+            Значение reward для RL-агента.
+        """
+        return raw_metric if self.backend.maximize else -raw_metric
+
+    def _is_improvement(self, new_raw: float, old_raw: float) -> bool:
+        """Проверяет, является ли ``new_raw`` улучшением относительно ``old_raw``.
+
+        Учитывает направление оптимизации бэкенда.
+
+        Args:
+            new_raw: Новое сырое значение метрики.
+            old_raw: Старое сырое значение метрики.
+
+        Returns:
+            True, если ``new_raw`` строго лучше ``old_raw``.
+        """
+        if self.backend.maximize:
+            return new_raw > old_raw
+        return new_raw < old_raw
+
     def _assemble_config(self, chosen_options: Dict[str, Any]) -> Dict[str, Any]:
         """Возможность обработки конфига перед evaluate()."""
         return chosen_options
