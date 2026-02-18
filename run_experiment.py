@@ -139,8 +139,8 @@ if __name__ == "__main__":
         },
         "trainer":
         {
-            "max_epochs": 10,
-            "epoch_num_steps": 4,
+            "max_epochs": 100,
+            "epoch_num_steps": 100,
             "batch_size": 64,
             "collection_step_num_env_steps": 10,
             "update_step_num_repetitions": 5,
@@ -160,8 +160,8 @@ if __name__ == "__main__":
             "n_episode": 1,
             "reset_before_collect": True,
         },
-        "num_training_envs": 10,
-        "num_test_envs": 10,
+        "num_training_envs": 1,
+        "num_test_envs": 1,
     },
     "env": {
         "name": "cycle_move_pipeline",
@@ -169,13 +169,13 @@ if __name__ == "__main__":
         # "action_type": "continuous",
         "max_steps": 100,
         "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25],
-        "action_type": "continuous"
+        "step_sizes": [1, 2, 5],
+        # "action_type": "continuous"
     },
     "backend": {
         "name": "function",
         "function": "rastrigin",
-        "dimensions": 2
+        "dimensions": 10
     }
     }
     config_rainbow = {
@@ -264,8 +264,8 @@ if __name__ == "__main__":
         },
         "trainer":
         {
-            "max_epochs": 10,
-            "epoch_num_steps": 1000,
+            "max_epochs": 100,
+            "epoch_num_steps": 100,
             "batch_size": 64,
             "collection_step_num_env_steps": 10,
             # "update_step_num_repetitions": 5,
@@ -326,14 +326,13 @@ if __name__ == "__main__":
         {
             # "actor": DiscreteActor,
             # "critic": DiscreteCritic, 
-            "layer_num": 3,
-            "hidden_layer_size": 64,
-            "net": Recurrent
+            "hidden_sizes": [64, 64],
+            "net": Net
         },
         "trainer":
         {
-            "max_epochs": 10,
-            "epoch_num_steps": 1000,
+            "max_epochs": 100,
+            "epoch_num_steps": 100,
             "batch_size": 64,
             "collection_step_num_env_steps": 10,
             # "update_step_num_repetitions": 5,
@@ -362,7 +361,8 @@ if __name__ == "__main__":
         # "action_type": "continuous",
         "max_steps": 100,
         "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25]
+        "step_sizes": [1, 2, 5],
+        "use_history": True
     },
     "backend": {
         "name": "function",
@@ -596,4 +596,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_n_experiments(config_rainbow, 1)
+    run_n_experiments(config_ppo, 3)
