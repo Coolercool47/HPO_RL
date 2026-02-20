@@ -443,8 +443,6 @@ if __name__ == "__main__":
             "lr": {
                 "type": "float", 
                 "values": [1e-6,1e-2]
-                # "min": 1e-6,
-                # "max": 1e-2
             },
             "batch_size": {
                 "type": "categorical", 
