@@ -17,6 +17,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         ):
 
         super().__init__(hp_space, backend)
+        self._normalize_hp_space()
 
         self.num_bins = num_bins
         self.max_steps_limit = max_steps
@@ -45,7 +46,6 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self._max_categorical_hyp_len = 0
         self._param_obs_slices = {}
         ohe_dim = 0
-        print(self.hp_space_config)
         for hp_name, values in self.hp_space_config.items():
             if values["type"] == "float":
                 self.hp_lin_spaces[hp_name] = np.linspace(values["values"][0], values["values"][1], num=self.num_bins, dtype=np.float32)
@@ -63,6 +63,18 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self._init_action_space()
         self._init_observation_space()
 
+    def _normalize_hp_space(self):
+        """Приводит hp_space к единому формату с ключом 'values'.
+
+        function backend передаёт {"min": lo, "max": hi, "type": "float"},
+        real/objective backend передаёт {"values": [lo, hi], "type": "float"}.
+        После нормализации оба формата имеют ключ "values".
+        """
+        for hp_name in self.hp_space_config:
+            entry = self.hp_space_config[hp_name]
+            if entry["type"] in ("float", "int") and "values" not in entry:
+                self.hp_space_config[hp_name]["values"] = [entry["min"], entry["max"]]
+
     def _init_action_space(self):
         self.step_sizes = [-i for i in self.step_sizes] + [0] + self.step_sizes
         self.step_sizes = sorted(self.step_sizes)
@@ -79,7 +91,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         flat_obs_dim = param_dim + 1 + self.num_hyperparams  # params + reward + active_param ohe
         self.observation_space = gym.spaces.Dict({
             "obs": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(flat_obs_dim,), dtype=np.float32),
-            "mask": gym.spaces.MultiBinary(self.action_space.n),
+            "mask": gym.spaces.MultiBinary(int(self.action_space.n)),
         })
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):

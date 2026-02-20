@@ -325,7 +325,7 @@ if __name__ == "__main__":
         {
             # "actor": DiscreteActor,
             # "critic": DiscreteCritic, 
-            "hidden_sizes": [64, 64],
+            # "hidden_sizes": [64, 64],
             "net": MaskedNet
         },
         "trainer":
