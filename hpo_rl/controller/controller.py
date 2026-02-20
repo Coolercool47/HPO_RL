@@ -3,6 +3,7 @@ import gymnasium as gym
 import tianshou as ts
 from tianshou.data import CollectStats
 from tianshou.utils.space_info import SpaceInfo
+from tianshou.utils.net.common import Net
 import gymnasium
 from gymnasium.spaces import flatdim
 from gymnasium.wrappers import FlattenObservation
@@ -82,16 +83,16 @@ class controller():
             # 1. Среды
             env_class = env.get("class")
             env_params = env.get("params")
-            self.env = FlattenObservation(env_class(backend=self.backend, **env_params))
+            self.env = FlattenObservation(env_class(backend=self.backend, **env_params)) if net == Net else env_class(backend=self.backend, **env_params)
 
             def make_env():
-                return FlattenObservation(env_class(backend=self.backend, **env_params))
+                return FlattenObservation(env_class(backend=self.backend, **env_params)) if net == Net else env_class(backend=self.backend, **env_params)
 
             training_envs = ts.env.DummyVectorEnv([make_env for _ in range(n_training_envs)])
             test_envs = ts.env.DummyVectorEnv([make_env for _ in range(n_inference_envs)])
 
             # 2. Определение размерностей
-            state_shape = flatdim(self.env.observation_space)
+            state_shape = flatdim(self.env.observation_space) if net == Net else flatdim(self.env.observation_space["obs"]) # Сомнительно
             if isinstance(self.env.action_space, gym.spaces.Discrete):
                 action_shape = self.env.action_space.n
             else:
