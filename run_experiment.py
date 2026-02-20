@@ -3,6 +3,7 @@ from hpo_rl.experiments.run_experiment import run_n_experiments
 from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
+from hpo_rl.nets.masked_net import MaskedNet
 from torch.optim import Adam
 from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
 from tianshou.algorithm.modelfree.dqn import DiscreteQLearningPolicy
@@ -15,8 +16,6 @@ import torch
 from tianshou.utils.net.common import Net
 from tianshou.utils.net.common import Recurrent
 from tianshou.algorithm.modelfree.sac import SACPolicy
-# def stop_fn(score):
-#     return False
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -327,7 +326,7 @@ if __name__ == "__main__":
             # "actor": DiscreteActor,
             # "critic": DiscreteCritic, 
             "hidden_sizes": [64, 64],
-            "net": Net
+            "net": MaskedNet
         },
         "trainer":
         {
@@ -356,13 +355,13 @@ if __name__ == "__main__":
         "num_test_envs": 10,
     },
     "env": {
-        "name": "cycle_move_pipeline",
+        "name": "new_cycle_move_pipeline",
         "num_bins": 300,
         # "action_type": "continuous",
         "max_steps": 100,
-        "reward_mode": "per_step",
+        # "reward_mode": "per_step",
         "step_sizes": [1, 2, 5],
-        "use_history": True
+        # "use_history": True
     },
     "backend": {
         "name": "function",
@@ -594,4 +593,4 @@ if __name__ == "__main__":
         }
     }
     }
-    run_n_experiments(config_ppo, 3)
+    run_n_experiments(config_dqn, 3)

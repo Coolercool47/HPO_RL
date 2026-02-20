@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List
 from hpo_rl.backends.base import EvaluationBackend
 from hpo_rl.environments.base_env import BaseHPOEnv
 
-class CyclicPipelineEnv(BaseHPOEnv):
+class CyclicPipelineEnvNew(BaseHPOEnv):
     def __init__(self,
         hp_space: Dict[str, Any],
         backend: EvaluationBackend,
@@ -45,7 +45,7 @@ class CyclicPipelineEnv(BaseHPOEnv):
         self._max_categorical_hyp_len = 0
         self._param_obs_slices = {}
         ohe_dim = 0
-
+        print(self.hp_space_config)
         for hp_name, values in self.hp_space_config.items():
             if values["type"] == "float":
                 self.hp_lin_spaces[hp_name] = np.linspace(values["values"][0], values["values"][1], num=self.num_bins, dtype=np.float32)

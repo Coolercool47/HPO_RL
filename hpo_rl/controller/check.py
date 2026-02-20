@@ -46,6 +46,8 @@ from hpo_rl.baselines.CMA_ES import CMA_ES
 from hpo_rl.models.simple_cnn import SimpleCNN
 
 from hpo_rl.environments.cycle_move_pipeline import CyclicPipelineEnv
+from hpo_rl.environments.new_cycle_move_pipeline import CyclicPipelineEnvNew
+
 
 functions = {
     "rastrigin": {"min": -5.12, "max": 5.12},
@@ -102,7 +104,8 @@ BACKENDS = {
 }
 
 ENVS = {
-    "cycle_move_pipeline": CyclicPipelineEnv
+    "cycle_move_pipeline": CyclicPipelineEnv,
+    "new_cycle_move_pipeline": CyclicPipelineEnvNew
 }
 
 MODELS = {
