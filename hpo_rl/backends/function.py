@@ -124,14 +124,14 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         d = self.dimensions
 
         configs = {
-            "sphere":           ((-5.0, 5.0),    np.zeros(d),           0.0),
-            "rosenbrock":       ((-1.0, 1.0),    np.ones(d),            0.0),
+            "sphere":           ((-5.0, 5.0),    np.zeros(d), 0.0),
+            "rosenbrock":       ((-1.0, 1.0),    np.ones(d), 0.0),
             "rastrigin":        ((-5.12, 5.12),  np.zeros(d),           0.0),
             "ackley":           ((-32.768, 32.768), np.zeros(d),        0.0),
             "griewank":         ((-600.0, 600.0), np.zeros(d),          0.0),
             "schwefel":         ((-500.0, 500.0), np.full(d, 420.9687), 0.0),
             "levy":             ((-10.0, 10.0),  np.zeros(d),           0.0),
-            "michalewicz":      ((0.0, np.pi),   None,                  None),
+            "michalewicz":      ((0.0, np.pi), None, 0.0),
             "shifted_sphere":   ((-5.0, 5.0),    np.full(d, 2.0),       0.0),
             "shifted_rastrigin":((-5.12, 5.12),  np.full(d, 2.5),       0.0),
         }
@@ -271,7 +271,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
     def _griewank(self, x: np.ndarray) -> float:
         """Функция Гриванка (Griewank function).
 
-        Многоэкстремальная функция с продуктом косинусов, создающим
+        Многоэкстремальная функция с произведением косинусов, создающим
         множество локальных минимумов. Минимум в ``(0, ..., 0)`` со значением ``0``.
 
         Args:

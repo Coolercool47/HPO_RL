@@ -312,7 +312,7 @@ if __name__ == "__main__":
         },
         "buffer":
         {
-            "total_size": 10000,
+            "total_size": 20000,
             "buffer_num": 10,
         },  
         "optim":
@@ -331,7 +331,7 @@ if __name__ == "__main__":
         "trainer":
         {
             "max_epochs": 100,
-            "epoch_num_steps": 100,
+            "epoch_num_steps": 200,
             "batch_size": 64,
             "collection_step_num_env_steps": 10,
             # "update_step_num_repetitions": 5,
@@ -356,16 +356,16 @@ if __name__ == "__main__":
     },
     "env": {
         "name": "new_cycle_move_pipeline",
-        "num_bins": 300,
+        "num_bins": 500,
         # "action_type": "continuous",
-        "max_steps": 100,
+        "max_steps": 200,
         # "reward_mode": "per_step",
-        "step_sizes": [1, 2, 5],
+        "step_sizes": [1, 2, 5, 10, 25, 50],
         # "use_history": True
     },
     "backend": {
         "name": "function",
-        "function": "rastrigin",
+        "function": "michalewicz",
         "dimensions": 2
     }
     }

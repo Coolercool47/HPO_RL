@@ -14,6 +14,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         num_bins: int = 20,
         max_steps: int = 200,
         obs_mode: str = "index",  # "index" | "ohe"
+        history_window: int = 0,  # 0 = no history, N = last N cycles
         ):
 
         super().__init__(hp_space, backend)
@@ -25,6 +26,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.cur_step_num = 0
         self.obs_mode = obs_mode
         self.step_sizes = step_sizes
+        self.history_window = history_window
 
         if obs_mode not in ("index", "ohe"):
             raise ValueError(f"obs_mode must be 'index' or 'ohe', got '{obs_mode}'")
@@ -39,6 +41,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.current_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         self.raw_metric = 0
         self.reward = 0
+        self._steps_without_change = 0
 
         self.hp_space_keys_iterator = itertools.cycle(self.hp_space_config)
 
@@ -84,11 +87,17 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
 
     def _init_observation_space(self):
         if self.obs_mode == "ohe":
-            param_dim = self._ohe_param_dim
+            self._param_dim = self._ohe_param_dim
         else:
-            param_dim = self.num_hyperparams
+            self._param_dim = self.num_hyperparams
 
-        flat_obs_dim = param_dim + 1 + self.num_hyperparams  # params + reward + active_param ohe
+        flat_obs_dim = self._param_dim + 1 + self.num_hyperparams  # params + reward + active_param ohe
+
+        if self.history_window > 0:
+            self._snapshot_depth = self.history_window * self.num_hyperparams
+            self._param_snapshot_len = self._snapshot_depth * self._param_dim
+            flat_obs_dim += self._snapshot_depth + self._param_snapshot_len
+
         self.observation_space = gym.spaces.Dict({
             "obs": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(flat_obs_dim,), dtype=np.float32),
             "mask": gym.spaces.MultiBinary(int(self.action_space.n)),
@@ -103,29 +112,51 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.current_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         
         self.step_num_total = 0
-
         self.cur_step_num = 0
+        self._steps_without_change = 0
 
-        # self.history = []
+        if self.history_window > 0:
+            self._reward_history_buf = np.zeros(self._snapshot_depth, dtype=np.float32)
+            self._param_snapshot_buf = np.zeros(
+                (self._snapshot_depth, self._param_dim), dtype=np.float32
+            )
 
         self.hp_space_keys_iterator = itertools.cycle(self.hp_space_config)
 
         self._spawn()
-
         self._compute_reward()
 
-        observation = self._get_obs()
-        info = self._get_info()
+        if self.history_window > 0:
+            self._param_snapshot_buf[:] = self._current_param_vec()
 
-        return observation, info
+        return self._get_obs(), self._get_info()
 
     def step(self, action):
+        hp_names_list = list(self.hp_space_config.keys())
+        cur_hp_name = hp_names_list[self.cur_step_num]
+        old_idx = self.cur_idx_dict[cur_hp_name]
+        intended_move = self._intended_delta(action, self.hp_space_config[cur_hp_name])
+
         self._take_action(action)
+
+        actually_stayed = (self.cur_idx_dict[cur_hp_name] == old_idx) and (intended_move == 0)
+        if actually_stayed:
+            self._steps_without_change += 1
+        else:
+            self._steps_without_change = 0
 
         self.step_num_total += 1
         self.cur_step_num = (self.cur_step_num + 1) % self.num_hyperparams
         
         reward = self._compute_reward()
+
+        if self.history_window > 0:
+            self._reward_history_buf = np.roll(self._reward_history_buf, -1)
+            self._reward_history_buf[-1] = reward
+
+            self._param_snapshot_buf = np.roll(self._param_snapshot_buf, -1, axis=0)
+            self._param_snapshot_buf[-1] = self._current_param_vec()
+
         observation = self._get_obs()
         info = self._get_info()
         terminated = self._terminated_logic()
@@ -151,6 +182,11 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
 
         return mask
     
+    def _intended_delta(self, action, hp_info):
+        if hp_info["type"] == "float":
+            return self.step_sizes[action]
+        return 0 if action == self.cur_idx_dict[list(self.hp_space_config.keys())[self.cur_step_num]] else 1
+
     def _take_action(self, action):
         cur_hp_name = next(self.hp_space_keys_iterator)
         hp_info = self.hp_space_config[cur_hp_name]
@@ -183,25 +219,43 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
     def _terminated_logic(self):
         return False
 
+    def _symlog(self, x):
+        return np.sign(x) * np.log1p(np.abs(x))
+
     def _compute_reward(self): # TODO доделать, вычисление реварда адекватизировать
         self.raw_metric = self.backend.evaluate(self.current_hyp_setup)
-        self.reward = self._to_reward(self.raw_metric)
-        if self._is_improvement(self.reward, self.best_raw_metric) :
+        self.current_raw_metric = self.raw_metric
+
+        self.reward = float(self._symlog(self._to_reward(self.raw_metric)))
+
+        if self._is_improvement(self.raw_metric, self.best_raw_metric):
             self.best_raw_metric = self.raw_metric
-            self.best_config_so_far = self.current_hyp_setup
+            self.best_config_so_far = self.current_hyp_setup.copy()
+
+        if self._steps_without_change > 0:
+            self.reward -= 0.05 * self._steps_without_change
+
         return self.reward
 
-    def _get_obs(self):
+    def _current_param_vec(self):
+        """Returns current param representation matching obs_mode."""
         if self.obs_mode == "ohe":
-            param_vec = self._get_obs_ohe()
-        else:
-            param_vec = self._get_obs_index()
+            return self._get_obs_ohe()
+        return self._get_obs_index()
 
+    def _get_obs(self):
+        param_vec = self._current_param_vec()
         reward_val = np.array([self.reward], dtype=np.float32)
         active_param_ohe = np.zeros(self.num_hyperparams, dtype=np.float32)
         active_param_ohe[self.cur_step_num] = 1.0
 
-        flat_obs = np.concatenate([param_vec, reward_val, active_param_ohe])
+        parts = [param_vec, reward_val, active_param_ohe]
+
+        if self.history_window > 0:
+            parts.append(self._reward_history_buf)
+            parts.append(self._param_snapshot_buf.ravel())
+
+        flat_obs = np.concatenate(parts)
         mask = self._calculate_mask()
         return {"obs": flat_obs, "mask": mask}
 
