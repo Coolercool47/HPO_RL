@@ -1,43 +1,56 @@
-from torch import nn
-import numpy as np
 import torch
+import numpy as np
+from torch import nn
+from tianshou.data import Batch
+from tianshou.utils.net.common import ModuleWithVectorOutput
 
-class MaskedNet(nn.Module):
-    def __init__(self, state_shape, action_shape, mask_logits=False):
-        super().__init__()
+class MaskedNet(ModuleWithVectorOutput):
+    def __init__(self, state_shape, action_shape, hidden_sizes=[128, 128], device='cpu'):
+        # 1. Сначала вычисляем размерность выхода
+        out_dim = int(np.prod(action_shape))
+        
+        # 2. Передаем её в конструктор базового класса (ЭТО РЕШАЕТ ОШИБКУ)
+        super().__init__(output_dim=out_dim)
+        
+        self.device = device
         input_dim = int(np.prod(state_shape))
-        action_dim = int(np.prod(action_shape))
-        self.mask_logits = mask_logits  # True для PPO, False для DQN
-        self.model = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.ReLU(inplace=True),
-            nn.Linear(128, 128),
-            nn.ReLU(inplace=True),
-            nn.Linear(128, action_dim),
-        )
+        
+        # 3. Строим сеть
+        layers = []
+        curr_dim = input_dim
+        for hidden_dim in hidden_sizes:
+            layers.append(nn.Linear(curr_dim, hidden_dim))
+            layers.append(nn.ReLU(inplace=True))
+            curr_dim = hidden_dim
+        
+        # Используем out_dim для последнего слоя
+        layers.append(nn.Linear(curr_dim, out_dim))
+        self.model = nn.Sequential(*layers)
+
+    # Метод get_output_dim() писать не нужно, он уже реализован в ModuleWithVectorOutput
 
     def forward(self, obs, state=None, info=None):
         mask = None
-        if hasattr(obs, "mask"):
-            mask = obs.mask
-        elif isinstance(obs, dict) and "mask" in obs:
-            mask = obs["mask"]
+        x = obs
 
-        if hasattr(obs, "obs"):
-            x = obs.obs
-        elif isinstance(obs, dict) and "obs" in obs:
-            x = obs["obs"]
-        else:
-            x = obs
-
+        # Безопасное извлечение obs и mask
+        if isinstance(obs, (dict, Batch)):
+            if "mask" in obs:
+                mask = obs["mask"]
+            if "obs" in obs:
+                x = obs["obs"]
+        
         if not isinstance(x, torch.Tensor):
-            x = torch.as_tensor(x, dtype=torch.float32, device=next(self.model.parameters()).device)
-
+            x = torch.as_tensor(x, dtype=torch.float32, device=self.device)
+        
         logits = self.model(x)
 
-        if self.mask_logits and mask is not None:
+        if mask is not None:
             if not isinstance(mask, torch.Tensor):
                 mask = torch.as_tensor(mask, dtype=torch.bool, device=logits.device)
-            logits = logits.masked_fill(~mask, -1e8)
+            
+            # Накладываем маску на логиты (-inf для запрещенных действий)
+            min_value = torch.finfo(logits.dtype).min
+            logits = logits.masked_fill(~mask, min_value)
 
         return logits, state

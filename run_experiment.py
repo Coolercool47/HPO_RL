@@ -4,6 +4,10 @@ from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
 from hpo_rl.data_processing.processors import pytorch_mnist_processor
 from hpo_rl.nets.masked_net import MaskedNet
+from hpo_rl.nets.base_net import BaseNet
+from hpo_rl.nets.masked_actor import MaskedDiscreteActor
+from hpo_rl.nets.reccurent_net import RecurrentBaseNet
+from hpo_rl.nets.recurrent_actor import MaskedRecurrentDiscreteActor
 from torch.optim import Adam
 from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
 from tianshou.algorithm.modelfree.dqn import DiscreteQLearningPolicy
@@ -129,17 +133,17 @@ if __name__ == "__main__":
         },
         "net":
         {
-            "actor": DiscreteActor,
+            "actor": MaskedRecurrentDiscreteActor,
             "critic": DiscreteCritic, 
             # "layer_num": 3,
             # "hidden_layer_size": 64,
-            "hidden_sizes": [64, 64],
-            "net": Net
+            # "hidden_sizes": [64, 64],
+            "net": RecurrentBaseNet
         },
         "trainer":
         {
             "max_epochs": 100,
-            "epoch_num_steps": 100,
+            "epoch_num_steps": 200,
             "batch_size": 64,
             "collection_step_num_env_steps": 10,
             "update_step_num_repetitions": 5,
@@ -163,141 +167,18 @@ if __name__ == "__main__":
         "num_test_envs": 1,
     },
     "env": {
-        "name": "cycle_move_pipeline",
-        "num_bins": 300,
+        "name": "new_cycle_move_pipeline",
+        "num_bins": 500,
         # "action_type": "continuous",
-        "max_steps": 100,
-        "reward_mode": "per_step",
-        "step_sizes": [1, 2, 5],
-        # "action_type": "continuous"
+        "max_steps": 200,
+        # "reward_mode": "per_step",
+        "step_sizes": [1, 2, 5, 10, 25, 50],
+        "history_window": 0
+        # "use_history": True
     },
     "backend": {
         "name": "function",
-        "function": "rastrigin",
-        "dimensions": 10
-    }
-    }
-    config_rainbow = {
-    "full_args": {
-        "algorithm":
-        {
-            "name": "rainbow",
-            "gamma": 0.9,
-            # "n_step_return_horizon": 3,
-            # "target_update_freq": 320,
-        },  
-        "optim":
-        {
-            "name": "TorchOptimizerFactory",
-            "optim_class": Adam,
-            "lr": 1e-3,
-        },
-        "net":
-        {
-            # "actor": DiscreteActor,
-            # "critic": DiscreteCritic, 
-            "hidden_sizes": [64, 64],
-            "net": Net
-        },
-        "trainer":
-        {
-            "max_epochs": 10,
-            "epoch_num_steps": 1000,
-            "batch_size": 64,
-            "collection_step_num_env_steps": 10,
-            # "update_step_num_repetitions": 5,
-            # "test_in_training": True,
-            # "stop_fn": stop_fn
-        },
-        "policy":
-        {
-            "class": C51Policy,
-            # "dist_fn": torch.distributions.Categorical,
-            # "action_scaling": False,
-            # "eps_training": 0.1,
-            # "eps_inference": 0.05,
-        },
-        "inference": 
-        {
-            "n_episode": 1,
-            "reset_before_collect": True,
-        },
-        "num_training_envs": 10,
-        "num_test_envs": 10,
-    },
-    "env": {
-        "name": "cycle_move_pipeline",
-        "num_bins": 300,
-        # "action_type": "continuous",
-        "max_steps": 100,
-        "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25]
-    },
-    "backend": {
-        "name": "function",
-        "function": "rastrigin",
-        "dimensions": 2
-    }
-    }
-    config_sac = {
-    "full_args": {
-        "algorithm":
-        {
-            "name": "sac",
-            "gamma": 0.9,
-            # "n_step_return_horizon": 3,
-            # "target_update_freq": 320,
-        },  
-        "optim":
-        {
-            "name": "TorchOptimizerFactory",
-            "optim_class": Adam,
-            "lr": 1e-3,
-        },
-        "net":
-        {
-            "actor": ContinuousActorProbabilistic,
-            "critic": ContinuousCritic, 
-            "hidden_sizes": [64, 64],
-            "net": Net
-        },
-        "trainer":
-        {
-            "max_epochs": 100,
-            "epoch_num_steps": 100,
-            "batch_size": 64,
-            "collection_step_num_env_steps": 10,
-            # "update_step_num_repetitions": 5,
-            # "test_in_training": True,
-            # "stop_fn": stop_fn
-        },
-        "policy":
-        {
-            "class": SACPolicy,
-            # "dist_fn": torch.distributions.Categorical,
-            "action_scaling": False,
-            # "eps_training": 0.1,
-            # "eps_inference": 0.05,
-        },
-        "inference": 
-        {
-            "n_episode": 1,
-            "reset_before_collect": True,
-        },
-        "num_training_envs": 10,
-        "num_test_envs": 10,
-    },
-    "env": {
-        "name": "cycle_move_pipeline",
-        # "num_bins": 300,
-        "action_type": "continuous",
-        "max_steps": 100,
-        "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25]
-    },
-    "backend": {
-        "name": "function",
-        "function": "rastrigin",
+        "function": "sphere",
         "dimensions": 2
     }
     }
@@ -361,74 +242,12 @@ if __name__ == "__main__":
         "max_steps": 200,
         # "reward_mode": "per_step",
         "step_sizes": [1, 2, 5, 10, 25, 50],
+        "history_window": 3
         # "use_history": True
     },
     "backend": {
         "name": "function",
-        "function": "michalewicz",
-        "dimensions": 2
-    }
-    }
-
-    config_reinforce = {
-    "full_args": {
-        "algorithm":
-        {
-            "name": "sac",
-            "gamma": 0.9,
-            # "n_step_return_horizon": 3,
-            # "target_update_freq": 320,
-        },
-        "optim":
-        {
-            "name": "TorchOptimizerFactory",
-            "optim_class": Adam,
-            "lr": 1e-3,
-        },
-        "net":
-        {
-            "actor": DiscreteActor,
-            "critic": DiscreteCritic, 
-            "hidden_states": [64, 64],
-            "net": Net
-        },
-        "trainer":
-        {
-            "max_epochs": 10,
-            "epoch_num_steps": 1000,
-            "batch_size": 64,
-            "collection_step_num_env_steps": 10,
-            # "update_step_num_repetitions": 5,
-            # "test_in_training": True,
-            # "stop_fn": stop_fn
-        },
-        "policy":
-        {
-            "class": ProbabilisticActorPolicy,
-            "dist_fn": torch.distributions.Categorical,
-            "action_scaling": False,
-            # "eps_training": 0.1,
-            # "eps_inference": 0.05,
-        },
-        "inference": 
-        {
-            "n_episode": 1,
-            "reset_before_collect": True,
-        },
-        "num_training_envs": 10,
-        "num_test_envs": 10,
-    },
-    "env": {
-        "name": "cycle_move_pipeline",
-        # "num_bins": 300,
-        "action_type": "continuous",
-        "max_steps": 100,
-        "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25]
-    },
-    "backend": {
-        "name": "function",
-        "function": "rastrigin",
+        "function": "schwefel",
         "dimensions": 2
     }
     }
@@ -465,37 +284,6 @@ if __name__ == "__main__":
             "budget": 20,
             "separation_value": 0.2
         }
-        }
-    }
-
-    config_SimpleGA = {
-        "backend": {
-            "name": "function",
-            "function": "rastrigin",
-            "dimensions": 2
-        },
-        "algorithm": {
-            "name": "SimpleGA",
-            "N_pop": 20,
-            "budget": 100,
-            "mutation_prob": 0.1,
-            "crossover_prob": 0.8,
-            "tournament_size": 3,
-            "elitism": True
-        }
-    }
-
-    config_CMA_ES = {
-        "backend": {
-            "name": "function",
-            "function": "rastrigin",
-            "dimensions": 2
-        },
-        "algorithm": {
-            "name": "CMA_ES",
-            "N_pop": 10,
-            "budget": 100,
-            "initial_step_size": 0.5
         }
     }
 
@@ -593,4 +381,130 @@ if __name__ == "__main__":
         }
     }
     }
-    run_n_experiments(config_dqn, 3)
+    # config_rainbow = {
+    # "full_args": {
+    #     "algorithm":
+    #     {
+    #         "name": "rainbow",
+    #         "gamma": 0.9,
+    #         # "n_step_return_horizon": 3,
+    #         # "target_update_freq": 320,
+    #     },  
+    #     "optim":
+    #     {
+    #         "name": "TorchOptimizerFactory",
+    #         "optim_class": Adam,
+    #         "lr": 1e-3,
+    #     },
+    #     "net":
+    #     {
+    #         # "actor": DiscreteActor,
+    #         # "critic": DiscreteCritic, 
+    #         "hidden_sizes": [64, 64],
+    #         "net": Net
+    #     },
+    #     "trainer":
+    #     {
+    #         "max_epochs": 10,
+    #         "epoch_num_steps": 1000,
+    #         "batch_size": 64,
+    #         "collection_step_num_env_steps": 10,
+    #         # "update_step_num_repetitions": 5,
+    #         # "test_in_training": True,
+    #         # "stop_fn": stop_fn
+    #     },
+    #     "policy":
+    #     {
+    #         "class": C51Policy,
+    #         # "dist_fn": torch.distributions.Categorical,
+    #         # "action_scaling": False,
+    #         # "eps_training": 0.1,
+    #         # "eps_inference": 0.05,
+    #     },
+    #     "inference": 
+    #     {
+    #         "n_episode": 1,
+    #         "reset_before_collect": True,
+    #     },
+    #     "num_training_envs": 10,
+    #     "num_test_envs": 10,
+    # },
+    # "env": {
+    #     "name": "cycle_move_pipeline",
+    #     "num_bins": 300,
+    #     # "action_type": "continuous",
+    #     "max_steps": 100,
+    #     "reward_mode": "per_step",
+    #     "step_sizes": [1, 5, 25],
+    #     "history_window": 3
+    # },
+    # "backend": {
+    #     "name": "function",
+    #     "function": "rastrigin",
+    #     "dimensions": 2
+    # }
+    # }
+    # config_sac = {
+    # "full_args": {
+    #     "algorithm":
+    #     {
+    #         "name": "sac",
+    #         "gamma": 0.9,
+    #         # "n_step_return_horizon": 3,
+    #         # "target_update_freq": 320,
+    #     },  
+    #     "optim":
+    #     {
+    #         "name": "TorchOptimizerFactory",
+    #         "optim_class": Adam,
+    #         "lr": 1e-3,
+    #     },
+    #     "net":
+    #     {
+    #         "actor": ContinuousActorProbabilistic,
+    #         "critic": ContinuousCritic, 
+    #         "hidden_sizes": [64, 64],
+    #         "net": Net
+    #     },
+    #     "trainer":
+    #     {
+    #         "max_epochs": 100,
+    #         "epoch_num_steps": 100,
+    #         "batch_size": 64,
+    #         "collection_step_num_env_steps": 10,
+    #         # "update_step_num_repetitions": 5,
+    #         # "test_in_training": True,
+    #         # "stop_fn": stop_fn
+    #     },
+    #     "policy":
+    #     {
+    #         "class": SACPolicy,
+    #         # "dist_fn": torch.distributions.Categorical,
+    #         "action_scaling": False,
+    #         # "eps_training": 0.1,
+    #         # "eps_inference": 0.05,
+    #     },
+    #     "inference": 
+    #     {
+    #         "n_episode": 1,
+    #         "reset_before_collect": True,
+    #     },
+    #     "num_training_envs": 10,
+    #     "num_test_envs": 10,
+    # },
+    # "env": {
+    #     "name": "cycle_move_pipeline",
+    #     # "num_bins": 300,
+    #     "action_type": "continuous",
+    #     "max_steps": 100,
+    #     "reward_mode": "per_step",
+    #     "step_sizes": [1, 5, 25]
+    # },
+    # "backend": {
+    #     "name": "function",
+    #     "function": "rastrigin",
+    #     "dimensions": 2
+    # }
+    # }
+
+    run_n_experiments(config_ppo, 3)
