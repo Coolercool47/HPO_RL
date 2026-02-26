@@ -15,6 +15,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         max_steps: int = 200,
         obs_mode: str = "index",  # "index" | "ohe"
         history_window: int = 0,  # 0 = no history, N = last N cycles
+        reward_mode: str = "absolute",  # "absolute" | "delta"
         ):
 
         super().__init__(hp_space, backend)
@@ -27,6 +28,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.obs_mode = obs_mode
         self.step_sizes = step_sizes
         self.history_window = history_window
+        self.reward_mode = reward_mode
 
         if obs_mode not in ("index", "ohe"):
             raise ValueError(f"obs_mode must be 'index' or 'ohe', got '{obs_mode}'")
@@ -110,6 +112,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.best_config_so_far = {}
         self.best_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         self.current_raw_metric = float('-inf') if self.backend.maximize else float('inf')
+        self.prev_raw_metric = None
         
         self.step_num_total = 0
         self.cur_step_num = 0
@@ -226,14 +229,24 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.raw_metric = self.backend.evaluate(self.current_hyp_setup)
         self.current_raw_metric = self.raw_metric
 
-        self.reward = float(self._symlog(self._to_reward(self.raw_metric)))
+        if self.reward_mode == "delta":
+            if self.prev_raw_metric is not None:
+                # delta = (reward_now - reward_prev), в пространстве RL-reward (больше = лучше)
+                delta = self._to_reward(self.raw_metric) - self._to_reward(self.prev_raw_metric)
+                self.reward = float(self._symlog(delta))
+            else:
+                # Первый шаг — delta неопределена, даём 0
+                self.reward = 0.0
+            self.prev_raw_metric = self.raw_metric
+        else:  # absolute
+            self.reward = float(self._symlog(self._to_reward(self.raw_metric)))
 
         if self._is_improvement(self.raw_metric, self.best_raw_metric):
             self.best_raw_metric = self.raw_metric
             self.best_config_so_far = self.current_hyp_setup.copy()
 
         if self._steps_without_change > 0:
-            self.reward -= 0.05 * self._steps_without_change
+            self.reward -= 0.02 * min(self._steps_without_change, 5)
 
         return self.reward
 

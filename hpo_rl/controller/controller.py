@@ -66,10 +66,10 @@ class controller():
         self.backend = backend_class(**(backend.get("params")))
 
         # Группировка алгоритмов по парадигмам
-        ON_POLICY_AC = ["ppo", "a2c", "trpo", "npg", "recurent_ppo"]
+        ON_POLICY_AC = ["ppo", "a2c", "trpo", "npg", "recurrent_ppo"]
         OFF_POLICY_TWIN_AC = ["sac", "td3"] # 1 Actor + 2 Critics
         OFF_POLICY_SINGLE_AC = ["ddpg", "discrete_sac"] # 1 Actor + 1 Critic
-        VALUE_BASED = ["dqn", "rainbow", "c51", "qrdqn", "iqn", "fqf"] 
+        VALUE_BASED = ["dqn", "recurrent_dqn", "rainbow", "c51", "qrdqn", "iqn", "fqf"] 
         PURE_POLICY = ["reinforce"]
 
         if self.mode == "RL":

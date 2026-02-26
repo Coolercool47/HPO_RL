@@ -24,6 +24,7 @@ from tianshou.algorithm.modelfree.sac import SAC, SACPolicy
 from tianshou.algorithm.modelfree.td3 import TD3
 from tianshou.algorithm.modelfree.trpo import TRPO
 from hpo_rl.alg.recurrent_ppo import ChunkedRNNPPO
+from hpo_rl.alg.recurrent_dqn import ChunkedRNNDQN
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.utils import WandbLogger
 from tianshou.utils import TensorboardLogger
@@ -70,7 +71,7 @@ ALGORITHMS_RL = {
         "a2c": A2C,
         "npg": NPG,
         "ppo": PPO,
-        "recurent_ppo": ChunkedRNNPPO,
+        "recurrent_ppo": ChunkedRNNPPO,
         "reinforce": Reinforce,
         "trpo": TRPO,
     },
@@ -80,6 +81,7 @@ ALGORITHMS_RL = {
         "ddpg": DDPG,
         "discrete_sac": DiscreteSAC,
         "dqn": DQN,
+        "recurrent_dqn": ChunkedRNNDQN,
         "fqf": FQF,
         "iqn": IQN,
         "qrdqn": QRDQN,
@@ -193,6 +195,10 @@ def check(config):
         trainer_params = {}
         for key, value in config["full_args"]["trainer"].items():
             trainer_params[key] = value
+
+        if "test_step_num_episodes" not in trainer_params and config["full_args"].get("num_test_envs", {}):
+            trainer_params["test_step_num_episodes"] = config["full_args"]["num_test_envs"]
+
 
         if config["full_args"].get("buffer"):
             buffer_params = {}

@@ -14,6 +14,7 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
         input_dim = int(np.prod(state_shape))
         
         self.fc = nn.Linear(input_dim, hidden_layer_size)
+        self.ln = nn.LayerNorm(hidden_layer_size)
         self.relu = nn.ReLU(inplace=True)
         
         self.rnn = nn.GRU(
@@ -35,7 +36,7 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
             is_2d = True
             x = x.unsqueeze(1)
             
-        x = self.relu(self.fc(x))
+        x = self.relu(self.ln(self.fc(x)))
         
         # 2. ИЗВЛЕЧЕНИЕ ПЕРВОГО СКРЫТОГО СОСТОЯНИЯ (h_0)
         is_empty = state is None or (isinstance(state, dict) and not state) or (hasattr(state, "is_empty") and state.is_empty())

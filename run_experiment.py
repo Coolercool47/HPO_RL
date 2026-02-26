@@ -9,6 +9,7 @@ from hpo_rl.nets.masked_actor import MaskedDiscreteActor
 from hpo_rl.nets.recurrent_net import RecurrentBaseNet
 from hpo_rl.nets.recurrent_actor import MaskedRecurrentDiscreteActor
 from hpo_rl.nets.recurrent_critic import RecurrentCritic
+from hpo_rl.nets.masked_recurrent_net import MaskedRecurrentNet
 from torch.optim import Adam
 from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
 from tianshou.algorithm.modelfree.dqn import DiscreteQLearningPolicy
@@ -121,12 +122,84 @@ if __name__ == "__main__":
     "full_args": {
             "algorithm":
             {
-                "name": "recurent_ppo",
-                "gamma": 0.99,
+                "name": "ppo",
+                "gamma": 0.97,                # shorter horizon: 1/(1-0.97)≈33 steps — достаточно для HPO
                 "gae_lambda": 0.95, 
-                "seq_len": 16,
-                "vf_coef": 0.5,     
-                # "ent_coef": 0.01,   
+                # "seq_len": 10,                # MUST divide max_steps (200 % 10 = 0)
+                "vf_coef": 0.5,               # стандартное значение: critic важен для качественных advantages
+                "ent_coef": 0.01,             # exploration: не слишком много, чтобы не мешать сходимости
+                "max_grad_norm": 0.5,         # gradient clipping — КРИТИЧНО для RNN!
+                "value_clip": True,           # стабилизация value function
+                "return_scaling": True,       # нормализация returns по running std — критик работает с любым масштабом
+                "recompute_advantage": True,  # пересчёт advantages после каждого update — точнее для RNN
+            },  
+            "optim":
+            {
+                "name": "TorchOptimizerFactory",
+                "optim_class": torch.optim.Adam,
+                "lr": 3e-4,  
+            },
+            "net":
+            {
+                "actor": MaskedDiscreteActor,
+                "critic": DiscreteCritic, 
+                "net": BaseNet,
+                "hidden_sizes": [256, 256, 256]
+                # "hidden_layer_size": 64,      # 64 вместо 128: obs_dim=5, 12.8x ratio — лучше для маленьких задач
+            },
+            "trainer":
+            {
+                "max_epochs": 50,            # больше эпох для delta rewards (меньший сигнал)
+                "epoch_num_steps": 4000,       # кратно collection (4000/2000=2 collects)
+                "batch_size": 20,             # chunks: 2000/10=200 chunks → 10 minibatch
+                "collection_step_num_env_steps": 2000,  # 10 полных эпизодов → больше данных для GAE
+                "update_step_num_repetitions": 8, # 8 прохождений по данным (было 4) — больше обновлений
+                "test_step_num_episodes": 20
+            },
+            "policy":
+            {
+                "class": ProbabilisticActorPolicy,
+                "dist_fn": lambda x: torch.distributions.Categorical(logits=x),
+                "action_scaling": False,
+            },
+            "inference": 
+            {
+                "n_episode": 1,
+                "reset_before_collect": True,
+            },
+            "num_training_envs": 20, 
+            "num_test_envs": 20,
+        },
+        "env": {
+            "name": "new_cycle_move_pipeline",
+            "num_bins": 500,
+            "max_steps": 200,
+            "step_sizes": [1, 2, 5, 10, 25, 50],
+            "history_window": 1,
+            "reward_mode": "absolute",
+            "obs_mode": "ohe"     
+        },
+        "backend": {
+            "name": "function",
+            "function": "schwefel",
+            "dimensions": 2
+        }
+    }
+
+    config_recurrent_ppo = {
+    "full_args": {
+            "algorithm":
+            {
+                "name": "recurrent_ppo",
+                "gamma": 0.97,                # shorter horizon: 1/(1-0.97)≈33 steps — достаточно для HPO
+                "gae_lambda": 0.95, 
+                "seq_len": 10,                # MUST divide max_steps (200 % 10 = 0)
+                "vf_coef": 0.5,               # стандартное значение: critic важен для качественных advantages
+                "ent_coef": 0.01,             # exploration: не слишком много, чтобы не мешать сходимости
+                "max_grad_norm": 0.5,         # gradient clipping — КРИТИЧНО для RNN!
+                "value_clip": True,           # стабилизация value function
+                "return_scaling": True,       # нормализация returns по running std — критик работает с любым масштабом
+                "recompute_advantage": True,  # пересчёт advantages после каждого update — точнее для RNN
             },  
             "optim":
             {
@@ -138,15 +211,16 @@ if __name__ == "__main__":
             {
                 "actor": MaskedRecurrentDiscreteActor,
                 "critic": RecurrentCritic, 
-                "net": RecurrentBaseNet
+                "net": RecurrentBaseNet,
+                "hidden_layer_size": 64,      # 64 вместо 128: obs_dim=5, 12.8x ratio — лучше для маленьких задач
             },
             "trainer":
             {
-                "max_epochs": 50,             
-                "epoch_num_steps": 4096,       
-                "batch_size": 128,            
-                "collection_step_num_env_steps": 1024, 
-                "update_step_num_repetitions": 4, 
+                "max_epochs": 50,            # больше эпох для delta rewards (меньший сигнал)
+                "epoch_num_steps": 4000,       # кратно collection (4000/2000=2 collects)
+                "batch_size": 20,             # chunks: 2000/10=200 chunks → 10 minibatch
+                "collection_step_num_env_steps": 2000,  # 10 полных эпизодов → больше данных для GAE
+                "update_step_num_repetitions": 8, # 8 прохождений по данным (было 4) — больше обновлений
             },
             "policy":
             {
@@ -167,11 +241,12 @@ if __name__ == "__main__":
             "num_bins": 500,
             "max_steps": 200,
             "step_sizes": [1, 2, 5, 10, 25, 50],
-            "history_window": 0
+            "history_window": 0,
+            "reward_mode": "absolute"          
         },
         "backend": {
             "name": "function",
-            "function": "sphere",
+            "function": "schwefel",
             "dimensions": 2
         }
     }
@@ -179,15 +254,17 @@ if __name__ == "__main__":
     "full_args": {
         "algorithm":
         {
-            "name": "dqn",
-            "gamma": 0.9,
+            "name": "recurrent_dqn",
+            "gamma": 0.99,
+            "seq_len": 10,
+            "target_update_freq": 320,
             # "n_step_return_horizon": 3,
-            # "target_update_freq": 320,
         },
         "buffer":
         {
             "total_size": 20000,
-            "buffer_num": 10,
+            "buffer_num": 1,
+            "stack_num": 1
         },  
         "optim":
         {
@@ -200,7 +277,8 @@ if __name__ == "__main__":
             # "actor": DiscreteActor,
             # "critic": DiscreteCritic, 
             # "hidden_sizes": [64, 64],
-            "net": MaskedNet
+            "net": MaskedRecurrentNet,
+            "rnn_layers": 1
         },
         "trainer":
         {
@@ -215,18 +293,16 @@ if __name__ == "__main__":
         "policy":
         {
             "class": DiscreteQLearningPolicy,
-            # "dist_fn": torch.distributions.Categorical,
-            # "action_scaling": False,
-            # "eps_training": 0.1,
-            # "eps_inference": 0.05,
+            "eps_training": 0.1,
+            "eps_inference": 0.05,
         },
         "inference": 
         {
             "n_episode": 1,
             "reset_before_collect": True,
         },
-        "num_training_envs": 10,
-        "num_test_envs": 10,
+        "num_training_envs": 1,
+        "num_test_envs": 1,
     },
     "env": {
         "name": "new_cycle_move_pipeline",
@@ -235,12 +311,13 @@ if __name__ == "__main__":
         "max_steps": 200,
         # "reward_mode": "per_step",
         "step_sizes": [1, 2, 5, 10, 25, 50],
-        "history_window": 3
+        "history_window": 0,
         # "use_history": True
+        "reward_mode": "delta"
     },
     "backend": {
         "name": "function",
-        "function": "schwefel",
+        "function": "rastrigin",
         "dimensions": 2
     }
     }
