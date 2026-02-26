@@ -161,6 +161,9 @@ class controller():
                 actor = ActorClass(preprocess_net=net_a, action_shape=action_shape)
                 _policy = PolicyClass(actor=actor, action_space=self.env.action_space, **PolicyParams)
                 self.algo = AlgoClass(policy=_policy, **AlgoParams)
+            else:
+                supported = ON_POLICY_AC + OFF_POLICY_TWIN_AC + OFF_POLICY_SINGLE_AC + VALUE_BASED + PURE_POLICY
+                raise ValueError(f"Algorithm '{alg_name}' is not supported. Supported: {supported}")
 
             # 4. Инициализация Коллекторов и Трейнера
             training_collector = ts.data.Collector[CollectStats](
