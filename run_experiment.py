@@ -6,8 +6,9 @@ from hpo_rl.data_processing.processors import pytorch_mnist_processor
 from hpo_rl.nets.masked_net import MaskedNet
 from hpo_rl.nets.base_net import BaseNet
 from hpo_rl.nets.masked_actor import MaskedDiscreteActor
-from hpo_rl.nets.reccurent_net import RecurrentBaseNet
+from hpo_rl.nets.recurrent_net import RecurrentBaseNet
 from hpo_rl.nets.recurrent_actor import MaskedRecurrentDiscreteActor
+from hpo_rl.nets.recurrent_critic import RecurrentCritic
 from torch.optim import Adam
 from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
 from tianshou.algorithm.modelfree.dqn import DiscreteQLearningPolicy
@@ -118,69 +119,61 @@ def objective_function(config, dict_config):
 if __name__ == "__main__":
     config_ppo = {
     "full_args": {
-        "algorithm":
-        {
-            "name": "ppo",
-            "gamma": 0.9,
-            # "n_step_return_horizon": 3,
-            # "target_update_freq": 320,
-        },  
-        "optim":
-        {
-            "name": "TorchOptimizerFactory",
-            "optim_class": Adam,
-            "lr": 1e-3,
+            "algorithm":
+            {
+                "name": "recurent_ppo",
+                "gamma": 0.99,
+                "gae_lambda": 0.95, 
+                "seq_len": 16,
+                "vf_coef": 0.5,     
+                # "ent_coef": 0.01,   
+            },  
+            "optim":
+            {
+                "name": "TorchOptimizerFactory",
+                "optim_class": torch.optim.Adam,
+                "lr": 3e-4,  
+            },
+            "net":
+            {
+                "actor": MaskedRecurrentDiscreteActor,
+                "critic": RecurrentCritic, 
+                "net": RecurrentBaseNet
+            },
+            "trainer":
+            {
+                "max_epochs": 50,             
+                "epoch_num_steps": 4096,       
+                "batch_size": 128,            
+                "collection_step_num_env_steps": 1024, 
+                "update_step_num_repetitions": 4, 
+            },
+            "policy":
+            {
+                "class": ProbabilisticActorPolicy,
+                "dist_fn": lambda x: torch.distributions.Categorical(logits=x),
+                "action_scaling": False,
+            },
+            "inference": 
+            {
+                "n_episode": 1,
+                "reset_before_collect": True,
+            },
+            "num_training_envs": 1, 
+            "num_test_envs": 1,
         },
-        "net":
-        {
-            "actor": MaskedRecurrentDiscreteActor,
-            "critic": DiscreteCritic, 
-            # "layer_num": 3,
-            # "hidden_layer_size": 64,
-            # "hidden_sizes": [64, 64],
-            "net": RecurrentBaseNet
+        "env": {
+            "name": "new_cycle_move_pipeline",
+            "num_bins": 500,
+            "max_steps": 200,
+            "step_sizes": [1, 2, 5, 10, 25, 50],
+            "history_window": 0
         },
-        "trainer":
-        {
-            "max_epochs": 100,
-            "epoch_num_steps": 200,
-            "batch_size": 64,
-            "collection_step_num_env_steps": 10,
-            "update_step_num_repetitions": 5,
-            # "test_in_training": True,
-            # "stop_fn": stop_fn
-        },
-        "policy":
-        {
-            "class": ProbabilisticActorPolicy,
-            "dist_fn": torch.distributions.Categorical,
-            "action_scaling": False,
-            # "eps_training": 0.1,
-            # "eps_inference": 0.05,
-        },
-        "inference": 
-        {
-            "n_episode": 1,
-            "reset_before_collect": True,
-        },
-        "num_training_envs": 1,
-        "num_test_envs": 1,
-    },
-    "env": {
-        "name": "new_cycle_move_pipeline",
-        "num_bins": 500,
-        # "action_type": "continuous",
-        "max_steps": 200,
-        # "reward_mode": "per_step",
-        "step_sizes": [1, 2, 5, 10, 25, 50],
-        "history_window": 0
-        # "use_history": True
-    },
-    "backend": {
-        "name": "function",
-        "function": "sphere",
-        "dimensions": 2
-    }
+        "backend": {
+            "name": "function",
+            "function": "sphere",
+            "dimensions": 2
+        }
     }
     config_dqn = {
     "full_args": {

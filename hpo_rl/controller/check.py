@@ -23,7 +23,7 @@ from tianshou.algorithm.modelfree.reinforce import Reinforce, ProbabilisticActor
 from tianshou.algorithm.modelfree.sac import SAC, SACPolicy
 from tianshou.algorithm.modelfree.td3 import TD3
 from tianshou.algorithm.modelfree.trpo import TRPO
-
+from hpo_rl.alg.recurrent_ppo import ChunkedRNNPPO
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.utils import WandbLogger
 from tianshou.utils import TensorboardLogger
@@ -70,6 +70,7 @@ ALGORITHMS_RL = {
         "a2c": A2C,
         "npg": NPG,
         "ppo": PPO,
+        "recurent_ppo": ChunkedRNNPPO,
         "reinforce": Reinforce,
         "trpo": TRPO,
     },

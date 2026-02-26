@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn
 import numpy as np
+from torch import nn
 from tianshou.data import Batch
 from tianshou.utils.net.common import ModuleWithVectorOutput
 
@@ -24,10 +24,12 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
         )
 
     def forward(self, obs, state=None, info=None):
+        # 1. Извлекаем признаки
         x = obs.obs if isinstance(obs, (dict, Batch)) and "obs" in obs else obs
         if not isinstance(x, torch.Tensor):
             x = torch.as_tensor(x, dtype=torch.float32, device=self.device)
             
+        # Защита на случай 2D инференса (во время тестирования)
         is_2d = False
         if len(x.shape) == 2:
             is_2d = True
@@ -35,8 +37,10 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
             
         x = self.relu(self.fc(x))
         
-        # Подготовка состояния
-        if state is None or (hasattr(state, "is_empty") and state.is_empty()):
+        # 2. ИЗВЛЕЧЕНИЕ ПЕРВОГО СКРЫТОГО СОСТОЯНИЯ (h_0)
+        is_empty = state is None or (isinstance(state, dict) and not state) or (hasattr(state, "is_empty") and state.is_empty())
+
+        if is_empty:
             h_0 = torch.zeros(self.num_layers, x.size(0), self.hidden_layer_size, device=x.device)
         else:
             if isinstance(state, dict) and "hidden" in state:
@@ -49,16 +53,22 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
             if not isinstance(h_0, torch.Tensor):
                 h_0 = torch.as_tensor(h_0, dtype=torch.float32, device=x.device)
                 
-            h_0 = h_0.transpose(0, 1).contiguous()
+            # МАГИЯ CHUNKED BPTT:
+            # Во время обучения h_0 придет в виде [Batch, Seq_len, Num_layers, Hidden]
+            # Нам нужен h_0 только самого первого шага окна!
+            if len(h_0.shape) == 4: 
+                h_0 = h_0[:, 0, :, :] # Срезаем: берем 0-й индекс по оси Seq_len
+                
+            # Транспонируем для PyTorch: [Num_layers, Batch, Hidden]
+            if len(h_0.shape) == 3 and h_0.shape[1] == self.num_layers:
+                h_0 = h_0.transpose(0, 1).contiguous()
             
-        # Проход через RNN
+        # 3. Честный проход всей последовательности через RNN одним махом
         out, h_n = self.rnn(x, h_0)
         
         if is_2d:
             out = out.squeeze(1)
             
-        # Возвращаем размерности обратно
+        # 4. Возвращаем размерности обратно для сохранения в буфер
         h_n = h_n.transpose(0, 1).contiguous()
-        
-        # ВАЖНО: Добавляем .detach(), чтобы PyTorch позволил Tianshou скопировать этот тензор в буфер
         return out, {"hidden": h_n.detach()}
