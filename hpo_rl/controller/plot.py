@@ -266,4 +266,3 @@ class plot_and_save():
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(latex_table)
         print(f"Saved TEX history: {out_path}")
-

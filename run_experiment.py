@@ -592,4 +592,4 @@ if __name__ == "__main__":
     # }
     # }
 
-    run_n_experiments(config_dqn, 3, inference_only=False)
+    run_n_experiments(config_recurrent_ppo, 3, inference_only=False)

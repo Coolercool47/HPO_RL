@@ -7,7 +7,7 @@
 """
 
 import random as _random
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Sequence
 from hpo_rl.backends.base import EvaluationBackend
 
 
@@ -32,9 +32,12 @@ class SequentialBackend(EvaluationBackend):
     Все атрибуты (``maximize``, ``bounds``, ``dimensions`` и т.д.)
     проксируются к текущему активному бэкенду.
 
-    Поддерживает два режима переключения:
+    Поддерживает три режима переключения:
         - ``"random"`` — случайный выбор из списка (по умолчанию)
         - ``"sequential"`` — строго по порядку
+        - ``"shuffle"`` — случайная перестановка всех бэкендов, затем
+          проход по ней; когда перестановка исчерпана — новая перестановка.
+          Гарантирует, что каждый бэкенд встретится ровно 1 раз за раунд.
 
     Переключение вызывается контроллером раз в эпоху через
     ``periodic_train_hook``.
@@ -77,8 +80,8 @@ class SequentialBackend(EvaluationBackend):
                 f"Получено: {[b.maximize for b in backends]}"
             )
 
-        if mode not in ("sequential", "random"):
-            raise ValueError(f"mode должен быть 'sequential' или 'random', получено '{mode}'")
+        if mode not in ("sequential", "random", "shuffle"):
+            raise ValueError(f"mode должен быть 'sequential', 'random' или 'shuffle', получено '{mode}'")
 
         # Не вызываем super().__init__() с use_cache, т.к. кэширование
         # делегируется дочерним бэкендам
@@ -88,6 +91,12 @@ class SequentialBackend(EvaluationBackend):
         self.mode = mode
         self._current_idx = 0
         self._switch_count = 0
+
+        # Shuffle mode: случайная перестановка индексов, обновляется каждый раунд
+        self._shuffle_order: List[int] = []
+        self._shuffle_pos: int = 0
+        if mode == "shuffle":
+            self._reshuffle()
 
         # Merged bounds для ремаппинга значений из env к дочерним бэкендам.
         # Env работает в merged (максимальном) диапазоне, но каждый дочерний
@@ -132,6 +141,19 @@ class SequentialBackend(EvaluationBackend):
             if hasattr(cb, attr):
                 setattr(self, attr, getattr(cb, attr))
 
+    def _reshuffle(self) -> None:
+        """Создаёт новую случайную перестановку индексов бэкендов.
+
+        Используется в режиме ``"shuffle"``: после исчерпания текущей
+        перестановки генерируется новая, чтобы каждый бэкенд встретился
+        ровно 1 раз за раунд.
+        """
+        self._shuffle_order = list(range(len(self.backends)))
+        _random.shuffle(self._shuffle_order)
+        self._shuffle_pos = 0
+        names = [_backend_name(self.backends[i]) for i in self._shuffle_order]
+        print(f"[SequentialBackend] New shuffle order: {', '.join(names)}")
+
     def next_backend(self) -> None:
         """Переключает на следующий бэкенд.
 
@@ -142,6 +164,11 @@ class SequentialBackend(EvaluationBackend):
 
         if self.mode == "sequential":
             self._current_idx = self._switch_count % len(self.backends)
+        elif self.mode == "shuffle":
+            self._current_idx = self._shuffle_order[self._shuffle_pos]
+            self._shuffle_pos += 1
+            if self._shuffle_pos >= len(self._shuffle_order):
+                self._reshuffle()
         else:  # random
             self._current_idx = _random.randint(0, len(self.backends) - 1)
 
