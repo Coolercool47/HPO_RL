@@ -14,6 +14,8 @@ import os
 import wandb
 import time
 
+from hpo_rl.backends.sequential import SequentialBackend
+
 class RainbowNetWrapper(torch.nn.Module):
     def __init__(self, model, action_num, num_atoms):
         super().__init__()
@@ -165,7 +167,25 @@ class controller():
                 supported = ON_POLICY_AC + OFF_POLICY_TWIN_AC + OFF_POLICY_SINGLE_AC + VALUE_BASED + PURE_POLICY
                 raise ValueError(f"Algorithm '{alg_name}' is not supported. Supported: {supported}")
 
-            # 4. Инициализация Коллекторов и Трейнера
+            # 4. Загрузка чекпоинта (если указан load)
+            self.load_loc = load
+            if self.load_loc and os.path.isfile(self.load_loc):
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                state_dict = torch.load(self.load_loc, map_location=device, weights_only=False)
+                
+                if "_optimizers" in state_dict:
+                    # Полный чекпоинт algo.state_dict() — сети + оптимизаторы
+                    self.algo.load_state_dict(state_dict)
+                    print(f"Loaded full checkpoint (networks + optimizers) from: {self.load_loc}")
+                else:
+                    # Только policy.state_dict() — только веса актора
+                    self.algo.policy.load_state_dict(state_dict)
+                    print(f"Loaded policy weights (actor only) from: {self.load_loc}")
+                    print("  Warning: optimizer state not restored, training continues with fresh optimizer")
+            elif self.load_loc:
+                print(f"Warning: checkpoint not found at {self.load_loc}, training from scratch")
+
+            # 5. Инициализация Коллекторов и Трейнера
             training_collector = ts.data.Collector[CollectStats](
                 self.algo, training_envs, **training_collector_kwargs
             )
@@ -189,7 +209,17 @@ class controller():
                     return self.save_loc
                 return None
             
+            self._last_switch_epoch = 0  # для отслеживания смены эпохи
+
             def periodic_train_hook(epoch, env_step):
+                # Переключение бэкенда раз в эпоху (SequentialBackend)
+                # training_fn вызывается каждый training step (collection),
+                # а не каждую эпоху, поэтому отслеживаем смену epoch
+                if isinstance(self.backend, SequentialBackend):
+                    if epoch != self._last_switch_epoch:
+                        self._last_switch_epoch = epoch
+                        self.backend.next_backend()
+
                 current_time = time.time()
                 
                 if current_time - self.last_periodic_save >= SAVE_INTERVAL_SECONDS:
@@ -199,8 +229,7 @@ class controller():
                         periodic_path = self.save_loc.replace("best_policy.pth", "periodic_backup.pth")
                         os.makedirs(os.path.dirname(periodic_path), exist_ok=True)
                         
-                        policy_to_save = self.algo.policy if hasattr(self.algo, 'policy') else self.algo
-                        torch.save(policy_to_save.state_dict(), periodic_path)
+                        torch.save(self.algo.state_dict(), periodic_path)
                         
                         print(f"[30-Min Dump] Saved to {periodic_path}")
                         
@@ -228,10 +257,14 @@ class controller():
         if self.mode == "RL":
             result = self.algo.run_training(self.trainer_initialized)
             
-            # if self.save_bool:
-            #     import torch
-            #     p = self.algo.policy if hasattr(self.algo, "policy") else self.algo
-            #     torch.save(p.state_dict(), self.save_loc)
+            # Сохранение финальной модели (полный чекпоинт: сети + оптимизаторы)
+            if self.save_loc:
+                final_path = self.save_loc.replace("best_policy.pth", "final_policy.pth")
+                os.makedirs(os.path.dirname(final_path), exist_ok=True)
+                torch.save(self.algo.state_dict(), final_path)
+                print(f"Final model saved to: {final_path}")
+                if wandb.run is not None:
+                    wandb.save(final_path)
             
             print(f"Finished training in {result.timing.total_time:.2f} seconds")
 

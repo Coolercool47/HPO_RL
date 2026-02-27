@@ -17,6 +17,7 @@ class BaseNet(ModuleWithVectorOutput):
         curr_dim = input_dim
         for hidden_dim in hidden_sizes:
             layers.append(nn.Linear(curr_dim, hidden_dim))
+            layers.append(nn.LayerNorm(hidden_dim))
             layers.append(nn.ReLU(inplace=True))
             curr_dim = hidden_dim
             

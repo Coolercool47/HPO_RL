@@ -24,7 +24,7 @@ class plot_and_save():
         backend: выбранный `backend`
     
     """
-    def __init__(self, history, best_result, save_path, backend, experiment_number = 0): #Сделать experiment_number - optional
+    def __init__(self, history, best_result, save_path, backend, experiment_number = 0, merged_bounds = None): #Сделать experiment_number - optional
         """Инициализация plot_and_save
 
         Args:
@@ -33,16 +33,58 @@ class plot_and_save():
             save_path: папка для сохранения таблиц и изображений
             backend: выбранный `backend`
             experiment_number: номер экперимента
+            merged_bounds: объединённые границы из SequentialBackend для ремаппинга координат
         
         """
-        self.history = history
         self.best_result = best_result
         self.save_path = save_path
         self.backend = backend
         self.experiment_number = experiment_number
+        self.merged_bounds = merged_bounds
 
-    def plot_3d(self):
-        """Функция, создающая изображение функции на плоскости и в трехмерии"""
+        # Если переданы merged_bounds и backend имеет свои bounds —
+        # ремапим координаты из merged в child bounds и пересчитываем метрики
+        if merged_bounds and hasattr(backend, 'bounds') and hasattr(backend, 'dimensions'):
+            self.history = self._remap_history(history)
+        else:
+            self.history = history
+
+    def _remap_history(self, history):
+        """Ремапит координаты из merged bounds в bounds текущего backend и пересчитывает метрики.
+
+        Returns:
+            Новая history с ремапленными координатами и пересчитанными метриками.
+        """
+        child_bounds_map = {}
+        for i in range(self.backend.dimensions):
+            key = f"x{i}"
+            child_bounds_map[key] = self.backend.bounds
+
+        remapped_history = []
+        for config, _metric in history:
+            new_config = {}
+            for key, val in config.items():
+                if key in self.merged_bounds and key in child_bounds_map:
+                    m_lo, m_hi = self.merged_bounds[key]
+                    c_lo, c_hi = child_bounds_map[key]
+                    if m_hi - m_lo > 1e-12 and (m_lo != c_lo or m_hi != c_hi):
+                        t = (val - m_lo) / (m_hi - m_lo)
+                        new_config[key] = c_lo + t * (c_hi - c_lo)
+                    else:
+                        new_config[key] = val
+                else:
+                    new_config[key] = val
+            # Пересчитываем метрику через child backend
+            new_metric = self.backend.evaluate(new_config)
+            remapped_history.append((new_config, new_metric))
+        return remapped_history
+
+    def plot_3d(self, suffix=""):
+        """Функция, создающая изображение функции на плоскости и в трехмерии.
+        
+        Args:
+            suffix: дополнительный суффикс для имени файла (например, имя функции).
+        """
         x0_vals = np.array([t[0]["x0"] for t in self.history])
         x1_vals = np.array([t[0]["x1"] for t in self.history])
         metrics = np.array([t[-1] for t in self.history])
@@ -103,16 +145,21 @@ class plot_and_save():
         ax2.set_title('3D View')
 
         plt.tight_layout()
-        temp_path = self.save_path / f"3d_{self.experiment_number}.png"
+        file_label = f"3d_{self.experiment_number}{suffix}"
+        temp_path = self.save_path / f"{file_label}.png"
         plt.savefig(temp_path, dpi=150, bbox_inches='tight')
-        temp_path_pgf = self.save_path / f"3d_{self.experiment_number}.pgf"
+        temp_path_pgf = self.save_path / f"{file_label}.pgf"
         plt.savefig(temp_path_pgf, dpi=150, bbox_inches='tight')
         print(f"Saved: {temp_path}, {temp_path_pgf}")
         plt.close()
 
 
-    def plot_trajectory(self):
-        """Функция, создающая изображение с историей наград"""
+    def plot_trajectory(self, suffix=""):
+        """Функция, создающая изображение с историей наград
+        
+        Args:
+            suffix: дополнительный суффикс для имени файла.
+        """
         is_maximize = self.backend.maximize
         history_scores = [d[-1] for d in self.history]
         iterations = range(1, len(history_scores) + 1)
@@ -149,16 +196,21 @@ class plot_and_save():
         plt.tight_layout()
 
         # Сохранение
-        temp_path = self.save_path / f"trajectory_{self.experiment_number}.png"
+        file_label = f"trajectory_{self.experiment_number}{suffix}"
+        temp_path = self.save_path / f"{file_label}.png"
         plt.savefig(temp_path, dpi=150, bbox_inches='tight')
-        temp_path_pgf = self.save_path / f"trajectory_{self.experiment_number}.pgf"
+        temp_path_pgf = self.save_path / f"{file_label}.pgf"
         plt.savefig(temp_path_pgf, dpi=150, bbox_inches='tight')
         print(f"Saved: {temp_path}, {temp_path_pgf}")
         plt.close()
-        # добавить сохранение
     
-    def save_history(self, as_latex=True):
-        """Функция, сохраняющая историю в виде таблицы и Latex кода"""
+    def save_history(self, as_latex=True, suffix=""):
+        """Функция, сохраняющая историю в виде таблицы и Latex кода
+        
+        Args:
+            as_latex: если True — сохраняет .tex, иначе .csv
+            suffix: дополнительный суффикс для имени файла.
+        """
         data = []
         for i, (params, score) in enumerate(self.history, 1):
             row = {"Iteration": i}
@@ -169,7 +221,7 @@ class plot_and_save():
         df = pd.DataFrame(data).set_index("Iteration")
         
         if not as_latex:
-            out_path = self.save_path / f"history_{self.experiment_number}.csv"
+            out_path = self.save_path / f"history_{self.experiment_number}{suffix}.csv"
             df.to_csv(out_path)
             print(f"Saved CSV history: {out_path}")
             return
@@ -210,7 +262,7 @@ class plot_and_save():
         latex_table = latex_table.replace(r'\bottomrule', r'\midrule') # Чтобы в конце промежуточных страниц была линия
         latex_table = latex_table.replace(r'\endlastfoot', r'\bottomrule' + '\n' + r'\endlastfoot')
 
-        out_path = self.save_path / f"history_table_{self.experiment_number}.tex"
+        out_path = self.save_path / f"history_table_{self.experiment_number}{suffix}.tex"
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(latex_table)
         print(f"Saved TEX history: {out_path}")

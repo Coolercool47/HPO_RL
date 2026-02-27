@@ -37,6 +37,7 @@ from tianshou.data import VectorReplayBuffer
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.backends.real import RealTrainingBackend
 from hpo_rl.backends.objective import ObjectiveBackend
+from hpo_rl.backends.sequential import SequentialBackend
 
 from hpo_rl.baselines.BOHB import BOHB
 from hpo_rl.baselines.TPE import TPE
@@ -103,7 +104,7 @@ ALGORITHMS_BASELINE = {
 }
 
 BACKENDS = {
-    "function": OptimizationBenchmarkBackend, "real": RealTrainingBackend, "objective": ObjectiveBackend
+    "function": OptimizationBenchmarkBackend, "real": RealTrainingBackend, "objective": ObjectiveBackend, "sequential": SequentialBackend
 }
 
 ENVS = {
@@ -239,6 +240,9 @@ def check(config):
 
         save = os.path.join(f"log/{algorithm_name}/{timestamp}", "best_policy.pth")
 
+        # Путь для загрузки чекпоинта (опционально)
+        load = config["full_args"].get("load_checkpoint", None)
+
         if config["full_args"]["net"].get("net"):
             net = config["full_args"]["net"]["net"]
         net_params = {}
@@ -275,6 +279,92 @@ def check(config):
             env_params["hp_space"] = {f"x{i}": {"min": min_value, "max": max_value, "type": "float", "log": False} for i in range(int(config["backend"]["dimensions"]))}
         elif mode == "baseline":
             alg_params["dict_to_optimize"] = {f"x{i}": {"values": (min_value, max_value), "type": "float", "log": False} for i in range(int(config["backend"]["dimensions"]))}
+    
+    elif backend_name == "sequential":
+        backend_config = config["backend"]
+        seq_mode = backend_config.get("mode", "random")
+        backend_list = backend_config["backends"]  # список описаний бэкендов
+        
+        child_backends = []
+        all_hp_spaces = []
+        
+        for entry in backend_list:
+            entry_type = entry["name"]
+            
+            if entry_type == "function":
+                fn = entry["function"]
+                dims = entry["dimensions"]
+                if fn not in functions:
+                    raise ValueError(f"Function {fn} not supported")
+                child_backends.append(
+                    OptimizationBenchmarkBackend(function_name=fn, dimensions=dims)
+                )
+                min_v, max_v = functions[fn]["min"], functions[fn]["max"]
+                all_hp_spaces.append(
+                    {f"x{i}": {"min": min_v, "max": max_v, "type": "float", "log": False}
+                     for i in range(int(dims))}
+                )
+                
+            elif entry_type == "objective":
+                child_backends.append(
+                    ObjectiveBackend(
+                        objective_function=entry["objective_function"],
+                        hp_space=entry["hp_space"],
+                    )
+                )
+                all_hp_spaces.append(entry["hp_space"])
+                
+            elif entry_type == "real":
+                child_backends.append(
+                    RealTrainingBackend(
+                        model=entry["model"],
+                        trainer=entry["trainer"],
+                        data_processor=entry["data_processor"],
+                        hp_space=entry["hp_space"],
+                    )
+                )
+                all_hp_spaces.append(entry["hp_space"])
+                
+            else:
+                raise ValueError(f"Backend type '{entry_type}' not supported inside sequential")
+        
+        backend_class = SequentialBackend
+        
+        # hp_space: объединение по всем дочерним бэкендам
+        # Берём ключи из первого, расширяем диапазоны по всем
+        merged_hp_space = {}
+        for hp_space in all_hp_spaces:
+            for key, val in hp_space.items():
+                if key not in merged_hp_space:
+                    merged_hp_space[key] = dict(val)
+                else:
+                    existing = merged_hp_space[key]
+                    if "min" in val and "min" in existing:
+                        existing["min"] = min(existing["min"], val["min"])
+                    if "max" in val and "max" in existing:
+                        existing["max"] = max(existing["max"], val["max"])
+                    if "values" in val and "values" in existing:
+                        # Для tuple (min, max)
+                        if isinstance(val["values"], tuple) and isinstance(existing["values"], tuple):
+                            existing["values"] = (
+                                min(existing["values"][0], val["values"][0]),
+                                max(existing["values"][1], val["values"][1]),
+                            )
+        
+        # Формируем merged_bounds для ремаппинга значений в SequentialBackend
+        merged_bounds = {}
+        for key, val in merged_hp_space.items():
+            if val.get("type") in ("float", "int"):
+                lo = val.get("min", val.get("values", (0,))[0])
+                hi = val.get("max", val.get("values", (0, 1))[1])
+                merged_bounds[key] = (lo, hi)
+
+        backend_params = {"backends": child_backends, "mode": seq_mode, "merged_bounds": merged_bounds}
+
+        if mode == "RL":
+            env_params["hp_space"] = merged_hp_space
+        elif mode == "baseline":
+            alg_params["dict_to_optimize"] = merged_hp_space
     
     elif backend_name == "real":
         backend_class = BACKENDS[backend_name]
@@ -322,7 +412,8 @@ def check(config):
             "n_inference_envs": config["full_args"]["num_test_envs"],
             "alg_name": algorithm_name,
             "net_params": net_params,
-            "save": save
+            "save": save,
+            "load": load
             }
         
     elif mode == "baseline":

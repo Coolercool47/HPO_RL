@@ -1,4 +1,3 @@
-from hpo_rl.experiments.run_experiment import run_experiment
 from hpo_rl.experiments.run_experiment import run_n_experiments
 from hpo_rl.models.simple_cnn import SimpleCNN
 from hpo_rl.trainers.torch_trainer import TorchTrainer
@@ -149,7 +148,7 @@ if __name__ == "__main__":
             },
             "trainer":
             {
-                "max_epochs": 50,            # больше эпох для delta rewards (меньший сигнал)
+                "max_epochs": 100,            # больше эпох для delta rewards (меньший сигнал)
                 "epoch_num_steps": 4000,       # кратно collection (4000/2000=2 collects)
                 "batch_size": 20,             # chunks: 2000/10=200 chunks → 10 minibatch
                 "collection_step_num_env_steps": 2000,  # 10 полных эпизодов → больше данных для GAE
@@ -169,20 +168,27 @@ if __name__ == "__main__":
             },
             "num_training_envs": 20, 
             "num_test_envs": 20,
+            "load_checkpoint": "log/ppo/20260227-162201/final_policy.pth",
+
         },
         "env": {
             "name": "new_cycle_move_pipeline",
             "num_bins": 500,
             "max_steps": 200,
             "step_sizes": [1, 2, 5, 10, 25, 50],
-            "history_window": 1,
+            "history_window": 3,
             "reward_mode": "absolute",
             "obs_mode": "ohe"     
         },
         "backend": {
-            "name": "function",
-            "function": "schwefel",
-            "dimensions": 2
+            "name": "sequential",
+            "mode": "random",  # по умолчанию
+            "backends": [
+                {"name": "function", "function": "rastrigin", "dimensions": 2},
+                {"name": "function", "function": "rosenbrock", "dimensions": 2},
+                {"name": "function", "function": "schwefel", "dimensions": 2},
+                # {"name": "function", "function": "goldstein_price", "dimensions": 2},
+            ]
         }
     }
 
@@ -233,8 +239,10 @@ if __name__ == "__main__":
                 "n_episode": 1,
                 "reset_before_collect": True,
             },
-            "num_training_envs": 1, 
-            "num_test_envs": 1,
+            "num_training_envs": 20, 
+            "num_test_envs": 20,
+            # "load_checkpoint": "log/recurrent_ppo/20260226-201335/best_policy.pth",
+
         },
         "env": {
             "name": "new_cycle_move_pipeline",
@@ -245,18 +253,23 @@ if __name__ == "__main__":
             "reward_mode": "absolute"          
         },
         "backend": {
-            "name": "function",
-            "function": "schwefel",
-            "dimensions": 2
+            "name": "sequential",
+            "mode": "random",  # по умолчанию
+            "backends": [
+                {"name": "function", "function": "rastrigin", "dimensions": 2},
+                {"name": "function", "function": "rosenbrock", "dimensions": 2},
+                {"name": "function", "function": "schwefel", "dimensions": 2},
+                # {"name": "function", "function": "goldstein_price", "dimensions": 2},
+            ]
         }
     }
     config_dqn = {
     "full_args": {
         "algorithm":
         {
-            "name": "recurrent_dqn",
+            "name": "dqn",
             "gamma": 0.99,
-            "seq_len": 10,
+            # "seq_len": 10,
             "target_update_freq": 320,
             # "n_step_return_horizon": 3,
         },
@@ -277,15 +290,15 @@ if __name__ == "__main__":
             # "actor": DiscreteActor,
             # "critic": DiscreteCritic, 
             # "hidden_sizes": [64, 64],
-            "net": MaskedRecurrentNet,
-            "rnn_layers": 1
+            "net": MaskedNet,
+            # "rnn_layers": 1
         },
         "trainer":
         {
             "max_epochs": 100,
-            "epoch_num_steps": 200,
-            "batch_size": 64,
-            "collection_step_num_env_steps": 10,
+            "epoch_num_steps": 4000,
+            "batch_size": 20,
+            "collection_step_num_env_steps": 200,
             # "update_step_num_repetitions": 5,
             # "test_in_training": True,
             # "stop_fn": stop_fn
@@ -294,31 +307,33 @@ if __name__ == "__main__":
         {
             "class": DiscreteQLearningPolicy,
             "eps_training": 0.1,
-            "eps_inference": 0.05,
+            "eps_inference": 0.0
         },
         "inference": 
         {
             "n_episode": 1,
             "reset_before_collect": True,
         },
-        "num_training_envs": 1,
-        "num_test_envs": 1,
+        "num_training_envs": 20,
+        "num_test_envs": 20,
     },
     "env": {
         "name": "new_cycle_move_pipeline",
         "num_bins": 500,
-        # "action_type": "continuous",
         "max_steps": 200,
-        # "reward_mode": "per_step",
         "step_sizes": [1, 2, 5, 10, 25, 50],
-        "history_window": 0,
-        # "use_history": True
-        "reward_mode": "delta"
+        "history_window": 3,
+        "reward_mode": "absolute"
     },
     "backend": {
-        "name": "function",
-        "function": "rastrigin",
-        "dimensions": 2
+        "name": "sequential",
+        "mode": "random",  
+        "backends": [
+            {"name": "function", "function": "rastrigin", "dimensions": 2},
+            {"name": "function", "function": "rosenbrock", "dimensions": 2},
+            {"name": "function", "function": "schwefel", "dimensions": 2},
+            # {"name": "function", "function": "goldstein_price", "dimensions": 2},
+        ]
     }
     }
 
@@ -577,4 +592,4 @@ if __name__ == "__main__":
     # }
     # }
 
-    run_n_experiments(config_ppo, 3)
+    run_n_experiments(config_dqn, 3, inference_only=False)

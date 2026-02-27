@@ -22,6 +22,7 @@ from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.backends.dummy import DummyBackend
 from hpo_rl.backends.real import RealTrainingBackend
 from hpo_rl.backends.objective import ObjectiveBackend
+from hpo_rl.backends.sequential import SequentialBackend
 
 __all__ = [
     "EvaluationBackend",
@@ -30,5 +31,6 @@ __all__ = [
     "DummyBackend",
     "RealTrainingBackend",
     "ObjectiveBackend",
+    "SequentialBackend",
 ]
 

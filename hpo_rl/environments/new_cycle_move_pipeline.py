@@ -135,6 +135,15 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         return self._get_obs(), self._get_info()
 
     def step(self, action):
+        # --- Сохраняем ПРЕДЫДУЩЕЕ состояние в history ДО действия ---
+        # Это гарантирует: history[-1] ≠ текущие obs (без дублирования)
+        if self.history_window > 0:
+            self._reward_history_buf = np.roll(self._reward_history_buf, -1)
+            self._reward_history_buf[-1] = self.reward  # reward ПРЕДЫДУЩЕГО шага
+
+            self._param_snapshot_buf = np.roll(self._param_snapshot_buf, -1, axis=0)
+            self._param_snapshot_buf[-1] = self._current_param_vec()  # params ПРЕДЫДУЩЕГО шага
+
         hp_names_list = list(self.hp_space_config.keys())
         cur_hp_name = hp_names_list[self.cur_step_num]
         old_idx = self.cur_idx_dict[cur_hp_name]
@@ -152,13 +161,6 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.cur_step_num = (self.cur_step_num + 1) % self.num_hyperparams
         
         reward = self._compute_reward()
-
-        if self.history_window > 0:
-            self._reward_history_buf = np.roll(self._reward_history_buf, -1)
-            self._reward_history_buf[-1] = reward
-
-            self._param_snapshot_buf = np.roll(self._param_snapshot_buf, -1, axis=0)
-            self._param_snapshot_buf[-1] = self._current_param_vec()
 
         observation = self._get_obs()
         info = self._get_info()
