@@ -32,6 +32,8 @@ from tianshou.utils import TensorboardLogger
 from tianshou.trainer import OffPolicyTrainerParams
 from tianshou.trainer import OnPolicyTrainerParams
 
+from tianshou.utils.net.discrete import IntrinsicCuriosityModule
+
 from tianshou.data import VectorReplayBuffer
 
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
@@ -49,6 +51,9 @@ from hpo_rl.models.simple_cnn import SimpleCNN
 
 from hpo_rl.environments.cycle_move_pipeline import CyclicPipelineEnv
 from hpo_rl.environments.new_cycle_move_pipeline import CyclicPipelineEnvNew
+from hpo_rl.environments.delayed_reward_pipeline import DelayedRewardPipelineEnv
+from hpo_rl.environments.continuous_cycle_pipeline import ContinuousCyclicPipelineEnv
+from hpo_rl.environments.instant_continuous_pipeline_env import InstantContinuousPipelineEnv
 
 
 functions = {
@@ -109,7 +114,10 @@ BACKENDS = {
 
 ENVS = {
     "cycle_move_pipeline": CyclicPipelineEnv,
-    "new_cycle_move_pipeline": CyclicPipelineEnvNew
+    "new_cycle_move_pipeline": CyclicPipelineEnvNew,
+    "delayed_reward_pipeline": DelayedRewardPipelineEnv,
+    "continuous_cycle_pipeline": ContinuousCyclicPipelineEnv,
+    "instant_continuous_pipeline": InstantContinuousPipelineEnv,
 }
 
 MODELS = {
@@ -210,9 +218,9 @@ def check(config):
         training_collector_params = {}
         if config["full_args"].get("training_collector_kwargs"):
             for key, value in config["full_args"]["training_collector_kwargs"].items():
-                    training_collector_params[key] = value
-            if config["full_args"].get("buffer"):
-                training_collector_params["buffer"] = buffer
+                training_collector_params[key] = value
+        if config["full_args"].get("buffer"):
+            training_collector_params["buffer"] = buffer
 
         test_collector_params = {}
         if config["full_args"].get("test_collector_kwargs"):
@@ -242,6 +250,42 @@ def check(config):
 
         # Путь для загрузки чекпоинта (опционально)
         load = config["full_args"].get("load_checkpoint", None)
+
+        # --- ICM ---
+        icm_raw = config["full_args"].get("icm")
+        if icm_raw is not None:
+            if "feature_net" not in icm_raw:
+                raise ValueError(
+                    "ICM config requires 'feature_net' — готовый инстанс nn.Module. "
+                    "Пример: 'feature_net': MLP(input_dim=state_dim, output_dim=64, hidden_sizes=[64])"
+                )
+            icm_feature_net = icm_raw["feature_net"]
+            icm_feature_dim = icm_raw.get("feature_dim", 64)
+            icm_hidden = icm_raw.get("hidden_sizes", [64])
+
+            icm_optim_name = icm_raw.get("optim", {}).get("name", "AdamOptimizerFactory")
+            icm_optim_class = OPTIMIZERS.get(icm_optim_name, opt.AdamOptimizerFactory)
+            icm_optim_params = {k: v for k, v in icm_raw.get("optim", {}).items() if k != "name"}
+            if not icm_optim_params:
+                icm_optim_params = {"lr": 1e-3}
+            icm_optim = icm_optim_class(**icm_optim_params)
+
+            for required_key in ("lr_scale", "reward_scale", "forward_loss_weight"):
+                if required_key not in icm_raw:
+                    raise ValueError(
+                        f"ICM config requires '{required_key}'. "
+                        "Задайте lr_scale, reward_scale и forward_loss_weight явно."
+                    )
+
+            alg_params["icm"] = {
+                "feature_net": icm_feature_net,
+                "feature_dim": icm_feature_dim,
+                "hidden_sizes": icm_hidden,
+                "optim": icm_optim,
+                "lr_scale": icm_raw["lr_scale"],
+                "reward_scale": icm_raw["reward_scale"],
+                "forward_loss_weight": icm_raw["forward_loss_weight"],
+            }
 
         if config["full_args"]["net"].get("net"):
             net = config["full_args"]["net"]["net"]

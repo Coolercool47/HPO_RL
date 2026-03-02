@@ -331,7 +331,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
 
             где :math:`w_i = 1 + (x_i - 1)/4`.
         """
-        w = 1 + (x - 0) / 4
+        w = 1 + (x - 1) / 4
         t1 = np.sin(np.pi * w[0]) ** 2
         t2 = np.sum((w[:-1] - 1)**2 * (1 + 10 * np.sin(np.pi * w[:-1] + 1)**2))
         t3 = (w[-1] - 1)**2 * (1 + np.sin(2 * np.pi * w[-1])**2)

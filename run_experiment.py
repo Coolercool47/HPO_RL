@@ -192,6 +192,79 @@ if __name__ == "__main__":
         }
     }
 
+    config_continuous_ppo = {
+    "full_args": {
+            "algorithm":
+            {
+                "name": "ppo",
+                "gamma": 0.99,
+                "gae_lambda": 0.95,
+                "vf_coef": 0.5,
+                "ent_coef": 0.05,
+                "max_grad_norm": 0.5,
+                "value_clip": True,
+                "return_scaling": True,
+                "recompute_advantage": True,
+            },
+            "optim":
+            {
+                "name": "TorchOptimizerFactory",
+                "optim_class": torch.optim.Adam,
+                "lr": 3e-4,
+            },
+            "net":
+            {
+                "actor": ContinuousActorProbabilistic,
+                "critic": ContinuousCritic,
+                "net": Net,
+                "hidden_sizes": [256, 256],
+                "norm_layer": nn.LayerNorm,
+            },
+            "trainer":
+            {
+                "max_epochs": 100,
+                "epoch_num_steps": 4000,
+                "batch_size": 64,
+                "collection_step_num_env_steps": 2000,
+                "update_step_num_repetitions": 10,
+                "test_step_num_episodes": 20,
+            },
+            "policy":
+            {
+                "class": ProbabilisticActorPolicy,
+                "dist_fn": lambda mu_sigma: torch.distributions.Independent(
+                    torch.distributions.Normal(*mu_sigma), 1
+                ),
+                "action_scaling": False,
+                "action_bound_method": "tanh",
+                "actor_kwargs": {"unbounded": True, "conditioned_sigma": True},
+            },
+            "inference":
+            {
+                "n_episode": 1,
+                "reset_before_collect": True,
+            },
+            "num_training_envs": 20,
+            "num_test_envs": 20,
+        },
+        "env": {
+            "name": "continuous_cycle_pipeline",
+            "max_delta_frac": 0.3,
+            "max_steps": 200,
+            "history_window": 3,
+            "reward_mode": "absolute",
+        },
+        "backend": {
+            "name": "sequential",
+            "mode": "random",
+            "backends": [
+                {"name": "function", "function": "rastrigin", "dimensions": 2},
+                {"name": "function", "function": "rosenbrock", "dimensions": 2},
+                {"name": "function", "function": "schwefel", "dimensions": 2},
+            ]
+        }
+    }
+
     config_recurrent_ppo = {
     "full_args": {
             "algorithm":
@@ -592,4 +665,86 @@ if __name__ == "__main__":
     # }
     # }
 
-    run_n_experiments(config_recurrent_ppo, 3, inference_only=False)
+    config_recurrent_ppo_icm = {
+    "full_args": {
+            "algorithm":
+            {
+                "name": "recurrent_ppo",
+                "gamma": 0.97,
+                "gae_lambda": 0.95, 
+                "seq_len": 10,
+                "vf_coef": 0.5,
+                "ent_coef": 0.01,
+                "max_grad_norm": 0.5,
+                "value_clip": True,
+                "return_scaling": True,
+                "recompute_advantage": True,
+            },  
+            "icm":
+            {
+                "feature_net": Net(state_shape=5, action_shape=64, hidden_sizes=[64]),
+                "feature_dim": 64,
+                "hidden_sizes": [64],
+                "lr_scale": 1.0,
+                "reward_scale": 0.01,
+                "forward_loss_weight": 0.2,
+                "optim": {
+                    "name": "AdamOptimizerFactory",
+                    "lr": 1e-3,
+                },
+            },
+            "optim":
+            {
+                "name": "TorchOptimizerFactory",
+                "optim_class": torch.optim.Adam,
+                "lr": 3e-4,  
+            },
+            "net":
+            {
+                "actor": MaskedRecurrentDiscreteActor,
+                "critic": RecurrentCritic, 
+                "net": RecurrentBaseNet,
+                "hidden_layer_size": 64,
+            },
+            "trainer":
+            {
+                "max_epochs": 50,
+                "epoch_num_steps": 4000,
+                "batch_size": 20,
+                "collection_step_num_env_steps": 2000,
+                "update_step_num_repetitions": 8,
+            },
+            "policy":
+            {
+                "class": ProbabilisticActorPolicy,
+                "dist_fn": lambda x: torch.distributions.Categorical(logits=x),
+                "action_scaling": False,
+            },
+            "inference": 
+            {
+                "n_episode": 1,
+                "reset_before_collect": True,
+            },
+            "num_training_envs": 20, 
+            "num_test_envs": 20,
+        },
+        "env": {
+            "name": "delayed_reward_pipeline",
+            "num_bins": 500,
+            "max_steps": 200,
+            "step_sizes": [1, 2, 5, 10, 25, 50],
+            "history_window": 0,
+            "reward_mode": "absolute"          
+        },
+        "backend": {
+            "name": "sequential",
+            "mode": "shuffle",
+            "backends": [
+                {"name": "function", "function": "rastrigin", "dimensions": 2},
+                {"name": "function", "function": "rosenbrock", "dimensions": 2},
+                {"name": "function", "function": "schwefel", "dimensions": 2},
+            ]
+        }
+    }
+
+    run_n_experiments(config_continuous_ppo, 3, inference_only=False)

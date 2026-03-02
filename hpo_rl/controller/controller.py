@@ -1,4 +1,5 @@
 from tqdm.auto import tqdm
+import numpy as np
 import gymnasium as gym
 import tianshou as ts
 from tianshou.data import CollectStats
@@ -14,22 +15,14 @@ import os
 import wandb
 import time
 
+from tianshou.algorithm.modelbased.icm import ICMOnPolicyWrapper, ICMOffPolicyWrapper
+from tianshou.utils.net.discrete import IntrinsicCuriosityModule
+from hpo_rl.alg.recurrent_icm import RecurrentICMOnPolicyWrapper
+
 from hpo_rl.backends.sequential import SequentialBackend
+from hpo_rl.nets.icm_feature_net import ICMFeatureNet
+from hpo_rl.nets.rainbow_net import RainbowNetWrapper
 
-class RainbowNetWrapper(torch.nn.Module):
-    def __init__(self, model, action_num, num_atoms):
-        super().__init__()
-        self.model = model
-        self.action_num = action_num
-        self.num_atoms = num_atoms
-
-    def forward(self, obs, state=None, info={}):
-        # 1. Get flat logits from the standard Net [Batch, Action * Atoms]
-        logits, hidden = self.model(obs, state=state, info=info)
-        # 2. Reshape to [Batch, Action, Atoms] -> [64, 7, 51]
-        logits = logits.view(-1, self.action_num, self.num_atoms)
-        return logits, hidden
-    
 class controller():
     """
     Класс, скрепляющий конфигурацию с `backend` и `algorithm`.
@@ -94,7 +87,12 @@ class controller():
             test_envs = ts.env.DummyVectorEnv([make_env for _ in range(n_inference_envs)])
 
             # 2. Определение размерностей
-            state_shape = flatdim(self.env.observation_space) if net == Net else flatdim(self.env.observation_space["obs"]) # Сомнительно
+            if net == Net:
+                state_shape = flatdim(self.env.observation_space)
+            elif isinstance(self.env.observation_space, gym.spaces.Dict) and "obs" in self.env.observation_space.spaces:
+                state_shape = flatdim(self.env.observation_space["obs"])
+            else:
+                state_shape = flatdim(self.env.observation_space)
             if isinstance(self.env.action_space, gym.spaces.Discrete):
                 action_shape = self.env.action_space.n
             else:
@@ -108,7 +106,9 @@ class controller():
             AlgoParams = algorithm["params"]
             
             ActorClass = PolicyParams.pop("actor", None)
+            actor_kwargs = PolicyParams.pop("actor_kwargs", {})
             CriticClass = AlgoParams.pop("critic", None)
+            icm_config = AlgoParams.pop("icm", None)
 
             # --- ФАБРИКА СБОРОК ---
 
@@ -117,7 +117,7 @@ class controller():
                 net_a = NetClass(state_shape=state_shape, action_shape = action_shape, **net_params)
                 net_c = NetClass(state_shape=state_shape, action_shape = action_shape, **net_params)
                 
-                actor = ActorClass(preprocess_net=net_a, action_shape=action_shape)
+                actor = ActorClass(preprocess_net=net_a, action_shape=action_shape, **actor_kwargs)
                 critic = CriticClass(preprocess_net=net_c)
                 
                 _policy = PolicyClass(actor=actor, action_space=self.env.action_space, **PolicyParams)
@@ -126,12 +126,12 @@ class controller():
             # Off-Policy Twin Actor-Critic (SAC, TD3...)
             elif alg_name in OFF_POLICY_TWIN_AC:
                 net_a = NetClass(state_shape=state_shape, **net_params)
-                actor = ActorClass(preprocess_net=net_a, action_shape=action_shape)
+                actor = ActorClass(preprocess_net=net_a, action_shape=action_shape, **actor_kwargs)
                 
                 critics = []
                 optim = AlgoParams.pop("optim")
                 for _ in range(2):
-                    net_c = NetClass(state_shape=state_shape, action_shape=action_shape,concat=True, **net_params)
+                    net_c = NetClass(state_shape=state_shape, action_shape=action_shape, concat=True, **net_params)
                     critics.append({"critic":CriticClass(preprocess_net=net_c), "optim": optim})
 
                 _policy = PolicyClass(actor=actor, action_space=self.env.action_space, **PolicyParams)
@@ -166,6 +166,46 @@ class controller():
             else:
                 supported = ON_POLICY_AC + OFF_POLICY_TWIN_AC + OFF_POLICY_SINGLE_AC + VALUE_BASED + PURE_POLICY
                 raise ValueError(f"Algorithm '{alg_name}' is not supported. Supported: {supported}")
+
+            # 3.5. ICM обёртка (Intrinsic Curiosity Module)
+            if icm_config is not None:
+                icm_model_cls = icm_config.get("model_class", IntrinsicCuriosityModule)
+                feature_net = ICMFeatureNet(icm_config["feature_net"])
+                icm_feature_dim = icm_config["feature_dim"]
+
+                icm_model = icm_model_cls(
+                    feature_net=feature_net,
+                    feature_dim=icm_config["feature_dim"],
+                    action_dim=int(action_shape) if np.isscalar(action_shape) else int(action_shape[0]),
+                    hidden_sizes=icm_config.get("hidden_sizes", ()),
+                )
+                icm_optim = icm_config["optim"]
+                icm_lr_scale = icm_config["lr_scale"]
+                icm_reward_scale = icm_config["reward_scale"]
+                icm_forward_loss_weight = icm_config["forward_loss_weight"]
+
+                RECURRENT_ALGOS = ["recurrent_ppo", "recurrent_dqn"]
+
+                if alg_name in ON_POLICY_AC + PURE_POLICY:
+                    wrapper_cls = RecurrentICMOnPolicyWrapper if alg_name in RECURRENT_ALGOS else ICMOnPolicyWrapper
+                    self.algo = wrapper_cls(
+                        wrapped_algorithm=self.algo,
+                        model=icm_model,
+                        optim=icm_optim,
+                        lr_scale=icm_lr_scale,
+                        reward_scale=icm_reward_scale,
+                        forward_loss_weight=icm_forward_loss_weight,
+                    )
+                elif alg_name in OFF_POLICY_TWIN_AC + OFF_POLICY_SINGLE_AC + VALUE_BASED:
+                    self.algo = ICMOffPolicyWrapper(
+                        wrapped_algorithm=self.algo,
+                        model=icm_model,
+                        optim=icm_optim,
+                        lr_scale=icm_lr_scale,
+                        reward_scale=icm_reward_scale,
+                        forward_loss_weight=icm_forward_loss_weight,
+                    )
+                print(f"ICM wrapper applied to '{alg_name}' (reward_scale={icm_reward_scale}, lr_scale={icm_lr_scale})")
 
             # 4. Загрузка чекпоинта (если указан load)
             self.load_loc = load

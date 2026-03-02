@@ -33,6 +33,7 @@ class MaskedRecurrentNet(ModuleWithVectorOutput):
         curr_dim = self.hidden_dim
         for hidden_dim in hidden_sizes[1:]:
             layers.append(nn.Linear(curr_dim, hidden_dim))
+            layers.append(nn.LayerNorm(hidden_dim))
             layers.append(nn.ReLU(inplace=True))
             curr_dim = hidden_dim
             

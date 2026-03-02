@@ -54,6 +54,13 @@ def run_n_experiments(config, n_experiments, inference_only=False):
         elif backend_name == "sequential":
             backend = expreiment_controller.backend
             merged_bounds = getattr(backend, '_merged_bounds', None)
+
+            # Если env использует sync_bounds_to_backend (InstantContinuousPipelineEnv),
+            # координаты в history уже в native bounds дочернего бэкенда — ремап не нужен.
+            raw_env = getattr(expreiment_controller.env, 'unwrapped', expreiment_controller.env)
+            env_has_native_bounds = hasattr(raw_env, 'sync_bounds_to_backend')
+            child_merged_bounds = None if env_has_native_bounds else merged_bounds
+
             # Для каждого дочернего бэкенда — отдельный inference
             seen_names = {}
             for child_idx, child in enumerate(backend.backends):
@@ -73,7 +80,7 @@ def run_n_experiments(config, n_experiments, inference_only=False):
                 child_outputs = plot_and_save(
                     child_history, child_best, save_path, child,
                     experiment_number=i_experiment,
-                    merged_bounds=merged_bounds,
+                    merged_bounds=child_merged_bounds,
                 )
                 if isinstance(child, OptimizationBenchmarkBackend) and child.dimensions == 2:
                     child_outputs.plot_3d(suffix=suffix)
@@ -89,36 +96,51 @@ def run_n_experiments(config, n_experiments, inference_only=False):
 
     results = np.array([[trial[1] for trial in inference] for inference in full_history])
     best_trial_indices = np.argmax(results, axis=1) if is_maximize else np.argmin(results, axis=1)
-    best = np.array([full_history[i][best_trial_indices[i]] for i in range(len(full_history))], dtype=object)
+    best = [full_history[i][best_trial_indices[i]] for i in range(len(full_history))]
 
     # Сортируем так, чтобы worst был первым (idx 0), best — последним (idx -1)
     best_scores = [item[1] for item in best]
     if is_maximize:
-        sorted_idx = np.argsort(best_scores)
+        sorted_idx = np.argsort(best_scores).tolist()
     else:
-        sorted_idx = np.argsort(best_scores)[::-1]
+        sorted_idx = np.argsort(best_scores)[::-1].tolist()
 
     worst_of_best, best_of_best, median_of_best = best[sorted_idx[0]],  best[sorted_idx[-1]], best[sorted_idx[len(sorted_idx) // 2]]
 
-    last = np.array([inference[-1] for inference in full_history], dtype=object)
+    last = [inference[-1] for inference in full_history]
     last_scores = [item[1] for item in last]
     if is_maximize:
-        last_idxs = np.argsort(last_scores)
+        last_idxs = np.argsort(last_scores).tolist()
     else:
-        last_idxs = np.argsort(last_scores)[::-1]
+        last_idxs = np.argsort(last_scores)[::-1].tolist()
 
     worst_of_last, best_of_last, median_of_last = last[last_idxs[0]], last[last_idxs[-1]], last[last_idxs[len(last_idxs)//2]]
 
+    def _trial_to_serializable(trial):
+        """Конвертирует trial (config, metric) в JSON-сериализуемый формат."""
+        config, metric = trial
+        if isinstance(config, dict):
+            serialized_config = {k: float(v) if isinstance(v, (np.floating,)) else v for k, v in config.items()}
+        elif isinstance(config, np.ndarray):
+            serialized_config = config.tolist()
+        elif config is None:
+            serialized_config = None
+        else:
+            serialized_config = config
+        if isinstance(metric, (np.floating,)):
+            metric = float(metric)
+        return [serialized_config, metric]
+
     data_to_save = {
         "best_of_each_inference": {
-            "worst": worst_of_best.tolist(),
-            "best": best_of_best.tolist(),
-            "median": median_of_best.tolist()
+            "worst": _trial_to_serializable(worst_of_best),
+            "best": _trial_to_serializable(best_of_best),
+            "median": _trial_to_serializable(median_of_best)
         },
         "final_of_each_inference": {
-            "worst": worst_of_last.tolist(),
-            "best": best_of_last.tolist(),
-            "median": median_of_last.tolist()
+            "worst": _trial_to_serializable(worst_of_last),
+            "best": _trial_to_serializable(best_of_last),
+            "median": _trial_to_serializable(median_of_last)
         }
     }
 

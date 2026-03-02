@@ -102,7 +102,12 @@ class SequentialBackend(EvaluationBackend):
         # Env работает в merged (максимальном) диапазоне, но каждый дочерний
         # бэкенд может иметь свой диапазон. При evaluate() значения линейно
         # пересчитываются из merged bounds в bounds текущего бэкенда.
+        #
+        # Если env использует sync_bounds_to_backend (InstantContinuousPipelineEnv),
+        # координаты уже в native bounds дочернего бэкенда — ремаппинг не нужен.
+        # В этом случае env устанавливает skip_remap = True.
         self._merged_bounds = merged_bounds  # {"x0": (lo, hi), "x1": (lo, hi), ...}
+        self.skip_remap = False  # устанавливается env при sync_bounds_to_backend
 
         # Для каждого бэкенда сохраняем его собственные bounds
         self._child_bounds: List[Optional[Dict[str, tuple]]] = []
@@ -223,7 +228,11 @@ class SequentialBackend(EvaluationBackend):
         """Делегирует оценку текущему активному бэкенду.
 
         Перед оценкой ремапит значения из merged bounds env
-        в bounds текущего дочернего бэкенда.
+        в bounds текущего дочернего бэкенда (если ремаппинг не отключён).
+
+        При использовании ``InstantContinuousPipelineEnv`` с
+        ``sync_bounds_to_backend()`` координаты уже в native bounds
+        дочернего бэкенда — ремаппинг пропускается (``skip_remap=True``).
 
         Args:
             config: Словарь гиперпараметров ``{"x0": val, "x1": val, ...}``.
@@ -231,6 +240,8 @@ class SequentialBackend(EvaluationBackend):
         Returns:
             Значение от текущего активного бэкенда.
         """
+        if self.skip_remap:
+            return self.current_backend.evaluate(config)
         remapped = self._remap_config(config)
         return self.current_backend.evaluate(remapped)
 

@@ -43,6 +43,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.current_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         self.raw_metric = 0
         self.reward = 0
+        self._initial_raw_metric = None
         self._steps_without_change = 0
 
         self.hp_space_keys_iterator = itertools.cycle(self.hp_space_config)
@@ -113,6 +114,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.best_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         self.current_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         self.prev_raw_metric = None
+        self._initial_raw_metric = None  # будет установлен в _compute_reward
         
         self.step_num_total = 0
         self.cur_step_num = 0
@@ -127,7 +129,18 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.hp_space_keys_iterator = itertools.cycle(self.hp_space_config)
 
         self._spawn()
+        # Evaluate initial metric BEFORE _compute_reward so best/prev are correct
+        initial_val = self.backend.evaluate(self.current_hyp_setup)
+        self._initial_raw_metric = initial_val
+        self.raw_metric = initial_val
+        self.current_raw_metric = initial_val
+        self.best_raw_metric = initial_val
+        self.best_config_so_far = self.current_hyp_setup.copy()
+        self.prev_raw_metric = initial_val
         self._compute_reward()
+        # First step reward should be 0 for delta modes (no change yet)
+        if self.reward_mode in ("delta", "relative_delta"):
+            self.reward = 0.0
 
         if self.history_window > 0:
             self._param_snapshot_buf[:] = self._current_param_vec()
@@ -227,26 +240,43 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
     def _symlog(self, x):
         return np.sign(x) * np.log1p(np.abs(x))
 
-    def _compute_reward(self): # TODO доделать, вычисление реварда адекватизировать
+    def _compute_reward(self):
         self.raw_metric = self.backend.evaluate(self.current_hyp_setup)
         self.current_raw_metric = self.raw_metric
 
-        if self.reward_mode == "delta":
-            if self.prev_raw_metric is not None:
-                # delta = (reward_now - reward_prev), в пространстве RL-reward (больше = лучше)
-                delta = self._to_reward(self.raw_metric) - self._to_reward(self.prev_raw_metric)
-                self.reward = float(self._symlog(delta))
-            else:
-                # Первый шаг — delta неопределена, даём 0
-                self.reward = 0.0
+        # _initial_raw_metric is set in reset() before first _compute_reward call
+        scale = abs(self._to_reward(self._initial_raw_metric)) + 1.0
+
+        if self.reward_mode in ("delta", "relative_delta"):
+            # Raw linear delta — split-proof by linearity.
+            delta = self._to_reward(self.raw_metric) - self._to_reward(self.prev_raw_metric)
+            self.reward = float(delta / scale)
             self.prev_raw_metric = self.raw_metric
+
+        elif self.reward_mode == "rank_shaped":
+            # Position-based: reward depends only on CURRENT position
+            # relative to initial. symlog is safe here (no delta to split).
+            improvement = self._to_reward(self.raw_metric) - self._to_reward(self._initial_raw_metric)
+            self.reward = float(self._symlog(improvement / scale * 10.0))
+
+        elif self.reward_mode == "best_improvement":
+            # Bonus for new best, small penalty for distance from best.
+            if self._is_improvement(self.raw_metric, self.best_raw_metric):
+                delta = self._to_reward(self.raw_metric) - self._to_reward(self.best_raw_metric)
+                self.reward = float(delta / scale) + 0.5
+            else:
+                gap = self._to_reward(self.raw_metric) - self._to_reward(self.best_raw_metric)
+                self.reward = float(np.clip(gap / scale, -0.5, 0.0))
+
         else:  # absolute
             self.reward = float(self._symlog(self._to_reward(self.raw_metric)))
 
+        # Update best metric
         if self._is_improvement(self.raw_metric, self.best_raw_metric):
             self.best_raw_metric = self.raw_metric
             self.best_config_so_far = self.current_hyp_setup.copy()
 
+        # Stagnation penalty
         if self._steps_without_change > 0:
             self.reward -= 0.02 * min(self._steps_without_change, 5)
 
