@@ -716,3 +716,5 @@ FodyWeavers.xsd
 data/
 tmp_data/
 wandb/
+
+.github/instructions/

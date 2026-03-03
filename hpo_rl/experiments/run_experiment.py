@@ -39,6 +39,13 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             raise ValueError(
                 "inference_only=True requires 'load_checkpoint' in config to load trained model weights. "
             )
+        if not getattr(expreiment_controller, '_checkpoint_loaded', False):
+            raise RuntimeError(
+                f"inference_only=True but checkpoint was NOT loaded from: "
+                f"{expreiment_controller.load_loc!r}\n"
+                f"Hint: если путь содержит backslash, используйте r\"...\" или '/' "
+                f"(Python интерпретирует \\f как form-feed, \\n как newline и т.д.)"
+            )
 
     full_history = []
 

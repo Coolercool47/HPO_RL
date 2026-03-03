@@ -209,6 +209,15 @@ class controller():
 
             # 4. Загрузка чекпоинта (если указан load)
             self.load_loc = load
+            if self.load_loc:
+                # Нормализация пути: замена / на os.sep, устранение escaped-символов
+                # (например "\f" → form feed вместо "\final...")
+                normalized = os.path.normpath(self.load_loc)
+                if not os.path.isfile(normalized) and os.path.isfile(self.load_loc):
+                    normalized = self.load_loc  # fallback: оригинальный путь работает
+                self.load_loc = normalized
+
+            self._checkpoint_loaded = False
             if self.load_loc and os.path.isfile(self.load_loc):
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 state_dict = torch.load(self.load_loc, map_location=device, weights_only=False)
@@ -222,8 +231,12 @@ class controller():
                     self.algo.policy.load_state_dict(state_dict)
                     print(f"Loaded policy weights (actor only) from: {self.load_loc}")
                     print("  Warning: optimizer state not restored, training continues with fresh optimizer")
+                self._checkpoint_loaded = True
             elif self.load_loc:
-                print(f"Warning: checkpoint not found at {self.load_loc}, training from scratch")
+                print(f"WARNING: checkpoint NOT found at: {self.load_loc}")
+                print(f"  repr: {repr(self.load_loc)}")
+                print(f"  Hint: если путь содержит backslash, используйте r\"...\" или '/'")
+                print(f"  Модель будет инициализирована случайными весами!")
 
             # 5. Инициализация Коллекторов и Трейнера
             training_collector = ts.data.Collector[CollectStats](
