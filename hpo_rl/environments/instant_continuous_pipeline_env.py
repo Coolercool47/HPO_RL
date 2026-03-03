@@ -7,6 +7,7 @@ from hpo_rl.environments.base_env import BaseHPOEnv
 
 from hpo_rl.backends.sequential import SequentialBackend
 
+
 class InstantContinuousPipelineEnv(BaseHPOEnv):
     """Continuous-action HPO environment with **multi-dimensional** action space.
 
@@ -90,9 +91,7 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         self.current_raw_metric = float("-inf") if self.backend.maximize else float("inf")
         self.raw_metric = 0.0
         self.reward = 0.0
-        self._steps_without_improve = 0
         self._initial_metric = 0.0  # для improvement reward mode
-        self._metric_velocity = 0.0  # EMA скользящего изменения метрики (для obs)
 
         # Диапазоны
         self._lo = np.array(
@@ -146,27 +145,28 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         )
 
     def _init_observation_space(self):
-        """Observation: [normalized_params, norm_metric, best_frac, metric_velocity, step_frac, (history)].
+        """Observation: [normalized_params, raw_metric, best_metric, reward, step_frac, (history)].
 
-        Расширенное наблюдение включает:
+        Наблюдение включает:
         - ``normalized_params`` — позиция агента [0, 1] per dim
-        - ``norm_metric`` — текущая метрика нормализована на initial: metric/|initial|+1
-        - ``best_frac`` — прогресс best-so-far: (initial - best) / (|initial| + 1)
-        - ``metric_velocity`` — EMA скользящего изменения метрики (α=0.3).
-          Даёт агенту неявную информацию о ландшафте (аналог градиента),
-          но НЕ является наградой — critic не может использовать для shortcut.
+        - ``raw_metric`` — текущая метрика (sign-flipped для minimize задач)
+        - ``best_metric`` — лучшая найденная метрика (sign-flipped)
+        - ``reward`` — reward текущего шага
         - ``step_frac`` — прогресс эпизода [0, 1]
 
+        Все значения передаются **без ручной нормализации** —
+        LayerNorm в сети сам приводит масштаб.
+
         Если ``history_window > 0``, добавляются предыдущие параметры и
-        metric_velocity для окна из последних N шагов.
+        reward для окна из последних N шагов.
         """
-        # params + norm_metric + best_frac + metric_velocity + step_frac
+        # params + raw_metric + best_metric + reward + step_frac
         self._obs_base_dim = self.num_hyperparams + 4
 
         flat_obs_dim = self._obs_base_dim
 
         if self.history_window > 0:
-            self._hist_entry_dim = self.num_hyperparams + 1  # params + metric_velocity
+            self._hist_entry_dim = self.num_hyperparams + 1  # params + reward
             flat_obs_dim += self.history_window * self._hist_entry_dim
 
         self.observation_space = gym.spaces.Box(
@@ -218,7 +218,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         self.prev_raw_metric = None
 
         self.step_num_total = 0
-        self._steps_without_improve = 0
 
         if self.history_window > 0:
             self._history_buf = np.zeros(
@@ -239,12 +238,9 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         if self.reward_mode in ("delta", "relative_delta", "potential", "guided"):
             self.reward = 0.0
 
-        # Velocity = 0 при старте (нет движения)
-        self._metric_velocity = 0.0
-
         # Заполняем историю начальным состоянием
         if self.history_window > 0:
-            entry = np.concatenate([self._current_param_vec(), [self._metric_velocity]])
+            entry = np.concatenate([self._current_param_vec(), [self.reward]])
             self._history_buf[:] = entry
 
         return self._get_obs(), self._get_info()
@@ -256,33 +252,14 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         # Сохраняем в историю ДО действия
         if self.history_window > 0:
             self._history_buf = np.roll(self._history_buf, -1, axis=0)
-            entry = np.concatenate([self._current_param_vec(), [self._metric_velocity]])
+            entry = np.concatenate([self._current_param_vec(), [self.reward]])
             self._history_buf[-1] = entry
-
-        old_metric = self.raw_metric
 
         self._take_action(action)
 
         self.step_num_total += 1
 
         reward = self._compute_reward()
-
-        # Отслеживаем стагнацию
-        if self._is_improvement(self.raw_metric, old_metric):
-            self._steps_without_improve = 0
-        else:
-            self._steps_without_improve += 1
-
-        # Обновляем metric_velocity (EMA нормализованного изменения метрики).
-        # Даёт агенту информацию о ландшафте ("улучшаюсь ли я?") без утечки
-        # точного значения reward в observation.
-        _scale = abs(self._to_reward(self._initial_metric)) + 1.0
-        _raw_delta = self._to_reward(self.raw_metric) - self._to_reward(old_metric)
-        _norm_delta = _raw_delta / _scale
-        self._metric_velocity = (
-            0.7 * self._metric_velocity
-            + 0.3 * float(np.clip(_norm_delta, -2.0, 2.0))
-        )
 
         observation = self._get_obs()
         info = self._get_info()
@@ -301,7 +278,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         и прибавляется к текущему значению параметра i.
         """
         action = np.asarray(action, dtype=np.float32).flatten()
-        action = np.clip(action, -1.0, 1.0)
 
         current_vals = np.array(
             [self.current_hyp_setup[n] for n in self.hp_names], dtype=np.float64
@@ -438,11 +414,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
                 self.best_raw_metric = self.raw_metric
                 self.best_config_so_far = self.current_hyp_setup.copy()
 
-        # Stagnation penalty — only for legacy modes (delta, rank_shaped, etc.).
-        # guided/potential are self-regulating.
-        if self.reward_mode not in ("potential", "guided") and self._steps_without_improve > 5:
-            self.reward -= 0.01 * min(self._steps_without_improve - 5, 10)
-
         return self.reward
 
     # ------------------------------------------------------------------
@@ -462,30 +433,19 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
     def _get_obs(self):
         param_vec = self._current_param_vec()
 
-        # Normalized current metric: metric_reward / scale, clipped for stability
-        scale = abs(self._to_reward(self._initial_metric)) + 1.0
-        norm_metric = np.array(
-            [float(np.clip(self._to_reward(self.raw_metric) / scale, -2.0, 2.0))],
-            dtype=np.float32,
+        # Raw metric signals — LayerNorm в сети сам нормализует масштаб
+        raw_metric_val = np.array(
+            [self._to_reward(self.raw_metric)], dtype=np.float32
         )
-
-        # Best-so-far progress: (best_reward - initial_reward) / scale
-        best_frac = np.array(
-            [float(np.clip(
-                (self._to_reward(self.best_raw_metric) - self._to_reward(self._initial_metric)) / scale,
-                -1.0, 1.0
-            ))],
-            dtype=np.float32,
+        best_metric_val = np.array(
+            [self._to_reward(self.best_raw_metric)], dtype=np.float32
         )
-
-        velocity_val = np.array(
-            [float(np.clip(self._metric_velocity, -1.0, 1.0))], dtype=np.float32
-        )
+        reward_val = np.array([self.reward], dtype=np.float32)
         step_frac = np.array(
             [self.step_num_total / max(self.max_steps_limit, 1)], dtype=np.float32
         )
 
-        parts = [param_vec, norm_metric, best_frac, velocity_val, step_frac]
+        parts = [param_vec, raw_metric_val, best_metric_val, reward_val, step_frac]
 
         if self.history_window > 0:
             parts.append(self._history_buf.ravel())
