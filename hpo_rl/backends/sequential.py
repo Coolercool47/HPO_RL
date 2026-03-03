@@ -89,7 +89,6 @@ class SequentialBackend(EvaluationBackend):
 
         self.backends = backends
         self.mode = mode
-        self._current_idx = 0
         self._switch_count = 0
 
         # Shuffle mode: случайная перестановка индексов, обновляется каждый раунд
@@ -97,6 +96,11 @@ class SequentialBackend(EvaluationBackend):
         self._shuffle_pos: int = 0
         if mode == "shuffle":
             self._reshuffle()
+            # Первый активный бэкенд — первый элемент shuffle order
+            self._current_idx = self._shuffle_order[0]
+            self._shuffle_pos = 1
+        else:
+            self._current_idx = 0
 
         # Merged bounds для ремаппинга значений из env к дочерним бэкендам.
         # Env работает в merged (максимальном) диапазоне, но каждый дочерний

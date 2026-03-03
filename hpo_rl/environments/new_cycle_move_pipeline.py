@@ -223,11 +223,11 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
     def _spawn(self):
         for hp_name, values in self.hp_space_config.items():
             if values["type"] == "float":
-                self.cur_idx_dict[hp_name] = np.random.randint(0, self.num_bins)
+                self.cur_idx_dict[hp_name] = int(self.np_random.integers(0, self.num_bins))
                 self.current_hyp_setup[hp_name] = self.hp_lin_spaces[hp_name][self.cur_idx_dict[hp_name]]
 
             elif values["type"] == "categorical":
-                idx = np.random.randint(0, len(values["values"]))
+                idx = int(self.np_random.integers(0, len(values["values"])))
                 self.cur_idx_dict[hp_name] = idx
                 self.current_hyp_setup[hp_name] = values["values"][idx]
 
