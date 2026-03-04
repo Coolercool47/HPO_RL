@@ -300,7 +300,7 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         for i, hp_name in enumerate(self.hp_names):
             lo = float(self._lo[i])
             hi = float(self._hi[i])
-            val = self.np_random.uniform(lo, hi)
+            val = np.random.uniform(lo, hi)
             if self._is_int[i]:
                 val = float(round(val))
             self.current_hyp_setup[hp_name] = val
