@@ -338,18 +338,19 @@ if __name__ == "__main__":
     }
     config_dqn = {
     "full_args": {
+        # "load_checkpoint": "log/dqn/20260304-143921/final_policy.pth",
         "algorithm":
         {
             "name": "dqn",
             "gamma": 0.99,
             # "seq_len": 10,
-            "target_update_freq": 320,
+            "target_update_freq": 200,
             # "n_step_return_horizon": 3,
         },
         "buffer":
         {
             "total_size": 20000,
-            "buffer_num": 1,
+            "buffer_num": 20,
             "stack_num": 1
         },  
         "optim":
@@ -368,7 +369,7 @@ if __name__ == "__main__":
         },
         "trainer":
         {
-            "max_epochs": 100,
+            "max_epochs": 20,
             "epoch_num_steps": 4000,
             "batch_size": 20,
             "collection_step_num_env_steps": 200,
@@ -400,12 +401,12 @@ if __name__ == "__main__":
     },
     "backend": {
         "name": "sequential",
-        "mode": "random",  
+        "mode": "shuffle",  
         "backends": [
             {"name": "function", "function": "rastrigin", "dimensions": 2},
             {"name": "function", "function": "rosenbrock", "dimensions": 2},
             {"name": "function", "function": "schwefel", "dimensions": 2},
-            # {"name": "function", "function": "goldstein_price", "dimensions": 2},
+            #{"name": "function", "function": "michalewicz", "dimensions": 2},
         ]
     }
     }
@@ -747,4 +748,4 @@ if __name__ == "__main__":
         }
     }
 
-    run_n_experiments(config_continuous_ppo, 3, inference_only=False)
+    run_n_experiments(config_dqn, 3, inference_only=False)

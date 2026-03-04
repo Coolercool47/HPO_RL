@@ -1,266 +1,158 @@
-"""Мульти-бэкенд для обучения на нескольких задачах одновременно.
+"""Multi-backend wrapper for training on multiple optimization tasks.
 
-Модуль содержит :class:`SequentialBackend` — обёртку, которая хранит
-список дочерних бэкендов любого типа (функции, objective, real) и
-переключает активный бэкенд между эпизодами. Это позволяет RL-агенту
-обучаться на разных ландшафтах оптимизации, улучшая обобщающую способность.
+:class:`SequentialBackend` holds a list of child backends and switches
+the active one between training epochs, improving the RL agent's
+generalization across different optimization landscapes.
 """
 
-import random as _random
-from typing import Dict, Any, List, Optional, Sequence
+import random
+from typing import Any, Dict, List, Optional
+
 from hpo_rl.backends.base import EvaluationBackend
 
+_PROXIED_ATTRS = ("bounds", "dimensions", "global_optimum",
+                  "global_optimum_value", "function_name")
 
-def _backend_name(b: EvaluationBackend) -> str:
-    """Возвращает человекочитаемое имя бэкенда для логирования."""
-    if hasattr(b, 'function_name'):
-        return b.function_name
-    if hasattr(b, 'objective_function'):
-        fn = b.objective_function
-        return getattr(fn, '__name__', None) or getattr(fn, '__qualname__', type(b).__name__)
-    return type(b).__name__
+
+def _backend_name(backend: EvaluationBackend) -> str:
+    """Return a human-readable name for a backend."""
+    if hasattr(backend, "function_name"):
+        return backend.function_name
+    if hasattr(backend, "objective_function"):
+        fn = backend.objective_function
+        return getattr(fn, "__name__", None) or type(backend).__name__
+    return type(backend).__name__
 
 
 class SequentialBackend(EvaluationBackend):
-    """Бэкенд-обёртка, переключающий дочерние бэкенды между эпизодами.
+    """Wrapper that switches between child backends each training epoch.
 
-    Содержит список бэкендов любого типа (:class:`OptimizationBenchmarkBackend`,
-    :class:`ObjectiveBackend`, :class:`RealTrainingBackend` и т.д.) и при каждом
-    вызове :meth:`next_backend` переключается на следующий. Среда вызывает
-    ``backend.next_backend()`` автоматически при ``reset()``.
+    Switching modes:
+        - ``"random"``     — uniform random choice (default).
+        - ``"sequential"`` — strict round-robin.
+        - ``"shuffle"``    — random permutation; each backend seen once per round.
 
-    Все атрибуты (``maximize``, ``bounds``, ``dimensions`` и т.д.)
-    проксируются к текущему активному бэкенду.
-
-    Поддерживает три режима переключения:
-        - ``"random"`` — случайный выбор из списка (по умолчанию)
-        - ``"sequential"`` — строго по порядку
-        - ``"shuffle"`` — случайная перестановка всех бэкендов, затем
-          проход по ней; когда перестановка исчерпана — новая перестановка.
-          Гарантирует, что каждый бэкенд встретится ровно 1 раз за раунд.
-
-    Переключение вызывается контроллером раз в эпоху через
+    The controller calls :meth:`next_backend` once per epoch via
     ``periodic_train_hook``.
 
     Args:
-        backends: Список экземпляров :class:`EvaluationBackend`.
-        mode: Режим переключения: ``"random"`` или ``"sequential"``.
-
-    Raises:
-        ValueError: Если список бэкендов пуст.
-        ValueError: Если бэкенды имеют разные значения ``maximize``.
-
-    Пример::
-
-        from hpo_rl.backends import OptimizationBenchmarkBackend, ObjectiveBackend, SequentialBackend
-
-        backends = [
-            OptimizationBenchmarkBackend("sphere", dimensions=2),
-            OptimizationBenchmarkBackend("rastrigin", dimensions=2),
-            ObjectiveBackend(objective_function=my_func, hp_space=hp),
-        ]
-        # Случайный бэкенд каждую эпоху:
-        backend = SequentialBackend(backends)
+        backends: Child :class:`EvaluationBackend` instances.
+        mode: ``"random"`` | ``"sequential"`` | ``"shuffle"``.
+        merged_bounds: Union of all child bounds ``{"x0": (lo, hi), ...}``
+            for linear remapping.  Not needed when the env sets
+            ``skip_remap = True`` via ``sync_bounds_to_backend``.
     """
+
+    VALID_MODES = ("random", "sequential", "shuffle")
 
     def __init__(
         self,
         backends: List[EvaluationBackend],
         mode: str = "random",
         merged_bounds: Optional[Dict[str, tuple]] = None,
-    ):
+    ) -> None:
         if not backends:
-            raise ValueError("Список бэкендов не может быть пустым")
+            raise ValueError("backends list must not be empty")
 
-        # Проверяем, что все бэкенды оптимизируют в одну сторону
         maximize_values = {b.maximize for b in backends}
         if len(maximize_values) > 1:
             raise ValueError(
-                "Все бэкенды должны иметь одинаковое направление оптимизации (maximize). "
-                f"Получено: {[b.maximize for b in backends]}"
+                f"All backends must share the same optimization direction. "
+                f"Got maximize={[b.maximize for b in backends]}"
             )
+        if mode not in self.VALID_MODES:
+            raise ValueError(f"mode must be one of {self.VALID_MODES}, got {mode!r}")
 
-        if mode not in ("sequential", "random", "shuffle"):
-            raise ValueError(f"mode должен быть 'sequential', 'random' или 'shuffle', получено '{mode}'")
-
-        # Не вызываем super().__init__() с use_cache, т.к. кэширование
-        # делегируется дочерним бэкендам
         super().__init__(use_cache=False)
 
         self.backends = backends
         self.mode = mode
         self._switch_count = 0
+        self._merged_bounds = merged_bounds
+        self.skip_remap = False
 
-        # Shuffle mode: случайная перестановка индексов, обновляется каждый раунд
-        self._shuffle_order: List[int] = []
-        self._shuffle_pos: int = 0
-        if mode == "shuffle":
-            self._reshuffle()
-            # Первый активный бэкенд — первый элемент shuffle order
-            self._current_idx = self._shuffle_order[0]
-            self._shuffle_pos = 1
-        else:
-            self._current_idx = 0
-
-        # Merged bounds для ремаппинга значений из env к дочерним бэкендам.
-        # Env работает в merged (максимальном) диапазоне, но каждый дочерний
-        # бэкенд может иметь свой диапазон. При evaluate() значения линейно
-        # пересчитываются из merged bounds в bounds текущего бэкенда.
-        #
-        # Если env использует sync_bounds_to_backend (InstantContinuousPipelineEnv),
-        # координаты уже в native bounds дочернего бэкенда — ремаппинг не нужен.
-        # В этом случае env устанавливает skip_remap = True.
-        self._merged_bounds = merged_bounds  # {"x0": (lo, hi), "x1": (lo, hi), ...}
-        self.skip_remap = False  # устанавливается env при sync_bounds_to_backend
-
-        # Для каждого бэкенда сохраняем его собственные bounds
+        # Per-child bounds dicts for remapping (merged→child)
         self._child_bounds: List[Optional[Dict[str, tuple]]] = []
         for b in backends:
-            if hasattr(b, 'bounds') and hasattr(b, 'dimensions'):
+            if hasattr(b, "bounds") and hasattr(b, "dimensions"):
                 self._child_bounds.append(
                     {f"x{i}": b.bounds for i in range(b.dimensions)}
                 )
             else:
                 self._child_bounds.append(None)
 
-        # Проксируем атрибуты от первого (текущего) бэкенда
+        # Shuffle state
+        self._shuffle_order: List[int] = []
+        self._shuffle_pos: int = 0
+
+        # Init backend is only used for Tianshou's initial test step
+        # (before epoch 1). Training starts from the first next_backend()
+        # call, so we do NOT consume a shuffle slot here.
+        self._current_idx = 0
+        if mode == "shuffle":
+            self._reshuffle()
+
         self._sync_attributes()
 
         names = [_backend_name(b) for b in backends]
-        print(f"SequentialBackend: {len(backends)} backends ({', '.join(names)}), mode={mode}, switch every epoch")
+        print(f"SequentialBackend: {len(backends)} backends ({', '.join(names)}), mode={mode}")
+
+    # ------------------------------------------------------------------
+    # Backend switching
+    # ------------------------------------------------------------------
 
     @property
     def current_backend(self) -> EvaluationBackend:
-        """Текущий активный бэкенд."""
+        """Currently active child backend."""
         return self.backends[self._current_idx]
 
-    def _sync_attributes(self) -> None:
-        """Синхронизирует атрибуты обёртки с текущим активным бэкендом.
-
-        Проксирует ``maximize``, ``bounds``, ``dimensions``,
-        ``global_optimum``, ``global_optimum_value``, ``function_name``
-        от текущего дочернего бэкенда.
-        """
-        cb = self.current_backend
-        self.maximize = cb.maximize
-
-        # Атрибуты OptimizationBenchmarkBackend (если есть)
-        for attr in ('bounds', 'dimensions', 'global_optimum',
-                     'global_optimum_value', 'function_name'):
-            if hasattr(cb, attr):
-                setattr(self, attr, getattr(cb, attr))
-
-    def _reshuffle(self) -> None:
-        """Создаёт новую случайную перестановку индексов бэкендов.
-
-        Используется в режиме ``"shuffle"``: после исчерпания текущей
-        перестановки генерируется новая, чтобы каждый бэкенд встретился
-        ровно 1 раз за раунд.
-        """
-        self._shuffle_order = list(range(len(self.backends)))
-        _random.shuffle(self._shuffle_order)
-        self._shuffle_pos = 0
-        names = [_backend_name(self.backends[i]) for i in self._shuffle_order]
-        print(f"[SequentialBackend] New shuffle order: {', '.join(names)}")
-
     def next_backend(self) -> None:
-        """Переключает на следующий бэкенд.
-
-        Вызывается контроллером раз в эпоху через ``periodic_train_hook``.
-        Каждый вызов — гарантированное переключение.
-        """
+        """Switch to the next backend (called by controller once per epoch)."""
         self._switch_count += 1
 
         if self.mode == "sequential":
-            self._current_idx = self._switch_count % len(self.backends)
+            self._current_idx = (self._switch_count - 1) % len(self.backends)
         elif self.mode == "shuffle":
-            self._current_idx = self._shuffle_order[self._shuffle_pos]
-            self._shuffle_pos += 1
             if self._shuffle_pos >= len(self._shuffle_order):
                 self._reshuffle()
+            self._current_idx = self._shuffle_order[self._shuffle_pos]
+            self._shuffle_pos += 1
         else:  # random
-            self._current_idx = _random.randint(0, len(self.backends) - 1)
+            self._current_idx = random.randint(0, len(self.backends) - 1)
 
         self._sync_attributes()
         print(f"[SequentialBackend] Epoch {self._switch_count}: switched to '{self.name}'")
 
     def set_active_backend(self, idx: int) -> None:
-        """Явно переключает активный бэкенд по индексу.
-
-        Используется для inference — позволяет прогнать агента
-        на конкретном дочернем бэкенде.
-
-        Args:
-            idx: Индекс дочернего бэкенда в ``self.backends``.
-        """
+        """Manually set active backend by index (used for per-child inference)."""
         if not 0 <= idx < len(self.backends):
-            raise IndexError(f"Backend index {idx} out of range [0, {len(self.backends)})")
+            raise IndexError(
+                f"Backend index {idx} out of range [0, {len(self.backends)})"
+            )
         self._current_idx = idx
         self._sync_attributes()
         print(f"[SequentialBackend] Manually switched to '{self.name}' (idx={idx})")
 
-    def _remap_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Ремапит значения из merged bounds в bounds текущего дочернего бэкенда.
-
-        Env создаёт bins по merged (максимальному) диапазону. Если дочерний
-        бэкенд имеет более узкий диапазон, значения линейно пересчитываются:
-        ``merged [lo_m, hi_m] → child [lo_c, hi_c]``.
-
-        Если merged_bounds не заданы или дочерний бэкенд не имеет bounds —
-        значения передаются как есть.
-        """
-        child_bounds = self._child_bounds[self._current_idx]
-        if self._merged_bounds is None or child_bounds is None:
-            return config
-
-        remapped = {}
-        for key, val in config.items():
-            if key in self._merged_bounds and key in child_bounds:
-                m_lo, m_hi = self._merged_bounds[key]
-                c_lo, c_hi = child_bounds[key]
-                if m_hi - m_lo > 1e-12 and (m_lo != c_lo or m_hi != c_hi):
-                    # Линейный ремап: normalized → child bounds
-                    t = (val - m_lo) / (m_hi - m_lo)  # [0, 1]
-                    remapped[key] = c_lo + t * (c_hi - c_lo)
-                else:
-                    remapped[key] = val
-            else:
-                remapped[key] = val
-        return remapped
+    # ------------------------------------------------------------------
+    # Evaluation
+    # ------------------------------------------------------------------
 
     def _evaluate(self, config: Dict[str, Any]) -> float:
-        """Делегирует оценку текущему активному бэкенду.
-
-        Перед оценкой ремапит значения из merged bounds env
-        в bounds текущего дочернего бэкенда (если ремаппинг не отключён).
-
-        При использовании ``InstantContinuousPipelineEnv`` с
-        ``sync_bounds_to_backend()`` координаты уже в native bounds
-        дочернего бэкенда — ремаппинг пропускается (``skip_remap=True``).
-
-        Args:
-            config: Словарь гиперпараметров ``{"x0": val, "x1": val, ...}``.
-
-        Returns:
-            Значение от текущего активного бэкенда.
-        """
         if self.skip_remap:
             return self.current_backend.evaluate(config)
         remapped = self._remap_config(config)
         return self.current_backend.evaluate(remapped)
 
+    # ------------------------------------------------------------------
+    # Cache delegation
+    # ------------------------------------------------------------------
+
     def clear_cache(self) -> None:
-        """Очищает кэш всех дочерних бэкендов."""
         for b in self.backends:
             b.clear_cache()
 
     @property
     def cache_stats(self) -> Dict[str, Any]:
-        """Агрегированная статистика кэша всех дочерних бэкендов.
-
-        Returns:
-            Словарь с суммарной статистикой по всем бэкендам.
-        """
         total_hits = sum(b.cache_stats["hits"] for b in self.backends)
         total_misses = sum(b.cache_stats["misses"] for b in self.backends)
         total = total_hits + total_misses
@@ -271,9 +163,12 @@ class SequentialBackend(EvaluationBackend):
             "hit_rate": total_hits / total if total > 0 else 0.0,
         }
 
+    # ------------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------------
+
     @property
     def name(self) -> str:
-        """Имя текущего активного бэкенда."""
         return _backend_name(self.current_backend)
 
     def __repr__(self) -> str:
@@ -282,3 +177,63 @@ class SequentialBackend(EvaluationBackend):
             f"SequentialBackend(backends=[{', '.join(names)}], "
             f"mode={self.mode!r}, current={names[self._current_idx]})"
         )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _sync_attributes(self) -> None:
+        """Proxy key attributes from the current child backend.
+
+        Clears stale attributes that don't exist on the new child
+        (e.g. ``function_name`` when switching from a benchmark to
+        a custom objective).
+        """
+        cb = self.current_backend
+        self.maximize = cb.maximize
+        for attr in _PROXIED_ATTRS:
+            if hasattr(cb, attr):
+                setattr(self, attr, getattr(cb, attr))
+            elif hasattr(self, attr):
+                delattr(self, attr)
+
+    def _reshuffle(self) -> None:
+        """Generate a new random permutation of backend indices.
+
+        Prevents the first element from matching ``_current_idx`` so that
+        the same backend never appears in two consecutive epochs at the
+        boundary between shuffle rounds.
+        """
+        order = list(range(len(self.backends)))
+        random.shuffle(order)
+        if len(order) > 1 and order[0] == self._current_idx:
+            swap_idx = random.randint(1, len(order) - 1)
+            order[0], order[swap_idx] = order[swap_idx], order[0]
+        self._shuffle_order = order
+        self._shuffle_pos = 0
+        names = [_backend_name(self.backends[i]) for i in order]
+        print(f"[SequentialBackend] New shuffle order: {', '.join(names)}")
+
+    def _remap_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Linearly remap values from merged bounds to current child bounds.
+
+        ``merged [lo_m, hi_m] → child [lo_c, hi_c]`` per key.
+        Returns config unchanged if merged or child bounds are absent.
+        """
+        child_bounds = self._child_bounds[self._current_idx]
+        if self._merged_bounds is None or child_bounds is None:
+            return config
+
+        remapped: Dict[str, Any] = {}
+        for key, val in config.items():
+            if key in self._merged_bounds and key in child_bounds:
+                m_lo, m_hi = self._merged_bounds[key]
+                c_lo, c_hi = child_bounds[key]
+                if m_hi - m_lo > 1e-12 and (m_lo != c_lo or m_hi != c_hi):
+                    t = (val - m_lo) / (m_hi - m_lo)
+                    remapped[key] = c_lo + t * (c_hi - c_lo)
+                else:
+                    remapped[key] = val
+            else:
+                remapped[key] = val
+        return remapped
