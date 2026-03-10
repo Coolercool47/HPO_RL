@@ -55,6 +55,7 @@ def run_n_experiments(config, n_experiments, inference_only=False):
                 expreiment_controller.algorithm.reset()
         best_result = expreiment_controller.inference()
         history = expreiment_controller.return_history()
+        rewards = expreiment_controller.return_rewards()
         outputs = plot_and_save(history, best_result, save_path, expreiment_controller.backend, experiment_number=i_experiment)
         if backend_name == "function" and expreiment_controller.backend.dimensions == 2:
             outputs.plot_3d()
@@ -82,6 +83,7 @@ def run_n_experiments(config, n_experiments, inference_only=False):
                 # Отдельный inference на этом child
                 child_best = expreiment_controller.inference()
                 child_history = expreiment_controller.return_history()
+                child_rewards = expreiment_controller.return_rewards()
 
                 suffix = f"_{child_idx}_{fn_name}"
                 child_outputs = plot_and_save(
@@ -92,18 +94,30 @@ def run_n_experiments(config, n_experiments, inference_only=False):
                 if isinstance(child, OptimizationBenchmarkBackend) and child.dimensions == 2:
                     child_outputs.plot_3d(suffix=suffix)
                 child_outputs.plot_trajectory(suffix=suffix)
+                child_outputs.plot_reward(child_rewards, suffix=suffix)
                 child_outputs.save_history(as_latex=True, suffix=suffix)
                 child_outputs.save_history(as_latex=False, suffix=suffix)
-        outputs.plot_trajectory()
-        outputs.save_history(as_latex=True)
-        outputs.save_history(as_latex=False)
+        elif not backend_name == "sequential":
+            outputs.plot_trajectory()
+            outputs.save_history(as_latex=True)
+            outputs.save_history(as_latex=False)
+            outputs.plot_reward(rewards)
+
         full_history.append(history)
 
     is_maximize = expreiment_controller.backend.maximize
 
-    results = np.array([[trial[1] for trial in inference] for inference in full_history])
-    best_trial_indices = np.argmax(results, axis=1) if is_maximize else np.argmin(results, axis=1)
-    best = [full_history[i][best_trial_indices[i]] for i in range(len(full_history))]
+    # Эпизоды могут иметь разную длину из-за early termination,
+    # поэтому нельзя сложить в np.array напрямую.
+    # Извлекаем лучший trial из каждого эпизода отдельно.
+    best = []
+    for history in full_history:
+        scores = [trial[1] for trial in history]
+        if is_maximize:
+            idx = int(np.argmax(scores))
+        else:
+            idx = int(np.argmin(scores))
+        best.append(history[idx])
 
     # Сортируем так, чтобы worst был первым (idx 0), best — последним (idx -1)
     best_scores = [item[1] for item in best]
@@ -154,8 +168,14 @@ def run_n_experiments(config, n_experiments, inference_only=False):
     def serialize(obj):
         if isinstance(obj, (np.float32, np.float64)): return float(obj)
         if isinstance(obj, np.ndarray): return obj.tolist()
+        return str(obj)
 
     file_name = save_path / "inference_results.json"
     with open(file_name, "w") as f:
         json.dump(data_to_save, f, indent=4, default=serialize)
     print(f"Saved median/best/worst: {file_name}")
+
+    config_file_name = save_path / "config.json"
+    with open(config_file_name, "w") as f:
+        json.dump(config, f, indent=4, default=serialize)
+    print(f"Saved config: {config_file_name}")

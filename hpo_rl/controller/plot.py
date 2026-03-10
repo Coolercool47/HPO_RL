@@ -204,6 +204,59 @@ class plot_and_save():
         print(f"Saved: {temp_path}, {temp_path_pgf}")
         plt.close()
     
+    def plot_reward(self, rewards, suffix=""):
+        """Строит график per-step reward и кумулятивного reward.
+
+        Args:
+            rewards: список наград за каждый шаг эпизода.
+            suffix: дополнительный суффикс для имени файла.
+        """
+        if not rewards:
+            return
+
+        rewards = np.array(rewards, dtype=np.float64)
+        steps = np.arange(1, len(rewards) + 1)
+        cumulative = np.cumsum(rewards)
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+
+        # --- Per-step reward ---
+        ax1.plot(steps, rewards, linewidth=1.0, color='steelblue', alpha=0.7, label='Per-step reward')
+        # Скользящее среднее для наглядности
+        if len(rewards) >= 10:
+            window = max(5, len(rewards) // 20)
+            kernel = np.ones(window) / window
+            smoothed = np.convolve(rewards, kernel, mode='valid')
+            offset = window // 2
+            ax1.plot(steps[offset:offset + len(smoothed)], smoothed,
+                     linewidth=2.0, color='darkblue', label=f'Moving avg (w={window})')
+        ax1.axhline(0, color='gray', linewidth=0.5, linestyle='--')
+        ax1.set_ylabel('Reward', fontsize=12)
+        ax1.set_title('Per-step Reward', fontsize=14)
+        ax1.legend(loc='upper right', frameon=True)
+        ax1.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+
+        # --- Cumulative reward ---
+        ax2.plot(steps, cumulative, linewidth=2.0, color='darkorange', label='Cumulative reward')
+        ax2.fill_between(steps, 0, cumulative, alpha=0.15, color='orange')
+        ax2.axhline(0, color='gray', linewidth=0.5, linestyle='--')
+        ax2.set_xlabel('Step', fontsize=12)
+        ax2.set_ylabel('Cumulative Reward', fontsize=12)
+        ax2.set_title('Cumulative Reward', fontsize=14)
+        ax2.legend(loc='upper left', frameon=True)
+        ax2.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        plt.tight_layout()
+
+        file_label = f"reward_{self.experiment_number}{suffix}"
+        temp_path = self.save_path / f"{file_label}.png"
+        plt.savefig(temp_path, dpi=150, bbox_inches='tight')
+        temp_path_pgf = self.save_path / f"{file_label}.pgf"
+        plt.savefig(temp_path_pgf, dpi=150, bbox_inches='tight')
+        print(f"Saved: {temp_path}, {temp_path_pgf}")
+        plt.close()
+
     def save_history(self, as_latex=True, suffix=""):
         """Функция, сохраняющая историю в виде таблицы и Latex кода
         

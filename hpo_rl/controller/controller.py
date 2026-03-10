@@ -323,22 +323,21 @@ class controller():
 
     def inference(self):
         if self.mode == "RL":
-            collector = ts.data.Collector[CollectStats](self.algo, self.env, exploration_noise=True)
+            collector = ts.data.Collector[CollectStats](self.algo, self.env, exploration_noise=False)
             collector.reset_buffer()
             result = collector.collect(**self.inference_kwargs)     
             
             n_steps = result.n_collected_steps 
             buffer = collector.buffer
             self.history = []
+            self.rewards = []
             for i in range(n_steps):
                 step_info = buffer.info[i]
-                # print(step_info)
                 current_config = step_info["current_config"]
                 current_metric = step_info["current_metric"]
-                # if hasattr(current_config, "to_dict"):
-                #     current_config = current_config.to_dict()
-                # step_rew = buffer.rew[i]
+                step_rew = float(buffer.rew[i])
                 self.history.append((current_config, current_metric))
+                self.rewards.append(step_rew)
         
         elif self.mode == "baseline":
             self.algorithm.main_loop()
@@ -350,4 +349,7 @@ class controller():
     
     def return_history(self):
         return self.history
+
+    def return_rewards(self):
+        return getattr(self, 'rewards', [])
     
