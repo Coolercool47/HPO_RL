@@ -40,10 +40,12 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
     history_window : int
         0 — без истории, N — последние N шагов хранятся в наблюдении.
     reward_mode : str
-        ``"guided"`` — **рекомендуемый для off-policy (SAC)**.
-        Плотный reward: delta за шаг (нормализованный) + бонус +1 за новый best
-        + proximity shaping (маленький бонус за близость к best-so-far).
-        Совместим с replay buffer, даёт градиент на каждом шаге.
+        ``"bounded"`` — **рекомендуемый**. tanh-compressed дельта с
+        адаптивным EMA масштабом + бонус за новый best.
+        Reward всегда в ``[-1, +1.5]``, scale-invariant.
+        ``"ternary"`` — простой дискретный: +2 за новый best, +1 за
+        улучшение, -0.1 за стагнацию, -1 за ухудшение.
+        ``"guided"`` — плотный reward: delta + бонус + proximity shaping.
         ``"potential"`` — только при нахождении нового best (sparse).
         ``"delta"`` — пошаговое изменение метрики (нормализовано на initial).
         ``"relative_delta"`` — синоним ``"delta"``.
@@ -92,6 +94,7 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         self.raw_metric = 0.0
         self.reward = 0.0
         self._initial_metric = 0.0  # для improvement reward mode
+        self._ema_abs_delta = 1.0  # EMA для адаптивного масштаба (bounded mode)
 
         # Диапазоны
         self._lo = np.array(
@@ -145,17 +148,17 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         )
 
     def _init_observation_space(self):
-        """Observation: [normalized_params, raw_metric, best_metric, reward, step_frac, (history)].
+        """Observation: [normalized_params, gap_to_best, progress, reward, step_frac, (history)].
 
         Наблюдение включает:
         - ``normalized_params`` — позиция агента [0, 1] per dim
-        - ``raw_metric`` — текущая метрика (sign-flipped для minimize задач)
-        - ``best_metric`` — лучшая найденная метрика (sign-flipped)
-        - ``reward`` — reward текущего шага
+        - ``gap_to_best`` — tanh-compressed расстояние до лучшего, [-1, 0]
+        - ``progress`` — tanh-compressed прогресс от начала, bounded
+        - ``reward`` — reward текущего шага (bounded для bounded/ternary)
         - ``step_frac`` — прогресс эпизода [0, 1]
 
-        Все значения передаются **без ручной нормализации** —
-        LayerNorm в сети сам приводит масштаб.
+        Все метрические сигналы bounded через tanh — не зависят от масштаба
+        функции.
 
         Если ``history_window > 0``, добавляются предыдущие параметры и
         reward для окна из последних N шагов.
@@ -233,9 +236,11 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         self.best_raw_metric = self._initial_metric
         self.best_config_so_far = self.current_hyp_setup.copy()
         self.prev_raw_metric = self._initial_metric
+        self._ema_abs_delta = 1.0  # reset EMA each episode
         self._compute_reward()
         # First step reward should be 0 for delta-based modes (no change yet)
-        if self.reward_mode in ("delta", "relative_delta", "potential", "guided"):
+        if self.reward_mode in ("delta", "relative_delta", "potential", "guided",
+                                "bounded", "ternary"):
             self.reward = 0.0
 
         # Заполняем историю начальным состоянием
@@ -326,7 +331,43 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
 
         scale = abs(self._to_reward(self._initial_metric)) + 1.0
 
-        if self.reward_mode == "guided":
+        if self.reward_mode == "bounded":
+            # tanh-compressed delta с адаптивным EMA масштабом.
+            # Reward всегда в [-1, +1.5], scale-invariant.
+            delta = self._to_reward(self.raw_metric) - self._to_reward(self.prev_raw_metric)
+            self._ema_abs_delta = 0.95 * self._ema_abs_delta + 0.05 * abs(delta)
+            normalized = delta / (self._ema_abs_delta + 1e-8)
+            r = float(np.tanh(normalized))
+            self.prev_raw_metric = self.raw_metric
+
+            if self._is_improvement(self.raw_metric, self.best_raw_metric):
+                r += 0.5
+                self.best_raw_metric = self.raw_metric
+                self.best_config_so_far = self.current_hyp_setup.copy()
+
+            self.reward = r
+
+        elif self.reward_mode == "ternary":
+            # Дискретный reward: направление без величины.
+            # Полностью scale-invariant.
+            is_new_best = self._is_improvement(self.raw_metric, self.best_raw_metric)
+            improved = self._is_improvement(self.raw_metric, self.prev_raw_metric)
+            worsened = self._is_improvement(self.prev_raw_metric, self.raw_metric)
+
+            if is_new_best:
+                self.reward = 2.0
+                self.best_raw_metric = self.raw_metric
+                self.best_config_so_far = self.current_hyp_setup.copy()
+            elif improved:
+                self.reward = 1.0
+            elif worsened:
+                self.reward = -1.0
+            else:
+                self.reward = -0.1
+
+            self.prev_raw_metric = self.raw_metric
+
+        elif self.reward_mode == "guided":
             # Dense reward for off-policy SAC:
             # 1) delta: step-wise improvement (positive = improved, negative = worsened)
             # 2) best_bonus: +1.0 if new best found (sparse but large)
@@ -433,19 +474,25 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
     def _get_obs(self):
         param_vec = self._current_param_vec()
 
-        # Raw metric signals — LayerNorm в сети сам нормализует масштаб
-        raw_metric_val = np.array(
-            [self._to_reward(self.raw_metric)], dtype=np.float32
+        # Bounded metric signals — не зависят от масштаба функции
+        ema = self._ema_abs_delta + 1e-8
+        gap = self._to_reward(self.raw_metric) - self._to_reward(self.best_raw_metric)
+        obs_gap = np.array(
+            [np.tanh(gap / ema)], dtype=np.float32
         )
-        best_metric_val = np.array(
-            [self._to_reward(self.best_raw_metric)], dtype=np.float32
+
+        init_scale = abs(self._to_reward(self._initial_metric)) + 1.0
+        progress = self._to_reward(self.raw_metric) - self._to_reward(self._initial_metric)
+        obs_progress = np.array(
+            [np.tanh(progress / init_scale)], dtype=np.float32
         )
+
         reward_val = np.array([self.reward], dtype=np.float32)
         step_frac = np.array(
             [self.step_num_total / max(self.max_steps_limit, 1)], dtype=np.float32
         )
 
-        parts = [param_vec, raw_metric_val, best_metric_val, reward_val, step_frac]
+        parts = [param_vec, obs_gap, obs_progress, reward_val, step_frac]
 
         if self.history_window > 0:
             parts.append(self._history_buf.ravel())
