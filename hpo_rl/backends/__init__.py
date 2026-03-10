@@ -20,7 +20,6 @@
 from hpo_rl.backends.base import EvaluationBackend, CATASTROPHIC_FAILURE_REWARD
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.backends.dummy import DummyBackend
-from hpo_rl.backends.real import RealTrainingBackend
 from hpo_rl.backends.objective import ObjectiveBackend
 from hpo_rl.backends.sequential import SequentialBackend
 
@@ -29,7 +28,6 @@ __all__ = [
     "CATASTROPHIC_FAILURE_REWARD",
     "OptimizationBenchmarkBackend",
     "DummyBackend",
-    "RealTrainingBackend",
     "ObjectiveBackend",
     "SequentialBackend",
 ]

@@ -37,7 +37,6 @@ from tianshou.utils.net.discrete import IntrinsicCuriosityModule
 from tianshou.data import VectorReplayBuffer
 
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
-from hpo_rl.backends.real import RealTrainingBackend
 from hpo_rl.backends.objective import ObjectiveBackend
 from hpo_rl.backends.sequential import SequentialBackend
 
@@ -47,12 +46,7 @@ from hpo_rl.baselines.hyperband import hyperband
 from hpo_rl.baselines.SimpleGA import SimpleGA
 from hpo_rl.baselines.CMA_ES import CMA_ES
 
-from hpo_rl.models.simple_cnn import SimpleCNN
-
-from hpo_rl.environments.cycle_move_pipeline import CyclicPipelineEnv
 from hpo_rl.environments.new_cycle_move_pipeline import CyclicPipelineEnvNew
-from hpo_rl.environments.delayed_reward_pipeline import DelayedRewardPipelineEnv
-from hpo_rl.environments.continuous_cycle_pipeline import ContinuousCyclicPipelineEnv
 from hpo_rl.environments.instant_continuous_pipeline_env import InstantContinuousPipelineEnv
 
 
@@ -109,19 +103,12 @@ ALGORITHMS_BASELINE = {
 }
 
 BACKENDS = {
-    "function": OptimizationBenchmarkBackend, "real": RealTrainingBackend, "objective": ObjectiveBackend, "sequential": SequentialBackend
+    "function": OptimizationBenchmarkBackend, "objective": ObjectiveBackend, "sequential": SequentialBackend
 }
 
 ENVS = {
-    "cycle_move_pipeline": CyclicPipelineEnv,
     "new_cycle_move_pipeline": CyclicPipelineEnvNew,
-    "delayed_reward_pipeline": DelayedRewardPipelineEnv,
-    "continuous_cycle_pipeline": ContinuousCyclicPipelineEnv,
     "instant_continuous_pipeline": InstantContinuousPipelineEnv,
-}
-
-MODELS = {
-    "simle_cnn": SimpleCNN
 }
 
 def check(config):
@@ -353,17 +340,6 @@ def check(config):
                 child_backends.append(
                     ObjectiveBackend(
                         objective_function=entry["objective_function"],
-                        hp_space=entry["hp_space"],
-                    )
-                )
-                all_hp_spaces.append(entry["hp_space"])
-                
-            elif entry_type == "real":
-                child_backends.append(
-                    RealTrainingBackend(
-                        model=entry["model"],
-                        trainer=entry["trainer"],
-                        data_processor=entry["data_processor"],
                         hp_space=entry["hp_space"],
                     )
                 )

@@ -1,7 +1,4 @@
 from hpo_rl.experiments.run_experiment import run_n_experiments
-from hpo_rl.models.simple_cnn import SimpleCNN
-from hpo_rl.trainers.torch_trainer import TorchTrainer
-from hpo_rl.data_processing.processors import pytorch_mnist_processor
 from hpo_rl.nets.masked_net import MaskedNet
 from hpo_rl.nets.base_net import BaseNet
 from hpo_rl.nets.masked_actor import MaskedDiscreteActor
