@@ -157,6 +157,10 @@ class CMA_ES:
             # Генерируем lambda потомков
             offspring_params = [] # список векторов z, y, x
             configs = []          # список словарей для objective_func
+            penalties = []        # штрафы за выход за границы
+            
+            # Коэффициент штрафа (alpha) из Eq. 63
+            alpha = 1.0
             
             for k in range(self.lambd):
                 # z ~ N(0, I)
@@ -166,17 +170,27 @@ class CMA_ES:
                 # x ~ N(m, sigma^2 C) -> x = m + sigma * y
                 x_k = self.xmean + self.sigma * y_k
                 
+                # Penalization method (Appendix B.5, Eq. 63)
+                # Находим ближайшую допустимую точку (repaired)
+                x_repaired = np.clip(x_k, self.bounds[:, 0], self.bounds[:, 1])
+                # Считаем квадрат расстояния от оригинальной точки до допустимой 
+                penalty = alpha * np.sum((x_k - x_repaired)**2)
+                
                 offspring_params.append((x_k, y_k, z_k))
-                configs.append(self._vector_to_config(x_k))
+                configs.append(self._vector_to_config(x_repaired))
+                penalties.append(penalty)
 
             # 2. Evaluation
             fitness_values = []
-            for config in configs:
+            for i, config in enumerate(configs):
                 if len(self.data) >= self.budget:
                     break
                 score = self.objective_func(config)
                 self.data.append((config, score))
-                fitness_values.append(score)
+                
+                # Итоговая фитнес-функция: f_fitness(x) = f(x_repaired) + penalty
+                fitness = score + penalties[i]
+                fitness_values.append(fitness)
                 pbar.update(1)
             
             if len(self.data) >= self.budget:
