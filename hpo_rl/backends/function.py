@@ -27,8 +27,6 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         - ``schwefel`` — многоэкстремальная функция с большим числом локальных минимумов
         - ``levy`` — сложная унимодальная функция с плоскими участками
         - ``michalewicz`` — функция с крутыми пиками (оптимум зависит от размерности)
-        - ``shifted_sphere`` — сфера со сдвинутым оптимумом
-        - ``shifted_rastrigin`` — Растригин со сдвинутым оптимумом
 
     Поддерживаемые двухмерные функции:
         - ``booth`` — простая унимодальная функция
@@ -68,7 +66,9 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
     FUNCTIONS = Literal[
         "sphere", "rosenbrock", "rastrigin", "ackley", "griewank",
         "schwefel", "levy", "michalewicz", "booth", "beale",
-        "goldstein_price", "shifted_sphere", "shifted_rastrigin"
+        "goldstein_price", "bukin_n6", "cross_in_tray", "drop_wave",
+        "eggholder", "holder_table", "schaffer_n2", "schaffer_n4",
+        "shubert", "dejong_n5", "easom", "levy_n13", "langermann"
     ]
 
     def __init__(
@@ -104,12 +104,21 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             "schwefel": self._schwefel,
             "levy": self._levy,
             "michalewicz": self._michalewicz,
-            "nondiff": self._nondiff,
             "booth": self._booth,
             "beale": self._beale,
             "goldstein_price": self._goldstein_price,
-            "shifted_sphere": self._shifted_sphere,
-            "shifted_rastrigin": self._shifted_rastrigin,
+            "bukin_n6": self._bukin_n6,
+            "cross_in_tray": self._cross_in_tray,
+            "drop_wave": self._drop_wave,
+            "eggholder": self._eggholder,
+            "holder_table": self._holder_table,
+            "schaffer_n2": self._schaffer_n2,
+            "schaffer_n4": self._schaffer_n4,
+            "shubert": self._shubert,
+            "dejong_n5": self._dejong_n5,
+            "easom": self._easom,
+            "levy_n13": self._levy_n13,
+            "langermann": self._langermann,
         }
 
         self._setup_function()
@@ -132,12 +141,10 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             "schwefel":         ((-500.0, 500.0), np.full(d, 420.9687), 0.0),
             "levy":             ((-10.0, 10.0),  np.zeros(d),           0.0),
             "michalewicz":      ((0.0, np.pi), None, 0.0),
-            "shifted_sphere":   ((-5.0, 5.0),    np.full(d, 2.0),       0.0),
-            "shifted_rastrigin":((-5.12, 5.12),  np.full(d, 2.5),       0.0),
         }
 
         # 2D-only функции
-        if self.function_name in ("booth", "beale", "goldstein_price"):
+        if self.function_name in ("booth", "beale", "goldstein_price", "bukin_n6", "cross_in_tray", "drop_wave", "eggholder", "holder_table", "schaffer_n2", "schaffer_n4", "shubert", "dejong_n5", "easom", "levy_n13", "langermann"):
             if d != 2:
                 print(f"{self.function_name} только для 2D, принимается dimensions=2")
                 self.dimensions = 2
@@ -146,6 +153,18 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             "booth":           ((-10.0, 10.0), np.array([1.0, 3.0]),  0.0),
             "beale":           ((-4.5, 4.5),   np.array([3.0, 0.5]),  0.0),
             "goldstein_price": ((-2.0, 2.0),   np.array([0.0, -1.0]), 3.0),
+            "bukin_n6":        ((-15.0, 3.0),  np.array([-10.0, 1.0]), 0.0),
+            "cross_in_tray":   ((-10.0, 10.0), np.array([1.34941, 1.34941]), -2.06261),
+            "drop_wave":       ((-5.12, 5.12), np.array([0.0, 0.0]), -1.0),
+            "eggholder":       ((-512.0, 512.0), np.array([512.0, 404.2319]), -959.6407),
+            "holder_table":    ((-10.0, 10.0), np.array([8.05502, 9.66459]), -19.2085),
+            "schaffer_n2":     ((-100.0, 100.0), np.array([0.0, 0.0]), 0.0),
+            "schaffer_n4":     ((-100.0, 100.0), np.array([0.0, 1.25313]), 0.292579),
+            "shubert":         ((-10.0, 10.0), None, -186.7309),
+            "dejong_n5":       ((-65.536, 65.536), np.array([-32.0, -32.0]), 0.998004),
+            "easom":           ((-100.0, 100.0), np.array([np.pi, np.pi]), -1.0),
+            "levy_n13":        ((-10.0, 10.0), np.array([1.0, 1.0]), 0.0),
+            "langermann":      ((0.0, 10.0), np.array([9.681, 4.774]), -1.493),
         }
 
         if self.function_name in configs_2d:
@@ -360,17 +379,6 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         i = np.arange(1, len(x) + 1)
         return -np.sum(np.sin(x) * np.sin(i * x**2 / np.pi) ** (2 * m))
 
-    def _nondiff(self, x: np.ndarray) -> float:
-        """Недифференцируемая тестовая функция.
-
-        Args:
-            x: Вектор координат.
-
-        Returns:
-            Количество положительных элементов: ``sum(x > 0)``.
-        """
-        return (x > 0).sum()
-
     def _booth(self, x: np.ndarray) -> float:
         """Функция Бута (Booth function) — только 2D.
 
@@ -439,45 +447,79 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         b = 30 + (2*x[0] - 3*x[1])**2 * (18 - 32*x[0] + 12*x[0]**2 + 48*x[1] - 36*x[0]*x[1] + 27*x[1]**2)
         return a * b
 
-    def _shifted_sphere(self, x: np.ndarray) -> float:
-        """Сдвинутая сфера (Shifted Sphere function).
+    def _bukin_n6(self, x: np.ndarray) -> float:
+        """Bukin Function N. 6 — только 2D."""
+        term1 = 100 * np.sqrt(np.abs(x[1] - 0.01 * x[0]**2))
+        term2 = 0.01 * np.abs(x[0] + 10)
+        return term1 + term2
 
-        Вариант функции сферы со сдвинутым оптимумом. Минимум в ``(2, 2, ...)``
-        со значением ``0``. Используется для тестирования алгоритмов на
-        несимметричных ландшафтах.
+    def _cross_in_tray(self, x: np.ndarray) -> float:
+        """Cross-in-Tray Function — только 2D."""
+        fact1 = np.sin(x[0]) * np.sin(x[1])
+        fact2 = np.exp(np.abs(100 - np.sqrt(x[0]**2 + x[1]**2) / np.pi))
+        return -0.0001 * (np.abs(fact1 * fact2) + 1)**0.1
 
-        Args:
-            x: Вектор координат.
+    def _drop_wave(self, x: np.ndarray) -> float:
+        """Drop-Wave Function — только 2D."""
+        r = np.sqrt(x[0]**2 + x[1]**2)
+        num = 1 + np.cos(12 * r)
+        den = 0.5 * (r**2) + 2
+        return -num / den
 
-        Returns:
-            Значение функции:
+    def _eggholder(self, x: np.ndarray) -> float:
+        """Eggholder Function — только 2D."""
+        term1 = -(x[1] + 47) * np.sin(np.sqrt(np.abs(x[1] + x[0] / 2 + 47)))
+        term2 = -x[0] * np.sin(np.sqrt(np.abs(x[0] - (x[1] + 47))))
+        return term1 + term2
 
-            .. math::
+    def _holder_table(self, x: np.ndarray) -> float:
+        """Holder Table Function — только 2D."""
+        fact1 = np.sin(x[0]) * np.cos(x[1])
+        fact2 = np.exp(np.abs(1 - np.sqrt(x[0]**2 + x[1]**2) / np.pi))
+        return -np.abs(fact1 * fact2)
 
-                f(x) = \\sum_{i=1}^{d} (x_i - 2)^2
+    def _schaffer_n2(self, x: np.ndarray) -> float:
+        """Schaffer Function N. 2 — только 2D."""
+        num = (np.sin(x[0]**2 - x[1]**2))**2 - 0.5
+        den = (1 + 0.001 * (x[0]**2 + x[1]**2))**2
+        return 0.5 + num / den
 
-            где :math:`d` — размерность.
-        """
-        return np.sum((x - 2.0) ** 2)
+    def _schaffer_n4(self, x: np.ndarray) -> float:
+        """Schaffer Function N. 4 — только 2D."""
+        num = (np.cos(np.sin(np.abs(x[0]**2 - x[1]**2))))**2 - 0.5
+        den = (1 + 0.001 * (x[0]**2 + x[1]**2))**2
+        return 0.5 + num / den
 
-    def _shifted_rastrigin(self, x: np.ndarray) -> float:
-        """Сдвинутая функция Растригина (Shifted Rastrigin function).
+    def _shubert(self, x: np.ndarray) -> float:
+        """Shubert Function — только 2D."""
+        sum1 = sum(i * np.cos((i + 1) * x[0] + i) for i in range(1, 6))
+        sum2 = sum(i * np.cos((i + 1) * x[1] + i) for i in range(1, 6))
+        return sum1 * sum2
 
-        Вариант функции Растригина со сдвинутым оптимумом. Минимум в ``(2.5, 2.5, ...)``
-        со значением ``0``. Сохраняет многоэкстремальность оригинальной функции.
+    def _dejong_n5(self, x: np.ndarray) -> float:
+        """De Jong Function N. 5 — только 2D."""
+        A1 = np.array([-32, -16, 0, 16, 32] * 5)
+        A2 = np.array([[-32]*5, [-16]*5, [0]*5, [16]*5, [32]*5]).flatten()
+        i = np.arange(1, 26)
+        term = 1.0 / (i + (x[0] - A1)**6 + (x[1] - A2)**6)
+        return 1.0 / (0.002 + np.sum(term))
 
-        Args:
-            x: Вектор координат.
+    def _easom(self, x: np.ndarray) -> float:
+        """Easom Function — только 2D."""
+        fact1 = -np.cos(x[0]) * np.cos(x[1])
+        fact2 = np.exp(-((x[0] - np.pi)**2 + (x[1] - np.pi)**2))
+        return fact1 * fact2
 
-        Returns:
-            Значение функции:
+    def _levy_n13(self, x: np.ndarray) -> float:
+        """Levy Function N. 13 — только 2D."""
+        term1 = np.sin(3 * np.pi * x[0])**2
+        term2 = (x[0] - 1)**2 * (1 + np.sin(3 * np.pi * x[1])**2)
+        term3 = (x[1] - 1)**2 * (1 + np.sin(2 * np.pi * x[1])**2)
+        return term1 + term2 + term3
 
-            .. math::
-
-                f(x) = 10d + \\sum_{i=1}^{d} [(x_i - 2.5)^2 - 10\\cos(2\\pi (x_i - 2.5))]
-
-            где :math:`d` — размерность.
-        """
-        xs = x - 2.5
-        n = len(x)
-        return 10 * n + np.sum(xs**2 - 10 * np.cos(2 * np.pi * xs))
+    def _langermann(self, x: np.ndarray) -> float:
+        """Langermann Function — только 2D."""
+        c = np.array([1, 2, 5, 2, 3])
+        A = np.array([[3, 5], [5, 2], [2, 1], [1, 4], [7, 9]])
+        dist_sq = (x[0] - A[:, 0])**2 + (x[1] - A[:, 1])**2
+        return np.sum(c * np.exp(-dist_sq / np.pi) * np.cos(np.pi * dist_sq))

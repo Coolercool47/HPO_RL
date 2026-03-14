@@ -124,7 +124,7 @@ class plot_and_save():
         best_idx = np.argmax(metrics) if self.backend.maximize else np.argmin(metrics)
         ax1.scatter(x0_vals[best_idx], x1_vals[best_idx], c='cyan', s=150, marker='X', label='Best', zorder=6, edgecolors='black')
 
-        ax1.set_title('2D Trajectory (Plasma Truncated)')
+        ax1.set_title('2D Trajectory')
         ax1.set_aspect('equal')
         ax1.legend()
 

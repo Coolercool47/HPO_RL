@@ -59,7 +59,8 @@ def run_n_experiments(config, n_experiments, inference_only=False):
         outputs = plot_and_save(history, best_result, save_path, expreiment_controller.backend, experiment_number=i_experiment)
         if backend_name == "function" and expreiment_controller.backend.dimensions == 2:
             outputs.plot_3d()
-        elif backend_name == "sequential":
+            
+        if backend_name == "sequential":
             backend = expreiment_controller.backend
             merged_bounds = getattr(backend, '_merged_bounds', None)
 
@@ -97,7 +98,7 @@ def run_n_experiments(config, n_experiments, inference_only=False):
                 child_outputs.plot_reward(child_rewards, suffix=suffix)
                 child_outputs.save_history(as_latex=True, suffix=suffix)
                 child_outputs.save_history(as_latex=False, suffix=suffix)
-        elif not backend_name == "sequential":
+        else:
             outputs.plot_trajectory()
             outputs.save_history(as_latex=True)
             outputs.save_history(as_latex=False)

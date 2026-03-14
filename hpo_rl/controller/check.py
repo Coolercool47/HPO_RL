@@ -48,6 +48,7 @@ from hpo_rl.baselines.CMA_ES import CMA_ES
 
 from hpo_rl.environments.new_cycle_move_pipeline import CyclicPipelineEnvNew
 from hpo_rl.environments.instant_continuous_pipeline_env import InstantContinuousPipelineEnv
+from hpo_rl.environments.gp_belief_env import GPBeliefContinuousPipelineEnv
 
 
 functions = {
@@ -63,7 +64,19 @@ functions = {
     "beale": {"min": -4.5, "max": 4.5},
     "goldstein_price": {"min": -2.0, "max": 2.0},
     "shifted_sphere": {"min": -5.0, "max": 5.0},
-    "shifted_rastrigin": {"min": -5.12, "max": 5.12}
+    "shifted_rastrigin": {"min": -5.12, "max": 5.12},
+    "bukin_n6": {"min": -15.0, "max": 3.0},
+    "cross_in_tray": {"min": -10.0, "max": 10.0},
+    "drop_wave": {"min": -5.12, "max": 5.12},
+    "eggholder": {"min": -512.0, "max": 512.0},
+    "holder_table": {"min": -10.0, "max": 10.0},
+    "schaffer_n2": {"min": -100.0, "max": 100.0},
+    "schaffer_n4": {"min": -100.0, "max": 100.0},
+    "shubert": {"min": -10.0, "max": 10.0},
+    "dejong_n5": {"min": -65.536, "max": 65.536},
+    "easom": {"min": -100.0, "max": 100.0},
+    "levy_n13": {"min": -10.0, "max": 10.0},
+    "langermann": {"min": 0.0, "max": 10.0}
 }
 
 ALGORITHMS_RL = {
@@ -109,6 +122,7 @@ BACKENDS = {
 ENVS = {
     "new_cycle_move_pipeline": CyclicPipelineEnvNew,
     "instant_continuous_pipeline": InstantContinuousPipelineEnv,
+    "gp_belief_pipeline": GPBeliefContinuousPipelineEnv,
 }
 
 def check(config):
