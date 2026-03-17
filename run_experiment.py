@@ -437,7 +437,7 @@ if __name__ == "__main__":
             "name": "TPE",
             "N_init": 20,
             "N_s": 100,
-            "budget": 20,
+            "budget": 209,
             "separation_value": 0.2
         }
         }

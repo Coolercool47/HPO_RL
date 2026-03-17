@@ -10,8 +10,7 @@ def env_creator(config):
     backends = [OptimizationBenchmarkBackend(function_name='rastrigin', dimensions=2, maximize=False)]
     backend = SequentialBackend(backends=backends, mode='shuffle')
     child = backend.backends[0]
-    lo, hi = child.bounds
-    hp_space = {f'x{i}': {'type': 'float', 'values': [lo, hi]} for i in range(child.dimensions)}
+    hp_space = child.hp_space
     return InstantContinuousPipelineEnv(hp_space=hp_space, backend=backend, max_delta_frac=0.05, max_steps=200, history_window=3, reward_mode='absolute')
 
 register_env('HPO-ContinuousPipeline-v0', env_creator)

@@ -92,64 +92,47 @@ class GPBeliefContinuousPipelineEnv(InstantContinuousPipelineEnv):
             x_norm = (rand_vals - self._lo) / (self._range + 1e-8)
             self.points_x.append(x_norm)
             self.points_y.append(y_r)
+
+            if self._is_improvement(raw, self.best_raw_metric):
+                self.best_raw_metric = raw
+                self.best_config_so_far = hyp_dict.copy()
             
         # Refetch obs to include features from the newly updated GP
         obs = self._get_obs()
         return obs, info
 
     def _compute_reward(self):
-        # Allow base class to evaluate metric and track best_raw_metric
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)
-            super()._compute_reward()
-        
         if self.reward_mode == "auto_sigmoid":
-            # Current y (can be negative if minimizing, but _to_reward aligns it so bigger is better)
+            # Evaluate metric directly — parent doesn't know about auto_sigmoid
+            self.raw_metric = self.backend.evaluate(self.current_hyp_setup)
+            self.current_raw_metric = self.raw_metric
+
             y_curr = self._to_reward(self.raw_metric)
-            
-            # Combine history (including warmup) and current to find scale
+
             ys = np.array(self.points_y + [y_curr])
             if len(ys) < 2:
                 self.reward = 0.0
                 return self.reward
-                
+
             y_max = np.max(ys)
             y_min = np.min(ys)
-            
-            # The gap defines the scale
+
             scale = max(y_max - y_min, 1e-6)
             center = (y_max + y_min) / 2.0
-            
-            # We want the max value to map closely to +1 (e.g. sigmoid(4) ~ 0.98)
-            # So k * (y_max - center) = 4.0
             k = 8.0 / scale
-            
-            # Auto-adjustable sigmoid mapping values roughly between -1 and 1
-            # Current max is +1, current min is -1. As new extrema are found, it readjusts
+
             r = 2.0 / (1.0 + np.exp(-k * (y_curr - center))) - 1.0
-            
-            # Optionally add a small discrete bonus for finding a NEW best point
+
             if self._is_improvement(self.raw_metric, self.best_raw_metric):
-                r += 0.5 
+                r += 0.5
                 self.best_raw_metric = self.raw_metric
                 self.best_config_so_far = self.current_hyp_setup.copy()
 
             self.reward = float(r)
+        else:
+            # Delegate all other reward modes to parent
+            super()._compute_reward()
         return self.reward
-
-    def step(self, action):
-        old_vec = self._current_param_vec().copy()
-        obs, reward, terminated, truncated, info = super().step(action)
-        new_vec = self._current_param_vec().copy()
-        
-        # Terminate if the agent refuses to move (stagnates in the same spot)
-        # Allows to organically handle "found optimum and stopped" or penalize doing nothing
-        dist = np.linalg.norm(new_vec - old_vec)
-        if self.step_num_total > 1 and dist < 1e-3:
-            terminated = True
-            info["stagnated"] = True
-            
-        return obs, reward, terminated, truncated, info
 
     def _get_obs(self):
         base_obs = super()._get_obs()
@@ -175,21 +158,22 @@ class GPBeliefContinuousPipelineEnv(InstantContinuousPipelineEnv):
         # Fit GP if enough points
         if n_points >= 2:
             if n_points % self.gp_update_freq == 0 or self.gp is None:
-                # Use fixed variance (jitter) for deterministic target functions, 
-                # restrict length scale to meaningful bounds for scaled features
-                kernel = Matern(length_scale=1.0, length_scale_bounds=(1e-2, 1e2), nu=2.5) + \
-                         WhiteKernel(noise_level=1e-4, noise_level_bounds="fixed")
-                self.gp = GaussianProcessRegressor(
-                    kernel=kernel, 
-                    n_restarts_optimizer=0, 
-                    normalize_y=True
-                )
+                if self.gp is None:
+                    kernel = Matern(length_scale=1.0, length_scale_bounds=(1e-2, 1e2), nu=2.5) + \
+                             WhiteKernel(noise_level=1e-4, noise_level_bounds="fixed")
+                    self.gp = GaussianProcessRegressor(
+                        kernel=kernel,
+                        n_restarts_optimizer=0,
+                        normalize_y=True
+                    )
                 X = np.array(self.points_x)
                 y = np.array(self.points_y)
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", category=ConvergenceWarning)
                     try:
                         self.gp.fit(X, y)
+                        # Warm-start: use optimized kernel for next fit
+                        self.gp.kernel = self.gp.kernel_
                     except Exception:
                         pass
             
@@ -219,7 +203,7 @@ class GPBeliefContinuousPipelineEnv(InstantContinuousPipelineEnv):
         # using tanh scaling similar to other features
         # (could use some dynamic scaling but GP naturally standardizes with normalize_y=True)
         gp_feats = np.concatenate([
-            [np.tanh(gp_mean), np.tanh(gp_std)],
+            [np.tanh(gp_mean), gp_std / (1.0 + gp_std)],
             np.clip(gp_mean_grad, -5.0, 5.0),
             np.clip(gp_std_grad, -5.0, 5.0)
         ]).astype(np.float32)
