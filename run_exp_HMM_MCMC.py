@@ -5,12 +5,12 @@ config_HMM = {
     "full_args": {
         "algorithm": {
             "name": "HMM_MCMC",
-            "budget": 200,             
+            "budget": 500,             
             "n_init": 16,              
             "n_chains": 1,             
             "orchestrate_every": 10,    
             "T_mcmc": 0.001,            
-            "sigma_fraction": 0.007,  
+            "sigma_fraction": 0.003,  
             "big_sigma_coef": 0.50,
             "temperature": 1.0,        
             "hmm_window": 10,           
@@ -21,7 +21,7 @@ config_HMM = {
         }
     },
     "backend": {
-        "name": "function", "function": "schwefel", "dimensions": 2
+        "name": "function", "function": "schwefel", "dimensions": 10, "noise_std": 100
     }
 }
 

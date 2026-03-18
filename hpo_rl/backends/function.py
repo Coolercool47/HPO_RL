@@ -8,6 +8,7 @@ RL-алгоритмов оптимизации гиперпараметров.
 
 import numpy as np
 from typing import Dict, Any, Literal
+import hashlib
 from hpo_rl.backends.base import EvaluationBackend
 
 
@@ -94,6 +95,10 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         self.dimensions = dimensions
         self.noise_std = noise_std
         self.maximize = maximize
+
+        # Уникальный сид для этого экземпляра бэкенда.
+        # Позволяет генерировать разные поверхности шума в разных запусках алгоритма.
+        self.instance_seed = np.random.randint(0, 2**31 - 1)
 
         self.func_map = {
             "sphere": self._sphere,
@@ -203,9 +208,16 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         value = func(x)
 
         if self.noise_std > 0:
-            value += np.random.normal(0, self.noise_std)
+            x_rounded = np.round(x, 8)
+            # Смешиваем уникальный сид инстанса (чтобы поверхность отличалась в разных запусках) 
+            # и координаты точки (чтобы зафиксировать шум в конкретной точке для графика,
+            # и мы рисовали ровно то же, что "видел" алгоритм во время работы).
+            h = hashlib.md5(x_rounded.tobytes() + str(self.instance_seed).encode('utf-8'))
+            local_seed = int(h.hexdigest(), 16) % (2**32)
+            rng = np.random.RandomState(local_seed)
+            value += rng.normal(0, self.noise_std)
 
-        return value
+        return max(value, 0)
 
     def _sphere(self, x: np.ndarray) -> float:
         """Сфера (Sphere function).
