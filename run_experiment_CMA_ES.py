@@ -4,14 +4,14 @@ if __name__ == "__main__":
     config_cma_es = {
         "backend": {
             "name": "function",
-            "function": "rastrigin",
-            "dimensions": 2
+            "function": "rosenbrock",
+            "dimensions": 50
         },
         "full_args": {
             "algorithm": {
                 "name": "CMA_ES",
                 "N_pop": None,  # None means it will use the default formula 4 + 3*ln(N)
-                "budget": 200,
+                "budget": 500,
                 "initial_step_size": 0.5
             }
         }
@@ -37,24 +37,24 @@ if __name__ == "__main__":
     }
 
     # Запускаем 3 независимых эксперимента с CMA-ES на функции Растригина
-    # run_n_experiments(config_cma_es, 3, inference_only=False)
+    # run_n_experiments(config_cma_es, 2, inference_only=False)
 
     # Запускаем 3 независимых эксперимента с SimpleGA на функции Растригина
     # run_n_experiments(config_simple_ga, 3, inference_only=False)
 
-    funcs = [
-        "sphere", "rosenbrock", "rastrigin", "ackley", "griewank",
-        "schwefel", "levy", "michalewicz", "booth", "beale",
-        "goldstein_price", "bukin_n6", "cross_in_tray", "drop_wave",
-        "eggholder", "holder_table", "schaffer_n2", "schaffer_n4",
-        "shubert", "dejong_n5", "easom", "levy_n13", "langermann"
-    ]
+    # funcs = [
+    #     "sphere", "rosenbrock", "rastrigin", "ackley", "griewank",
+    #     "schwefel", "levy", "michalewicz", "booth", "beale",
+    #     "goldstein_price", "bukin_n6", "cross_in_tray", "drop_wave",
+    #     "eggholder", "holder_table", "schaffer_n2", "schaffer_n4",
+    #     "shubert", "dejong_n5", "easom", "levy_n13", "langermann"
+    # ]
 
-    for func in funcs:
-        print(f"--- Running experiments for {func} ---")
-        config_cma_es["backend"]["function"] = func
-        config_simple_ga["backend"]["function"] = func
+    # for func in funcs:
+    #     print(f"--- Running experiments for {func} ---")
+    #     config_cma_es["backend"]["function"] = func
+    #     config_simple_ga["backend"]["function"] = func
 
-        # По одному запуску на каждую функцию
-        run_n_experiments(config_cma_es, 2, inference_only=False)
-        run_n_experiments(config_simple_ga, 2, inference_only=False)
+    #     # По одному запуску на каждую функцию
+        # run_n_experiments(config_cma_es, 2, inference_only=False)
+    #     run_n_experiments(config_simple_ga, 2, inference_only=False)

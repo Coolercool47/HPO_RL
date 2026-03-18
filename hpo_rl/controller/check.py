@@ -45,6 +45,7 @@ from hpo_rl.baselines.TPE import TPE
 from hpo_rl.baselines.hyperband import hyperband
 from hpo_rl.baselines.SimpleGA import SimpleGA
 from hpo_rl.baselines.CMA_ES import CMA_ES
+from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 
 from hpo_rl.environments.new_cycle_move_pipeline import CyclicPipelineEnvNew
 from hpo_rl.environments.instant_continuous_pipeline_env import InstantContinuousPipelineEnv
@@ -52,31 +53,31 @@ from hpo_rl.environments.gp_belief_env import GPBeliefContinuousPipelineEnv
 
 
 functions = {
-    "rastrigin": {"min": -5.12, "max": 5.12},
-    "sphere": {"min": -5, "max": 5},
-    "rosenbrock": {"min": -1.0, "max": 1.0},
-    "ackley": {"min": -32.768, "max": 32.768},
-    "griewank": {"min": -600.0, "max": 600.0},
-    "schwefel": {"min": -500.0, "max": 500.0},
-    "levy": {"min": -10.0, "max": 10.0},
-    "michalewicz": {"min": 0.0, "max": np.pi},
-    "booth": {"min": -10.0, "max": 10.0},
-    "beale": {"min": -4.5, "max": 4.5},
-    "goldstein_price": {"min": -2.0, "max": 2.0},
-    "shifted_sphere": {"min": -5.0, "max": 5.0},
-    "shifted_rastrigin": {"min": -5.12, "max": 5.12},
-    "bukin_n6": {"min": -15.0, "max": 3.0},
-    "cross_in_tray": {"min": -10.0, "max": 10.0},
-    "drop_wave": {"min": -5.12, "max": 5.12},
-    "eggholder": {"min": -512.0, "max": 512.0},
-    "holder_table": {"min": -10.0, "max": 10.0},
-    "schaffer_n2": {"min": -100.0, "max": 100.0},
-    "schaffer_n4": {"min": -100.0, "max": 100.0},
-    "shubert": {"min": -10.0, "max": 10.0},
-    "dejong_n5": {"min": -65.536, "max": 65.536},
-    "easom": {"min": -100.0, "max": 100.0},
-    "levy_n13": {"min": -10.0, "max": 10.0},
-    "langermann": {"min": 0.0, "max": 10.0}
+    "rastrigin": {"values": [-5.12, 5.12], "type": "float", "log": False},
+    "sphere": {"values": [-5, 5], "type": "float", "log": False},
+    "rosenbrock": {"values": [-1.0, 1.0], "type": "float", "log": False},
+    "ackley": {"values": [-32.768, 32.768], "type": "float", "log": False},
+    "griewank": {"values": [-600.0, 600.0], "type": "float", "log": False},
+    "schwefel": {"values": [-500.0, 500.0], "type": "float", "log": False},
+    "levy": {"values": [-10.0, 10.0], "type": "float", "log": False},
+    "michalewicz": {"values": [0.0, np.pi], "type": "float", "log": False},
+    "booth": {"values": [-10.0, 10.0], "type": "float", "log": False},
+    "beale": {"values": [-4.5, 4.5], "type": "float", "log": False},
+    "goldstein_price": {"values": [-2.0, 2.0], "type": "float", "log": False},
+    "shifted_sphere": {"values": [-5.0, 5.0], "type": "float", "log": False},
+    "shifted_rastrigin": {"values": [-5.12, 5.12], "type": "float", "log": False},
+    "bukin_n6": {"values": [-15.0, 3.0], "type": "float", "log": False},
+    "cross_in_tray": {"values": [-10.0, 10.0], "type": "float", "log": False},
+    "drop_wave": {"values": [-5.12, 5.12], "type": "float", "log": False},
+    "eggholder": {"values": [-512.0, 512.0], "type": "float", "log": False},
+    "holder_table": {"values": [-10.0, 10.0], "type": "float", "log": False},
+    "schaffer_n2": {"values": [-100.0, 100.0], "type": "float", "log": False},
+    "schaffer_n4": {"values": [-100.0, 100.0], "type": "float", "log": False},
+    "shubert": {"values": [-10.0, 10.0], "type": "float", "log": False},
+    "dejong_n5": {"values": [-65.536, 65.536], "type": "float", "log": False},
+    "easom": {"values": [-100.0, 100.0], "type": "float", "log": False},
+    "levy_n13": {"values": [-10.0, 10.0], "type": "float", "log": False},
+    "langermann": {"values": [0.0, 10.0], "type": "float", "log": False}
 }
 
 ALGORITHMS_RL = {
@@ -112,7 +113,7 @@ OPTIMIZERS = {
 }
 
 ALGORITHMS_BASELINE = {
-    "TPE": TPE,  "BOHB": BOHB, "hyperband": hyperband, "SimpleGA": SimpleGA, "CMA_ES": CMA_ES
+    "TPE": TPE,  "BOHB": BOHB, "hyperband": hyperband, "SimpleGA": SimpleGA, "CMA_ES": CMA_ES, "HMM_MCMC": HMM_MCMC
 }
 
 BACKENDS = {
@@ -317,13 +318,13 @@ def check(config):
         else: 
             raise ValueError(f"Function {function_name} not supported")
             
-        min_value = functions[function_name]["min"]
-        max_value = functions[function_name]["max"]
+        min_value = functions[function_name]["values"][0]
+        max_value = functions[function_name]["values"][1]
         
         if mode == "RL":
-            env_params["hp_space"] = {f"x{i}": {"min": min_value, "max": max_value, "type": "float", "log": False} for i in range(int(config["backend"]["dimensions"]))}
+            env_params["hp_space"] = {f"x{i}": {"values": [min_value, max_value], "type": "float", "log": False} for i in range(int(config["backend"]["dimensions"]))}
         elif mode == "baseline":
-            alg_params["dict_to_optimize"] = {f"x{i}": {"values": (min_value, max_value), "type": "float", "log": False} for i in range(int(config["backend"]["dimensions"]))}
+            alg_params["dict_to_optimize"] = {f"x{i}": {"values": [min_value, max_value], "type": "float", "log": False} for i in range(int(config["backend"]["dimensions"]))}
     
     elif backend_name == "sequential":
         backend_config = config["backend"]
@@ -344,9 +345,9 @@ def check(config):
                 child_backends.append(
                     OptimizationBenchmarkBackend(function_name=fn, dimensions=dims)
                 )
-                min_v, max_v = functions[fn]["min"], functions[fn]["max"]
+                min_v, max_v = functions[fn]["values"][0], functions[fn]["values"][1]
                 all_hp_spaces.append(
-                    {f"x{i}": {"min": min_v, "max": max_v, "type": "float", "log": False}
+                    {f"x{i}": {"values": [min_v, max_v], "type": "float", "log": False}
                      for i in range(int(dims))}
                 )
                 
@@ -373,7 +374,10 @@ def check(config):
                     merged_hp_space[key] = dict(val)
                 else:
                     existing = merged_hp_space[key]
-                    if "min" in val and "min" in existing:
+                    if "values" in val and "values" in existing and getattr(val, "get", lambda x: "float")("type") in ("float", "int"):
+                        existing["values"][0] = min(existing["values"][0], val["values"][0])
+                        existing["values"][1] = max(existing["values"][1], val["values"][1])
+                    elif "min" in val and "min" in existing:
                         existing["min"] = min(existing["min"], val["min"])
                     if "max" in val and "max" in existing:
                         existing["max"] = max(existing["max"], val["max"])

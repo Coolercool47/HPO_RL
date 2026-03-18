@@ -8,10 +8,12 @@
 from hpo_rl.baselines.BOHB import BOHB
 from hpo_rl.baselines.hyperband import hyperband
 from hpo_rl.baselines.TPE import TPE
+from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 
 __all__ = [
     "BOHB",
     "hyperband",
     "TPE",
+    "HMM_MCMC",
 ]
 

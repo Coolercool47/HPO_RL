@@ -174,6 +174,11 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         else:
             raise ValueError(f"Неизвестная функция: {self.function_name}")
 
+        self.hp_space = {
+            f"x{i}": {"values": [float(self.bounds[0]), float(self.bounds[1])], "type": "float", "log": False}
+            for i in range(self.dimensions)
+        }
+
     def _evaluate(self, config: Dict[str, Any]) -> float:
         """Вычисляет значение тестовой функции для заданной конфигурации.
 
