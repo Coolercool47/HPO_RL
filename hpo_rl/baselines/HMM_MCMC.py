@@ -20,6 +20,7 @@ import copy
 from enum import IntEnum
 from tqdm.auto import tqdm
 from scipy.special import logsumexp
+from scipy.stats import truncnorm
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +134,7 @@ class HMMController:
         self.window = window
         self.obs_epsilon = obs_epsilon
         self.lambda_noise = lambda_noise
+        
 
         # --- Экспертные матрицы ---
         # Начальные вероятности π
@@ -263,9 +265,9 @@ class FactorizedProposalGenerator:
     # Формат для int: (w_local, w_global)
     # Формат для categorical: (w_stay, w_uniform, w_history)
     FLOAT_WEIGHTS = {
-        HMMState.EXPLOIT: (1.00, 0.00, 0.00),  # Строгий локальный поиск
-        HMMState.EXPLORE: (0.60, 0.40, 0.00),  # Умеренное исследование: 60% шанс остаться в локальной зоне, 40% широкий прыжок
-        HMMState.TRAPPED: (0.00, 0.50, 0.50),  # Панический сброс: 50% супер-широкий гаусс, 50% равномерное
+        HMMState.EXPLOIT: (1.00, 0.00, 0.00),  # 100% микро-полировка
+        HMMState.EXPLORE: (0.80, 0.20, 0.00),  # 85% локальный сдвиг, 15% средний прыжок (повышает Acceptance!)
+        HMMState.TRAPPED: (0.00, 0.60, 0.40),  # Сброс с упором на широкие Гауссианы
     }
     INT_WEIGHTS = {
         HMMState.EXPLOIT: (1.00, 0.00),
@@ -283,7 +285,8 @@ class FactorizedProposalGenerator:
 
     def __init__(self, dict_to_optimize: dict,
                  sigma_fraction: float = 0.10,
-                 temperature: float = 1.0):
+                 temperature: float = 1.0,
+                 big_sigma_coef:float = 0.15):
         """
         Args:
             dict_to_optimize: пространство гиперпараметров.
@@ -298,6 +301,7 @@ class FactorizedProposalGenerator:
         self.sigma_fraction = sigma_fraction
         self.temperature = temperature
         self.dim = len(dict_to_optimize)
+        self.big_sigma_coef = big_sigma_coef
 
 
         # ---- Предвычисление параметров по каждому измерению ----
@@ -421,29 +425,23 @@ class FactorizedProposalGenerator:
 
     def _sample_continuous(self, x_j: float, pi: dict,
                            state: HMMState) -> float:
-        """Семплирует x'_j для непрерывного параметра."""
+        """Семплирует x'_j для непрерывного параметра (Truncated Normal)."""
         w_local, w_wide, w_uniform = self.FLOAT_WEIGHTS[state]
         lo, hi = pi["lo"], pi["hi"]
 
         r = np.random.rand()
         if r < w_local:
-            # Узкий Гауссов шаг (EXPLOIT)
-            x_new = np.random.normal(x_j, pi["sigma"])
+            sigma = pi["sigma"]
+            a, b = (lo - x_j) / sigma, (hi - x_j) / sigma
+            return float(truncnorm.rvs(a, b, loc=x_j, scale=sigma))
+            
         elif r < w_local + w_wide:
-            # Широкий Гауссов шаг (EXPLORE): разброс масштабируется от размерности пространства
-            sigma_wide = pi["range"] * (0.35 / np.sqrt(self.dim))
-            x_new = np.random.normal(x_j, sigma_wide)
+            sigma_wide = pi["range"] * self.big_sigma_coef
+            a, b = (lo - x_j) / sigma_wide, (hi - x_j) / sigma_wide
+            return float(truncnorm.rvs(a, b, loc=x_j, scale=sigma_wide))
+            
         else:
-            # Равномерный сброс (TRAPPED)
             return float(np.random.uniform(lo, hi))
-
-        # Отражение (bouncing) от границ для Гауссовых прыжков
-        while x_new < lo or x_new > hi:
-            if x_new < lo:
-                x_new = lo + (lo - x_new)
-            elif x_new > hi:
-                x_new = hi - (x_new - hi)
-        return float(x_new)
 
     def _sample_integer(self, x_j: int, pi: dict,
                         state: HMMState) -> int:
@@ -515,27 +513,27 @@ class FactorizedProposalGenerator:
 
     def _log_q_continuous(self, x_from: float, x_to: float,
                           pi: dict, state: HMMState) -> float:
-        """log q_j для непрерывного параметра через logsumexp."""
+        """log q_j для непрерывного параметра через logsumexp (Truncated Normal)."""
         w_local, w_wide, w_uniform = self.FLOAT_WEIGHTS[state]
         lo, hi = pi["lo"], pi["hi"]
 
-        log_components = []
+        log_components =[]
 
-        # log N(x_to | x_from, sigma^2)
+        # 1. Локальная усеченная Гауссиана
         if w_local > 0:
             sigma = pi["sigma"]
-            z = (x_to - x_from) / (sigma + self._EPS)
-            log_g = -0.5 * z * z - np.log(sigma + self._EPS) - 0.5 * np.log(2.0 * np.pi)
+            a, b = (lo - x_from) / sigma, (hi - x_from) / sigma
+            log_g = truncnorm.logpdf(x_to, a, b, loc=x_from, scale=sigma)
             log_components.append(np.log(w_local + self._EPS) + log_g)
 
-        # log N(x_to | x_from, sigma_wide^2)
+        # 2. Широкая усеченная Гауссиана
         if w_wide > 0:
-            sigma_wide = pi["range"] * (0.35 / np.sqrt(self.dim))
-            z = (x_to - x_from) / (sigma_wide + self._EPS)
-            log_g_wide = -0.5 * z * z - np.log(sigma_wide + self._EPS) - 0.5 * np.log(2.0 * np.pi)
+            sigma_wide = pi["range"] * self.big_sigma_coef
+            a, b = (lo - x_from) / sigma_wide, (hi - x_from) / sigma_wide
+            log_g_wide = truncnorm.logpdf(x_to, a, b, loc=x_from, scale=sigma_wide)
             log_components.append(np.log(w_wide + self._EPS) + log_g_wide)
 
-        # log U(x_to | lo, hi)
+        # 3. Равномерное распределение
         if w_uniform > 0:
             log_uniform_val = -np.log(pi["range"] + self._EPS)
             log_components.append(np.log(w_uniform + self._EPS) + log_uniform_val)
@@ -758,7 +756,7 @@ class MCMCChain:
             # Агрессивный "отжиг" для мгновенного выхода из TRAPPED:
             # С множителем 4.0 вероятность пробития барьера возрастает в тысячи раз за 2-3 шага
             agitation_level = self._rejection_streak - self._stagnation_limit + 1
-            self.T_mcmc = self.T_mcmc * (4.0 ** agitation_level)
+            self.T_mcmc = self.T_mcmc * (10.0 ** agitation_level)
 
         # 2. Генерируем кандидата
         x_prime = self.proposal_gen.generate_proposal(self.current_x, self.state)
@@ -789,7 +787,7 @@ class MCMCChain:
         # Ограничиваем O_t, чтобы Viterbi не сошел с ума от гигантских выбросов:
         # Успешный прыжок (сильно меньше 0) "обрезаем" до -0.05, чтобы он читался как чистый EXPLOIT
         # Худшие прыжки "обрезаем" до 0.8, чтобы они попадали в дисперсию EXPLORE 
-        O_t = max(min(O_t, 0.8), -0.05)
+        # O_t = max(min(O_t, 0.8), -0.05)
 
         self._observations.append(O_t)
 
@@ -806,7 +804,7 @@ class MCMCChain:
         """Вычисляет вероятность принятия α по формуле MH."""
         
         # log likelihood ratio
-        log_likelihood_ratio = -(loss_prime - self.current_loss) / (self.T_mcmc + 1e-30)
+        log_likelihood_ratio = -(loss_prime - self.current_loss) / (self.T_mcmc + 1e-100)
 
         # log Hastings ratio
         log_q_reverse = self.proposal_gen.log_proposal_density(
@@ -987,7 +985,8 @@ class HMM_MCMC:
                  T_min: float | None = None, burnin_fraction: float = 0.10,
                  sigma_fraction: float = 0.10, temperature: float = 1.0,
                  hmm_window: int = 8, hmm_obs_epsilon: float = 1e-8,
-                 hmm_lambda_noise: float = 0.01, clone_noise: float = 0.05):
+                 hmm_lambda_noise: float = 0.01, clone_noise: float = 0.05,
+                 big_sigma_coef: float = 0.15):
         self.objective_func = objective_func
         self.budget = budget
         self.dict_to_optimize = dict_to_optimize
@@ -997,6 +996,7 @@ class HMM_MCMC:
         self.T_mcmc = T_mcmc
         self.T_min = T_min
         self.burnin_fraction = burnin_fraction
+        self.big_sigma_coef = big_sigma_coef
 
         # Параметры компонентов
         self._sigma_fraction = sigma_fraction
@@ -1039,6 +1039,7 @@ class HMM_MCMC:
             self.dict_to_optimize,
             sigma_fraction=self._sigma_fraction,
             temperature=self._temperature,
+            big_sigma_coef=self.big_sigma_coef
         )
 
         # Генерация и оценка начальных точек
