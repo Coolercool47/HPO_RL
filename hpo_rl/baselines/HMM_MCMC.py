@@ -17,6 +17,7 @@ H-MCMC-FMP: Hierarchical MCMC with Factorized Mixture Proposals.
 import numpy as np
 import math
 import copy
+import os
 from enum import IntEnum
 from tqdm.auto import tqdm
 from scipy.special import logsumexp
@@ -138,12 +139,12 @@ class HMMController:
 
         # --- Экспертные матрицы ---
         # Начальные вероятности π
-        self.pi = np.array([0.7, 0.2, 0.1])
+        self.pi = np.array([0.3, 0.6, 0.1])
 
         # Матрица переходов A[i, j] = P(S_t = j | S_{t-1} = i)
         self.A = np.array([
-            [0.95,    0.05,    0.00],   # из EXPLOIT: остаемся долго, собирая локальный минимум
-            [0.15,    0.85,    0.00],   # из EXPLORE: даем цепи время (85%) на исследование
+            [0.60,    0.40,    0.00],   # из EXPLOIT: остаемся долго, собирая локальный минимум
+            [0.50,    0.50,    0.00],   # из EXPLORE: даем цепи время (85%) на исследование
             [0.60,    0.20,    0.20],   # из TRAPPED: возвращаемся в EXPLOIT(60%) или EXPLORE(20%) после сброса
         ])
 
@@ -261,13 +262,13 @@ class FactorizedProposalGenerator:
     """
 
     # --- Веса смесей для каждого состояния HMM ---
-    # Формат для float: (w_local, w_wide, w_uniform)
+    # Формат для float: (w_narrow, w_wide)
     # Формат для int: (w_local, w_global)
     # Формат для categorical: (w_stay, w_uniform, w_history)
     FLOAT_WEIGHTS = {
-        HMMState.EXPLOIT: (1.00, 0.00, 0.00),  # 100% микро-полировка
-        HMMState.EXPLORE: (0.80, 0.20, 0.00),  # 85% локальный сдвиг, 15% средний прыжок (повышает Acceptance!)
-        HMMState.TRAPPED: (0.00, 0.60, 0.40),  # Сброс с упором на широкие Гауссианы
+        HMMState.EXPLOIT: (0.95, 0.05),  # преимущественно узкое + чуть широкого
+        HMMState.EXPLORE: (0.25, 0.75),  # широкое + немного узкого
+        HMMState.TRAPPED: (0.00, 1.00),  # только широкое (температура регулирует приём)
     }
     INT_WEIGHTS = {
         HMMState.EXPLOIT: (1.00, 0.00),
@@ -275,9 +276,9 @@ class FactorizedProposalGenerator:
         HMMState.TRAPPED: (0.00, 1.00),
     }
     CATEGORICAL_WEIGHTS = {
-        HMMState.EXPLOIT: (0.95, 0.00, 0.05), # uniform=0.0 для EXPLOIT
-        HMMState.EXPLORE: (0.05, 0.25, 0.70),
-        HMMState.TRAPPED: (0.00, 0.25, 0.75),
+        HMMState.EXPLOIT: (0.85, 0.00, 0.15),  # в EXPLOIT: почти всегда stay, минимальная ротация
+        HMMState.EXPLORE: (0.25, 0.15, 0.60),  # баланс stay/uniform/p25
+        HMMState.TRAPPED: (0.00, 0.25, 0.75),  # сброс: uniform + p25-history
     }
 
     # Малая константа для числовой стабильности (log(0) → log(eps))
@@ -285,23 +286,25 @@ class FactorizedProposalGenerator:
 
     def __init__(self, dict_to_optimize: dict,
                  sigma_fraction: float = 0.10,
-                 temperature: float = 1.0,
-                 big_sigma_coef:float = 0.15):
+                 temperature: float = 0.20,
+                 wide_sigma_fraction: float = 0.40):
         """
         Args:
             dict_to_optimize: пространство гиперпараметров.
                 Формат: {name: {"type": "float"|"int"|"categorical",
                                 "values": [lo, hi] | [c1, c2, ...]}}.
-            sigma_fraction: σ для гауссова локального шага,
+            sigma_fraction: σ для узкого (локального) гауссова шага,
                 выраженная как доля диапазона (hi - lo).
-            temperature: τ для Больцмановского softmax по истории категорий.
+            wide_sigma_fraction: σ для широкого гауссова шага (EXPLORE/TRAPPED),
+                выраженная как доля диапазона.
+            temperature: τ для Boltzmann softmax по p25-скорам категорий.
         """
         self.dict_to_optimize = dict_to_optimize
         self.param_names: list[str] = list(dict_to_optimize.keys())
         self.sigma_fraction = sigma_fraction
         self.temperature = temperature
         self.dim = len(dict_to_optimize)
-        self.big_sigma_coef = big_sigma_coef
+        self.wide_sigma_fraction = wide_sigma_fraction
 
 
         # ---- Предвычисление параметров по каждому измерению ----
@@ -316,8 +319,8 @@ class FactorizedProposalGenerator:
                 rec["lo"] = float(values[0])
                 rec["hi"] = float(values[1])
                 rec["range"] = rec["hi"] - rec["lo"]
-                # σ для гауссова шага
                 rec["sigma"] = self.sigma_fraction * rec["range"]
+                rec["sigma_wide"] = self.wide_sigma_fraction * rec["range"]
             elif p_type == "int":
                 rec["lo"] = int(values[0])
                 rec["hi"] = int(values[1])
@@ -342,7 +345,8 @@ class FactorizedProposalGenerator:
     #  Публичный API
     # ------------------------------------------------------------------
 
-    def generate_proposal(self, current_x: dict, state: HMMState) -> dict:
+    def generate_proposal(self, current_x: dict, state: HMMState,
+                          categorical_only: bool = False) -> dict:
         """Генерирует кандидата X' ~ q(· | X, S_hmm).
 
         Для каждого параметра j независимо семплируем x'_j из одномерной смеси.
@@ -350,6 +354,8 @@ class FactorizedProposalGenerator:
         Args:
             current_x: текущая конфигурация X.
             state: текущее состояние HMM.
+            categorical_only: если True, изменяем ТОЛЬКО категориальные
+                параметры, оставляя float/int без изменений.
 
         Returns:
             Новая конфигурация X'.
@@ -361,12 +367,14 @@ class FactorizedProposalGenerator:
             p_type = pi["type"]
             x_j = current_x[name]
 
-            if p_type == "float":
+            if p_type == "categorical":
+                x_new[name] = self._sample_categorical(x_j, pi, state)
+            elif categorical_only:
+                x_new[name] = x_j
+            elif p_type == "float":
                 x_new[name] = self._sample_continuous(x_j, pi, state)
             elif p_type == "int":
                 x_new[name] = self._sample_integer(x_j, pi, state)
-            elif p_type == "categorical":
-                x_new[name] = self._sample_categorical(x_j, pi, state)
 
         return x_new
 
@@ -426,22 +434,17 @@ class FactorizedProposalGenerator:
     def _sample_continuous(self, x_j: float, pi: dict,
                            state: HMMState) -> float:
         """Семплирует x'_j для непрерывного параметра (Truncated Normal)."""
-        w_local, w_wide, w_uniform = self.FLOAT_WEIGHTS[state]
+        w_narrow, w_wide = self.FLOAT_WEIGHTS[state]
         lo, hi = pi["lo"], pi["hi"]
 
-        r = np.random.rand()
-        if r < w_local:
+        if np.random.rand() < w_narrow:
             sigma = pi["sigma"]
             a, b = (lo - x_j) / sigma, (hi - x_j) / sigma
             return float(truncnorm.rvs(a, b, loc=x_j, scale=sigma))
-            
-        elif r < w_local + w_wide:
-            sigma_wide = pi["range"] * self.big_sigma_coef
+        else:
+            sigma_wide = pi["sigma_wide"]
             a, b = (lo - x_j) / sigma_wide, (hi - x_j) / sigma_wide
             return float(truncnorm.rvs(a, b, loc=x_j, scale=sigma_wide))
-            
-        else:
-            return float(np.random.uniform(lo, hi))
 
     def _sample_integer(self, x_j: int, pi: dict,
                         state: HMMState) -> int:
@@ -514,29 +517,24 @@ class FactorizedProposalGenerator:
     def _log_q_continuous(self, x_from: float, x_to: float,
                           pi: dict, state: HMMState) -> float:
         """log q_j для непрерывного параметра через logsumexp (Truncated Normal)."""
-        w_local, w_wide, w_uniform = self.FLOAT_WEIGHTS[state]
+        w_narrow, w_wide = self.FLOAT_WEIGHTS[state]
         lo, hi = pi["lo"], pi["hi"]
 
-        log_components =[]
+        log_components = []
 
-        # 1. Локальная усеченная Гауссиана
-        if w_local > 0:
+        # 1. Узкая усеченная Гауссиана
+        if w_narrow > 0:
             sigma = pi["sigma"]
             a, b = (lo - x_from) / sigma, (hi - x_from) / sigma
             log_g = truncnorm.logpdf(x_to, a, b, loc=x_from, scale=sigma)
-            log_components.append(np.log(w_local + self._EPS) + log_g)
+            log_components.append(np.log(w_narrow + self._EPS) + log_g)
 
         # 2. Широкая усеченная Гауссиана
         if w_wide > 0:
-            sigma_wide = pi["range"] * self.big_sigma_coef
+            sigma_wide = pi["sigma_wide"]
             a, b = (lo - x_from) / sigma_wide, (hi - x_from) / sigma_wide
             log_g_wide = truncnorm.logpdf(x_to, a, b, loc=x_from, scale=sigma_wide)
             log_components.append(np.log(w_wide + self._EPS) + log_g_wide)
-
-        # 3. Равномерное распределение
-        if w_uniform > 0:
-            log_uniform_val = -np.log(pi["range"] + self._EPS)
-            log_components.append(np.log(w_uniform + self._EPS) + log_uniform_val)
 
         return float(logsumexp(np.array(log_components)))
 
@@ -622,16 +620,16 @@ class FactorizedProposalGenerator:
 
     def _boltzmann_probs(self, param_name: str,
                          categories: list) -> np.ndarray:
-        """Вычисляет Больцмановские вероятности P_boltz(c) для категорий.
+        """Больцмановские вероятности на основе p25-квантиля loss'ов.
 
-        P_boltz(c) = exp(-mean_loss(c) / τ) / Z
-        Z = Σ_c' exp(-mean_loss(c') / τ)
+        Для каждой категории c:
+        - n ≥ 4:  score(c) = percentile(losses_c, 25)
+        - 1 ≤ n < 4: score(c) = min(losses_c)
+        - n = 0:  score(c) = best_observed - ε  (оптимистичный бонус)
 
-        Если для категории c нет наблюдений, используется eps-сглаживание:
-        mean_loss(c) подставляется как максимальный mean_loss среди
-        наблюдённых + 1 (штраф за неизвестность).
-
-        Вычисления в log-пространстве через logsumexp.
+        Скоры нормализуются в [0, 1] (min-max), что делает τ
+        инвариантной к масштабу задачи:
+            P(c) = exp(-normalized(c) / τ) / Z
 
         Args:
             param_name: имя категориального параметра.
@@ -643,34 +641,44 @@ class FactorizedProposalGenerator:
         C = len(categories)
         history = self._category_history[param_name]
 
-        # Вычислить средние потери для каждой категории
-        mean_losses = np.zeros(C)
+        scores = np.zeros(C)
         observed = np.zeros(C, dtype=bool)
 
         for i, cat in enumerate(categories):
             losses = history[cat]
-            if len(losses) > 0:
-                mean_losses[i] = np.mean(losses)
+            n = len(losses)
+            if n >= 4:
+                scores[i] = np.percentile(losses, 25)
+                observed[i] = True
+            elif n >= 1:
+                scores[i] = min(losses)
                 observed[i] = True
 
-        # Если нет наблюдений ни у одной категории → равномерное
         if not np.any(observed):
             return np.ones(C) / C
 
-        # Штраф для ненаблюдённых (сдвиг на 1 единицу температуры, чтобы сохранить инвариантность)
+        # Бонус для ненаблюдённых: оптимистичная оценка
+        best_score = np.min(scores[observed])
+        scores[~observed] = best_score - 0.1 * (abs(best_score) + self._EPS)
+
+        # Нормализация в [0, 1]
+        s_min = scores.min()
+        s_max = scores.max()
+        s_range = s_max - s_min
+
+        if s_range < self._EPS:
+            return np.ones(C) / C
+
+        normalized = (scores - s_min) / s_range  # 0 = лучшая, 1 = худшая
+
+        # Больцман
         tau = self.temperature + self._EPS
-        penalty = np.max(mean_losses[observed]) + tau
-        mean_losses[~observed] = penalty
+        neg_scaled = -normalized / tau
 
-        # log-softmax: log P_boltz(c) = -mean_loss(c)/τ - logsumexp(-mean_loss/τ)
-        neg_scaled = -mean_losses / tau   # shape (C,)
-
-        # logsumexp для нормализации
         log_Z = logsumexp(neg_scaled)
         log_probs = neg_scaled - log_Z
         probs = np.exp(log_probs)
 
-        # Защита от вырожденных случаев (все probs ≈ 0 из-за переполнения)
         prob_sum = probs.sum()
         if prob_sum < self._EPS:
             return np.ones(C) / C
@@ -696,7 +704,8 @@ class MCMCChain:
                  proposal_gen: FactorizedProposalGenerator,
                  hmm: HMMController,
                  T_mcmc: float = 1.0, T_min: float | None = None,
-                 scale_factor: float = 1.0):
+                 scale_factor: float = 1.0,
+                 p_cat_step: float = 0.30):
         self.chain_id = chain_id
         self.current_x = copy.deepcopy(x0)
         self.current_loss = loss0
@@ -707,6 +716,7 @@ class MCMCChain:
         self.T_mcmc = T_mcmc
         self.T_min = T_min if T_min is not None else T_mcmc * 0.01
         self.scale_factor = scale_factor
+        self.p_cat_step = p_cat_step
 
         self.proposal_gen = proposal_gen
         self.hmm = hmm
@@ -758,15 +768,18 @@ class MCMCChain:
             agitation_level = self._rejection_streak - self._stagnation_limit + 1
             self.T_mcmc = self.T_mcmc * (10.0 ** agitation_level)
 
-        # 2. Генерируем кандидата
-        x_prime = self.proposal_gen.generate_proposal(self.current_x, self.state)
+        # 2. Генерируем кандидата (categorical-only с вероятностью p_cat_step)
+        cat_only = np.random.rand() < self.p_cat_step
+        x_prime = self.proposal_gen.generate_proposal(
+            self.current_x, self.state, categorical_only=cat_only
+        )
 
         # 3. Оцениваем кандидата
         loss_prime = objective_func(x_prime)
         self.current_loss_old_for_hmm = self.current_loss
 
         # 5. Вычисляем α (критерий MH)
-        alpha = self._acceptance_probability(x_prime, loss_prime)
+        alpha = self._acceptance_probability(x_prime, loss_prime, self.T_mcmc)
 
         # 6. Принятие / отклонение
         accepted = False
@@ -778,16 +791,13 @@ class MCMCChain:
         else:
             self._rejection_streak += 1
 
-        # 4. Формируем наблюдение O_t ДЛЯ HMM на основе кандидата!
+        # 4. Формируем наблюдение O_t ДЛЯ HMM на основе кандидата.
         # Вычисляем разницу, нормированную на глобальный масштаб (scale_factor).
-        # Это защищает от проблемы отрицательных значений Loss, где log_ratio ломается:
         delta_loss = loss_prime - self.current_loss_old_for_hmm
         O_t = float(delta_loss / (self.scale_factor + 1e-8))
-        
+
         # Ограничиваем O_t, чтобы Viterbi не сошел с ума от гигантских выбросов:
-        # Успешный прыжок (сильно меньше 0) "обрезаем" до -0.05, чтобы он читался как чистый EXPLOIT
-        # Худшие прыжки "обрезаем" до 0.8, чтобы они попадали в дисперсию EXPLORE 
-        # O_t = max(min(O_t, 0.8), -0.05)
+        O_t = max(min(O_t, 0.8), -0.05)
 
         self._observations.append(O_t)
 
@@ -800,11 +810,12 @@ class MCMCChain:
 
         return x_prime, loss_prime, accepted
 
-    def _acceptance_probability(self, x_prime: dict, loss_prime: float) -> float:
+    def _acceptance_probability(self, x_prime: dict, loss_prime: float,
+                                 T_effective: float) -> float:
         """Вычисляет вероятность принятия α по формуле MH."""
         
         # log likelihood ratio
-        log_likelihood_ratio = -(loss_prime - self.current_loss) / (self.T_mcmc + 1e-100)
+        log_likelihood_ratio = -(loss_prime - self.current_loss) / (T_effective + 1e-100)
 
         # log Hastings ratio
         log_q_reverse = self.proposal_gen.log_proposal_density(
@@ -983,10 +994,12 @@ class HMM_MCMC:
                  n_init: int = 16, n_chains: int = 4,
                  orchestrate_every: int = 5, T_mcmc: float = 1.0,
                  T_min: float | None = None, burnin_fraction: float = 0.10,
-                 sigma_fraction: float = 0.10, temperature: float = 1.0,
+                 sigma_fraction: float = 0.10, temperature: float = 0.20,
                  hmm_window: int = 8, hmm_obs_epsilon: float = 1e-8,
                  hmm_lambda_noise: float = 0.01, clone_noise: float = 0.05,
-                 big_sigma_coef: float = 0.15):
+                 wide_sigma_fraction: float = 0.40,
+                 p_cat_step: float = 0.30,
+                 history_path: str = "hmm_mcmc_history.csv"):
         self.objective_func = objective_func
         self.budget = budget
         self.dict_to_optimize = dict_to_optimize
@@ -996,7 +1009,10 @@ class HMM_MCMC:
         self.T_mcmc = T_mcmc
         self.T_min = T_min
         self.burnin_fraction = burnin_fraction
-        self.big_sigma_coef = big_sigma_coef
+        self._wide_sigma_fraction = wide_sigma_fraction
+        self._p_cat_step = p_cat_step
+        self._history_path = history_path
+        self._run_counter = 0
 
         # Параметры компонентов
         self._sigma_fraction = sigma_fraction
@@ -1039,7 +1055,7 @@ class HMM_MCMC:
             self.dict_to_optimize,
             sigma_fraction=self._sigma_fraction,
             temperature=self._temperature,
-            big_sigma_coef=self.big_sigma_coef
+            wide_sigma_fraction=self._wide_sigma_fraction
         )
 
         # Генерация и оценка начальных точек
@@ -1069,8 +1085,10 @@ class HMM_MCMC:
         scaled_T_mcmc = self.T_mcmc * scale_factor
         scaled_T_min = self.T_min * scale_factor if self.T_min is not None else None
 
-        # Масштабируем температуру для расчета распределения Больцмана категориальных параметров
-        self._proposal_gen.temperature = self._temperature * scale_factor
+        # Температура Больцмана для категориальных параметров.
+        # Нормализация loss внутри _boltzmann_probs делает температуру масштаб-инвариантной.
+        # Внешний scale_factor больше не нужен.
+        self._proposal_gen.temperature = self._temperature
 
         # Отбор K лучших как стартовых позиций цепей
         init_scores.sort(key=lambda x: x[1])
@@ -1094,6 +1112,7 @@ class HMM_MCMC:
                 T_mcmc=scaled_T_mcmc,
                 T_min=scaled_T_min,
                 scale_factor=scale_factor,
+                p_cat_step=self._p_cat_step,
             )
             self._chains.append(chain)
 
@@ -1163,16 +1182,18 @@ class HMM_MCMC:
         pbar.close()
         
         # Вывод таблицы истории
+        self._run_counter += 1
         try:
             import pandas as pd
             df = pd.DataFrame(self.history_table)
             print("\n" + "="*60)
             print("HMM MCMC State History (last run):")
-            # Печатаем полностью, если строк до 200, иначе обрезаем
             with pd.option_context('display.max_rows', 200, 'display.max_columns', None):
                 print(df)
             print("="*60 + "\n")
-            df.to_csv("hmm_mcmc_history.csv", index=False)
+            base, ext = os.path.splitext(self._history_path)
+            path = f"{base}_{self._run_counter}{ext}"
+            df.to_csv(path, index=False)
         except ImportError:
             pass
 

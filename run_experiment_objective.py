@@ -1,4 +1,3 @@
-from hpo_rl.experiments.run_experiment import run_experiment
 from hpo_rl.experiments.run_experiment import run_n_experiments
 import torch
 import torch.optim as optim
@@ -155,8 +154,7 @@ if __name__ == "__main__":
         "hp_space": {
             "lr": {
                 "type": "float", 
-                "min": 1e-6,
-                "max": 1e-2
+                "values": [1e-6, 1e-2]
             },
             "batch_size": {
                 "type": "categorical", 
@@ -174,4 +172,4 @@ if __name__ == "__main__":
     }
     }
     
-    run_experiment(config_BOHB)
+    run_n_experiments(config_BOHB)
