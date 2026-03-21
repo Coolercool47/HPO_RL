@@ -60,7 +60,7 @@ config_sac_gp = {
         "obs_mode": "norm",
         "reward_mode": "auto_sigmoid", # Используем нашу новую самобалансирующуюся сигмоиду
         "max_steps": 200,
-        "gp_update_freq": 1
+        "gp_update_freq": 5
     },
     "backend": {
         "name": "sequential",

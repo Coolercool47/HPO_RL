@@ -12,7 +12,7 @@ config_HMM = {
         }
     },
     "backend": {
-        "name": "function", "function": "schwefel", "dimensions": 10
+        "name": "function", "function": "schwefel", "dimensions": 10, "noise_std": 100
     }
 }
 

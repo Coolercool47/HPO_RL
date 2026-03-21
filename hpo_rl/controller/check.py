@@ -315,6 +315,8 @@ def check(config):
         function_name = config["backend"]["function"]
         if function_name in functions:
             backend_params = {"function_name": function_name, "dimensions": config["backend"]["dimensions"]}
+            if "noise_std" in config["backend"]:
+                backend_params["noise_std"] = config["backend"]["noise_std"]
         else: 
             raise ValueError(f"Function {function_name} not supported")
             
@@ -340,10 +342,11 @@ def check(config):
             if entry_type == "function":
                 fn = entry["function"]
                 dims = entry["dimensions"]
+                noise = entry.get("noise_std", 0.0)
                 if fn not in functions:
                     raise ValueError(f"Function {fn} not supported")
                 child_backends.append(
-                    OptimizationBenchmarkBackend(function_name=fn, dimensions=dims)
+                    OptimizationBenchmarkBackend(function_name=fn, dimensions=dims, noise_std=noise)
                 )
                 min_v, max_v = functions[fn]["values"][0], functions[fn]["values"][1]
                 all_hp_spaces.append(
