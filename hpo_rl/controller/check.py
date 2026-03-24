@@ -77,7 +77,8 @@ functions = {
     "dejong_n5": {"values": [-65.536, 65.536], "type": "float", "log": False},
     "easom": {"values": [-100.0, 100.0], "type": "float", "log": False},
     "levy_n13": {"values": [-10.0, 10.0], "type": "float", "log": False},
-    "langermann": {"values": [0.0, 10.0], "type": "float", "log": False}
+    "langermann": {"values": [0.0, 10.0], "type": "float", "log": False},
+    "styblinski_tang": {"values":[-5.0, 5.0], "type": "float", "log": False}
 }
 
 ALGORITHMS_RL = {

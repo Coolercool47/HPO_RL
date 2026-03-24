@@ -28,6 +28,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         - ``schwefel`` — многоэкстремальная функция с большим числом локальных минимумов
         - ``levy`` — сложная унимодальная функция с плоскими участками
         - ``michalewicz`` — функция с крутыми пиками (оптимум зависит от размерности)
+        - ``styblinski_tang`` — многоэкстремальная функция, оптимум ≈ −39.166·d
 
     Поддерживаемые двухмерные функции:
         - ``booth`` — простая унимодальная функция
@@ -66,7 +67,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
 
     FUNCTIONS = Literal[
         "sphere", "rosenbrock", "rastrigin", "ackley", "griewank",
-        "schwefel", "levy", "michalewicz", "booth", "beale",
+        "schwefel", "levy", "michalewicz", "styblinski_tang", "booth", "beale",
         "goldstein_price", "bukin_n6", "cross_in_tray", "drop_wave",
         "eggholder", "holder_table", "schaffer_n2", "schaffer_n4",
         "shubert", "dejong_n5", "easom", "levy_n13", "langermann"
@@ -109,6 +110,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             "schwefel": self._schwefel,
             "levy": self._levy,
             "michalewicz": self._michalewicz,
+            "styblinski_tang": self._styblinski_tang,
             "booth": self._booth,
             "beale": self._beale,
             "goldstein_price": self._goldstein_price,
@@ -146,6 +148,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             "schwefel":         ((-500.0, 500.0), np.full(d, 420.9687), 0.0),
             "levy":             ((-10.0, 10.0),  np.zeros(d),           0.0),
             "michalewicz":      ((0.0, np.pi), None, 0.0),
+            "styblinski_tang":  ((-5.0, 5.0), np.full(d, -2.903534), round(-39.16617 * d, 5)),
         }
 
         # 2D-only функции
@@ -217,7 +220,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             rng = np.random.RandomState(local_seed)
             value += rng.normal(0, self.noise_std)
 
-        return max(value, 0)
+        return value
 
     def _sphere(self, x: np.ndarray) -> float:
         """Сфера (Sphere function).
@@ -395,6 +398,27 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         m = 10
         i = np.arange(1, len(x) + 1)
         return -np.sum(np.sin(x) * np.sin(i * x**2 / np.pi) ** (2 * m))
+
+    def _styblinski_tang(self, x: np.ndarray) -> float:
+        """Функция Стиблинского-Танга (Styblinski-Tang function).
+
+        Многоэкстремальная функция с множеством локальных минимумов.
+        Глобальный минимум в ``(-2.903534, ..., -2.903534)``
+        со значением ``≈ -39.16617 * d``.
+
+        Args:
+            x: Вектор координат.
+
+        Returns:
+            Значение функции:
+
+            .. math::
+
+                f(x) = \\frac{1}{2} \\sum_{i=1}^{d} (x_i^4 - 16x_i^2 + 5x_i)
+
+            где :math:`d` — размерность.
+        """
+        return 0.5 * np.sum(x**4 - 16 * x**2 + 5 * x)
 
     def _booth(self, x: np.ndarray) -> float:
         """Функция Бута (Booth function) — только 2D.

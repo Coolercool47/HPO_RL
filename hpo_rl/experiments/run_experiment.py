@@ -104,6 +104,11 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             outputs.save_history(as_latex=False)
             outputs.plot_reward(rewards)
 
+        # Сохраняем HMM history, если алгоритм — HMM_MCMC
+        hmm_table = getattr(expreiment_controller.algorithm, 'history_table', None)
+        if hmm_table:
+            outputs.save_hmm_history(hmm_table)
+
         full_history.append(history)
 
     is_maximize = expreiment_controller.backend.maximize

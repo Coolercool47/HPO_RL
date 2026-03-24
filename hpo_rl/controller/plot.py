@@ -319,3 +319,17 @@ class plot_and_save():
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(latex_table)
         print(f"Saved TEX history: {out_path}")
+
+    def save_hmm_history(self, history_table, suffix=""):
+        """Сохраняет таблицу состояний HMM MCMC в CSV.
+
+        Args:
+            history_table: list[dict] из HMM_MCMC_Optimizer.history_table.
+            suffix: дополнительный суффикс для имени файла.
+        """
+        if not history_table:
+            return
+        df = pd.DataFrame(history_table)
+        out_path = self.save_path / f"hmm_mcmc_history_{self.experiment_number}{suffix}.csv"
+        df.to_csv(out_path, index=False)
+        print(f"Saved HMM history: {out_path}")
