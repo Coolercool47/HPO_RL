@@ -361,14 +361,14 @@ class FactorizedProposalGenerator:
                  sigma_fraction: float = 0.10,
                  temperature: float = 0.60,
                  wide_sigma_fraction: float = 0.40,
-                 n_bins: int = 20):
+                 kde_tau: float = 0.05):
         """
         Args:
             dict_to_optimize: пространство гиперпараметров.
             sigma_fraction: σ для узкого гауссова шага (доля диапазона).
             wide_sigma_fraction: σ для широкого гауссова шага (доля диапазона).
-            temperature: τ для Boltzmann softmax.
-            n_bins: не используется (сохранено для совместимости).
+            temperature: τ для Boltzmann softmax по категориям.
+            kde_tau: τ для Boltzmann-взвешивания Archive-KDE (после min-max norm).
         """
         self.dict_to_optimize = dict_to_optimize
         self.param_names: list[str] = list(dict_to_optimize.keys())
@@ -383,7 +383,7 @@ class FactorizedProposalGenerator:
         self._archive_max = 200  # макс. размер архива
 
         # KDE-параметры
-        self._kde_tau = 0.3  # τ для Boltzmann-взвешивания архива (после min-max norm)
+        self._kde_tau = kde_tau
 
         # ---- Предвычисление параметров по каждому измерению ----
         self._param_info: list[dict] = []
@@ -504,7 +504,7 @@ class FactorizedProposalGenerator:
         return log_q_total
 
     def update_category_history(self, config: dict, loss: float) -> None:
-        """Обновляет историю потерь для категориальных параметров и DE-архив.
+        """Обновляет историю потерь для категориальных параметров и KDE-архив.
 
         Args:
             config: оценённая конфигурация.
@@ -516,7 +516,7 @@ class FactorizedProposalGenerator:
                 val = config[name]
                 self._category_history[name][val].append(loss)
 
-        # Добавляем в DE-архив (отсортированный по loss)
+        # Добавляем в KDE-архив (отсортированный по loss)
         self._archive.append((config, loss))
         self._archive.sort(key=lambda x: x[1])
         if len(self._archive) > self._archive_max:
@@ -852,8 +852,6 @@ class FactorizedProposalGenerator:
 # ---------------------------------------------------------------------------
 #  MCMCChain
 # ---------------------------------------------------------------------------
-import numpy as np
-import copy
 
 class MCMCChain:
     """Одна цепь Метрополиса — Гастингса с HMM-управлением.
@@ -1018,17 +1016,6 @@ class MCMCChain:
         log_alpha = log_likelihood_ratio + log_hastings_ratio
         
         # np.exp(min(..., 0.0)) безопасно ограничивает вероятность сверху единицей
-        return float(np.exp(min(log_alpha, 0.0)))
-
-    def _sa_acceptance(self, loss_prime: float, T_effective: float) -> float:
-        """Чистая SA-приёмка (без Hastings-коррекции).
-
-        Используется в состоянии EXPLORE, где произведение померных
-        Hastings-коэффициентов в высокоразмерном пространстве (10D+)
-        экспоненциально подавляет приём любых нелокальных предложений.
-        """
-        delta_normalized = (loss_prime - self.current_loss) / (self.scale_factor + 1e-8)
-        log_alpha = -delta_normalized / (T_effective + 1e-100)
         return float(np.exp(min(log_alpha, 0.0)))
 
 
@@ -1199,7 +1186,8 @@ class HMM_MCMC:
                  hmm_window: int = 8, hmm_obs_epsilon: float = 1e-8,
                  hmm_lambda_noise: float = 0.01, clone_noise: float = 0.05,
                  wide_sigma_fraction: float = 0.40,
-                 p_cat_step: float = 0.30):
+                 p_cat_step: float = 0.30,
+                 kde_tau: float = 0.05):
         self.objective_func = objective_func
         self.budget = budget
         self.dict_to_optimize = dict_to_optimize
@@ -1212,6 +1200,7 @@ class HMM_MCMC:
         self.burnin_fraction = burnin_fraction
         self._wide_sigma_fraction = wide_sigma_fraction
         self._p_cat_step = p_cat_step
+        self._kde_tau = kde_tau
 
         # Параметры компонентов
         self._sigma_fraction = sigma_fraction
@@ -1278,7 +1267,8 @@ class HMM_MCMC:
             self.dict_to_optimize,
             sigma_fraction=self._sigma_fraction,
             temperature=self._temperature,
-            wide_sigma_fraction=self._wide_sigma_fraction
+            wide_sigma_fraction=self._wide_sigma_fraction,
+            kde_tau=self._kde_tau,
         )
 
         # Генерация и оценка начальных точек
