@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, truncnorm
 from tqdm.auto import tqdm
 
 class TPE:
@@ -75,8 +75,12 @@ class TPE:
             for param_name, info in self.dict_to_optimize.items():
                 if info["type"] == "float":
                     value = np.random.uniform(info["values"][0], info["values"][1])
-                elif info["type"] == "categorical" or info["type"] == "int":
-                    value = np.random.choice(info["values"])
+                elif info["type"] == "int":
+                    lo, hi = int(info["values"][0]), int(info["values"][1])
+                    value = np.random.randint(lo, hi + 1)
+                elif info["type"] == "categorical":
+                    idx = np.random.randint(len(info["values"]))
+                    value = info["values"][idx]
                 setup[param_name] = value
             score = self.objective_func(setup)
             self.data.append((setup, score))
@@ -216,7 +220,10 @@ class TPE:
                 b_final = max(b_scott,b_min)
                 bandwidths[param] = b_final
             
-            elif info["type"] == "categorical" or info["type"] == "int":
+            elif info["type"] == "int":
+                bandwidths[param] = 0.2
+
+            elif info["type"] == "categorical":
                 bandwidths[param] = 0.2
 
         return bandwidths
@@ -239,7 +246,34 @@ class TPE:
         w_prior = weights[0]
         w_obs = weights[0]
         
-        if info["type"] == "categorical" or info["type"] == "int":
+        if info["type"] == "int":
+            lo, hi = int(info["values"][0]), int(info["values"][1])
+            all_values = list(range(lo, hi + 1))
+            num_categories = len(all_values)
+            prior_prob = 1.0 / num_categories
+            probability = w_prior * prior_prob
+
+            if len(D_group) > 0:
+                h = bandwidth
+                obs_counts = {val: 0 for val in all_values}
+                for pt in D_group:
+                    obs_counts[pt[0][param_name]] += 1
+
+                likelihood_sum = 0
+                for cat in all_values:
+                    count = obs_counts[cat]
+                    if count == 0: continue
+                    if x == cat:
+                        prob_contribution = (1.0 - h)
+                    else:
+                        prob_contribution = h / (num_categories - 1)
+                    likelihood_sum += (count / len(D_group)) * prob_contribution
+
+                probability += w_obs * likelihood_sum
+
+            return probability
+
+        elif info["type"] == "categorical":
             num_categories = len(info["values"])
             prior_prob = 1.0 / num_categories
             probability = w_prior * prior_prob
@@ -300,37 +334,52 @@ class TPE:
         """
         info = self.dict_to_optimize[param_name]
         
-        if info["type"] == "categorical" or info["type"]=="int":
+        if info["type"] == "int":
+            lo, hi = int(info["values"][0]), int(info["values"][1])
+            all_values = list(range(lo, hi + 1))
             w_prior = weights[0]
             if np.random.rand() < w_prior or len(D_group) == 0:
-                return np.random.choice(info["values"])
-            
+                return np.random.randint(lo, hi + 1)
+
             observations = [pt[0][param_name] for pt in D_group]
             center_val = np.random.choice(observations)
+
+            h = bandwidth
+            if np.random.rand() < (1.0 - h):
+                return center_val
+            else:
+                others = [v for v in all_values if v != center_val]
+                return np.random.choice(others)
+
+        elif info["type"] == "categorical":
+            w_prior = weights[0]
+            if np.random.rand() < w_prior or len(D_group) == 0:
+                idx = np.random.randint(len(info["values"]))
+                return info["values"][idx]
+            
+            observations = [pt[0][param_name] for pt in D_group]
+            center_val = observations[np.random.randint(len(observations))]
             
             h = bandwidth
             if np.random.rand() < (1.0 - h):
                 return center_val
             else:
                 others = [v for v in info["values"] if v != center_val]
-                return np.random.choice(others)
+                return others[np.random.randint(len(others))]
 
         elif info["type"] == "float":
             L, R = info["values"]
             w_prior = 0.1
             if np.random.rand() < w_prior or len(D_group) == 0:
-                while True:
-                    sample =  np.random.normal((L+R)/2, (R-L)**2)
-                    if L <= sample <= R:
-                        return sample   
+                scale = (R - L) / 4.0
+                a, b = (L - (L + R) / 2) / scale, (R - (L + R) / 2) / scale
+                return float(truncnorm.rvs(a, b, loc=(L + R) / 2, scale=scale))
             
             observations = [pt[0][param_name] for pt in D_group]
-            center = np.random.choice(observations)
+            center = observations[np.random.randint(len(observations))]
             
-            while True:
-                sample = np.random.normal(center, bandwidth)
-                if L <= sample <= R:
-                    return sample   
+            a, b = (L - center) / bandwidth, (R - center) / bandwidth
+            return float(truncnorm.rvs(a, b, loc=center, scale=bandwidth))
         
     def suggest(self):
         """Выполняет `main_loop`, только без подсчета целевой функции
