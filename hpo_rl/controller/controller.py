@@ -265,13 +265,14 @@ class controller():
             self._last_switch_epoch = 0  # для отслеживания смены эпохи
 
             def periodic_train_hook(epoch, env_step):
-                # Переключение бэкенда раз в эпоху (SequentialBackend)
-                # training_fn вызывается каждый training step (collection),
-                # а не каждую эпоху, поэтому отслеживаем смену epoch
+                # Переключение бэкенда раз в эпоху (SequentialBackend, epoch-level режим).
+                # Пропускается если switch_on_reset=True — в этом случае смена происходит
+                # в каждом env.reset(), обеспечивая смешанные батчи внутри каждого collect.
                 if isinstance(self.backend, SequentialBackend):
-                    if epoch != self._last_switch_epoch:
-                        self._last_switch_epoch = epoch
-                        self.backend.next_backend()
+                    if not self.backend.switch_on_reset:
+                        if epoch != self._last_switch_epoch:
+                            self._last_switch_epoch = epoch
+                            self.backend.next_backend()
 
                 current_time = time.time()
                 
@@ -323,9 +324,21 @@ class controller():
 
     def inference(self):
         if self.mode == "RL":
+            # Disable episode-level backend switching during inference —
+            # the caller (run_n_experiments) explicitly sets the active backend
+            # via set_active_backend() before each inference call.
+            _saved_switch = None
+            if isinstance(self.backend, SequentialBackend) and self.backend.switch_on_reset:
+                _saved_switch = True
+                self.backend.switch_on_reset = False
+
             collector = ts.data.Collector[CollectStats](self.algo, self.env, exploration_noise=False)
             collector.reset_buffer()
-            result = collector.collect(**self.inference_kwargs)     
+            result = collector.collect(**self.inference_kwargs)
+
+            # Restore switch_on_reset for subsequent training
+            if _saved_switch is not None:
+                self.backend.switch_on_reset = _saved_switch
             
             n_steps = result.n_collected_steps 
             buffer = collector.buffer

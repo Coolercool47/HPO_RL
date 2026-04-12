@@ -50,6 +50,7 @@ class SequentialBackend(EvaluationBackend):
         backends: List[EvaluationBackend],
         mode: str = "random",
         merged_bounds: Optional[Dict[str, tuple]] = None,
+        switch_on_reset: bool = False,
     ) -> None:
         if not backends:
             raise ValueError("backends list must not be empty")
@@ -70,6 +71,10 @@ class SequentialBackend(EvaluationBackend):
         self._switch_count = 0
         self._merged_bounds = merged_bounds
         self.skip_remap = False
+        # If True, next_backend() is called on every env.reset() instead of
+        # once per epoch from periodic_train_hook. This ensures each episode
+        # in the batch can be on a different function (multi-task mixing).
+        self.switch_on_reset = switch_on_reset
 
         # Per-child bounds dicts for remapping (merged→child)
         self._child_bounds: List[Optional[Dict[str, tuple]]] = []

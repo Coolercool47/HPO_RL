@@ -238,6 +238,12 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed, options=options)
 
+        # Переключаем дочерний бэкенд на следующий (episode-level switching).
+        # Вызывается ПЕРЕД sync_bounds_to_backend, чтобы bounds соответствовали
+        # уже новой функции — это гарантирует смешанные батчи в каждом collect.
+        if isinstance(self.backend, SequentialBackend) and self.backend.switch_on_reset:
+            self.backend.next_backend()
+
         # Синхронизируем bounds с текущим дочерним бэкендом (SequentialBackend)
         self.sync_bounds_to_backend()
 

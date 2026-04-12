@@ -219,7 +219,7 @@ if __name__ == "__main__":
             },
             "trainer":
             {
-                "max_epochs": 100,
+                "max_epochs": 20,
                 "epoch_num_steps": 4000,
                 "batch_size": 64,
                 "collection_step_num_env_steps": 2000,
@@ -245,7 +245,7 @@ if __name__ == "__main__":
             "num_test_envs": 20,
         },
         "env": {
-            "name": "continuous_cycle_pipeline",
+            "name": "instant_continuous_pipeline",
             "max_delta_frac": 0.3,
             "max_steps": 200,
             "history_window": 3,
@@ -253,7 +253,8 @@ if __name__ == "__main__":
         },
         "backend": {
             "name": "sequential",
-            "mode": "random",
+            "mode": "shuffle",
+            "switch_on_reset": True,
             "backends": [
                 {"name": "function", "function": "rastrigin", "dimensions": 2},
                 {"name": "function", "function": "rosenbrock", "dimensions": 2},
@@ -397,15 +398,15 @@ if __name__ == "__main__":
         "reward_mode": "absolute"
     },
     "backend": {
-        "name": "sequential",
-        "mode": "shuffle",  
-        "backends": [
-            {"name": "function", "function": "rastrigin", "dimensions": 2},
-            {"name": "function", "function": "rosenbrock", "dimensions": 2},
-            {"name": "function", "function": "schwefel", "dimensions": 2},
-            #{"name": "function", "function": "michalewicz", "dimensions": 2},
-        ]
-    }
+            "name": "sequential",
+            "mode": "shuffle",
+            "switch_on_reset": True,
+            "backends": [
+                {"name": "function", "function": "rastrigin", "dimensions": 2},
+                {"name": "function", "function": "rosenbrock", "dimensions": 2},
+                {"name": "function", "function": "schwefel", "dimensions": 2},
+            ]
+        }
     }
 
     config_TPE = {
@@ -443,100 +444,6 @@ if __name__ == "__main__":
         }
     }
 
-    config_real = {
-        "full_args": {
-        "algorithm":
-        {
-            "name": "ppo",
-            "gamma": 0.9,
-            # "n_step_return_horizon": 3,
-            # "target_update_freq": 320,
-        },  
-        "optim":
-        {
-            "name": "TorchOptimizerFactory",
-            "optim_class": Adam,
-            "lr": 1e-3,
-        },
-        "net":
-        {
-            "actor": DiscreteActor,
-            "critic": DiscreteCritic, 
-            # "layer_num": 3,
-            # "hidden_layer_size": 64,
-            "hidden_sizes": [64, 64],
-            "net": Net
-        },
-        "trainer":
-        {
-            "max_epochs": 1,
-            "epoch_num_steps": 4,
-            "batch_size": 64,
-            "collection_step_num_env_steps": 10,
-            "update_step_num_repetitions": 5,
-            # "test_in_training": True,
-            # "stop_fn": stop_fn
-        },
-        "policy":
-        {
-            "class": ProbabilisticActorPolicy,
-            "dist_fn": torch.distributions.Categorical,
-            "action_scaling": False,
-            # "eps_training": 0.1,
-            # "eps_inference": 0.05,
-        },
-        "inference": 
-        {
-            "n_episode": 1,
-            "reset_before_collect": True,
-        },
-        "num_training_envs": 10,
-        "num_test_envs": 10,
-    },
-    "env": {
-        "name": "cycle_move_pipeline",
-        "num_bins": 300,
-        "max_steps": 2,
-        "reward_mode": "per_step",
-        "step_sizes": [1, 5, 25]
-    },
-    "backend": {
-        "name": "real",
-        "model": SimpleCNN,
-        "trainer": TorchTrainer,
-        "data_processor": pytorch_mnist_processor,
-        "hp_space": {
-            "n_params": {
-                "refers_to": "model",
-                "type": "int",
-                "min": 1,
-                "max": 512
-            },
-            "learning_rate":{
-                "type": "float",
-                "min": 0,
-                "max": 0.1
-            },
-            "optimizer": {
-                "refers_to": "train_loop",
-                "type": "categorical",
-                "values": ["SGD", "Adam"],
-                "dependencies": ["learning_rate"]
-            },
-            "criterion": {
-                "refers_to": "train_loop",
-                "type": "categorical",
-                "values": ["CrossEntropyLoss"]
-            },
-            "learning_rate": {
-                "refers_to": "optimizer",
-                "type": "float",
-                "min": 0,
-                "max": 1
-            }
-        }
-    }
-    }
     # config_rainbow = {
     # "full_args": {
     #     "algorithm":

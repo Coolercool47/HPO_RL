@@ -401,7 +401,13 @@ def check(config):
                 hi = val.get("max", val.get("values", (0, 1))[1])
                 merged_bounds[key] = (lo, hi)
 
-        backend_params = {"backends": child_backends, "mode": seq_mode, "merged_bounds": merged_bounds}
+        switch_on_reset = backend_config.get("switch_on_reset", False)
+        backend_params = {
+            "backends": child_backends,
+            "mode": seq_mode,
+            "merged_bounds": merged_bounds,
+            "switch_on_reset": switch_on_reset,
+        }
 
         if mode == "RL":
             env_params["hp_space"] = merged_hp_space
