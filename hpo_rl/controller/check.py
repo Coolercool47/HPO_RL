@@ -392,21 +392,10 @@ def check(config):
                                 min(existing["values"][0], val["values"][0]),
                                 max(existing["values"][1], val["values"][1]),
                             )
-        
-        # Формируем merged_bounds для ремаппинга значений в SequentialBackend
-        merged_bounds = {}
-        for key, val in merged_hp_space.items():
-            if val.get("type") in ("float", "int"):
-                lo = val.get("min", val.get("values", (0,))[0])
-                hi = val.get("max", val.get("values", (0, 1))[1])
-                merged_bounds[key] = (lo, hi)
 
-        switch_on_reset = backend_config.get("switch_on_reset", False)
         backend_params = {
             "backends": child_backends,
             "mode": seq_mode,
-            "merged_bounds": merged_bounds,
-            "switch_on_reset": switch_on_reset,
         }
 
         if mode == "RL":

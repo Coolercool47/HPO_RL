@@ -81,7 +81,19 @@ class controller():
             self.env = FlattenObservation(env_class(backend=self.backend, **env_params)) if net == Net else env_class(backend=self.backend, **env_params)
 
             def make_env():
-                return FlattenObservation(env_class(backend=self.backend, **env_params)) if net == Net else env_class(backend=self.backend, **env_params)
+                # Each training/test env gets its own SequentialBackend instance so
+                # that backend.next_backend() calls in env.reset() are independent
+                # (no mid-episode contamination from other parallel envs).
+                # Child backends (OptimizationBenchmarkBackend) are shared since
+                # they are stateless / cache-safe.
+                if isinstance(self.backend, SequentialBackend):
+                    per_env_backend = SequentialBackend(
+                        backends=self.backend.backends,
+                        mode=self.backend.mode,
+                    )
+                else:
+                    per_env_backend = self.backend
+                return FlattenObservation(env_class(backend=per_env_backend, **env_params)) if net == Net else env_class(backend=per_env_backend, **env_params)
 
             training_envs = ts.env.DummyVectorEnv([make_env for _ in range(n_training_envs)])
             test_envs = ts.env.DummyVectorEnv([make_env for _ in range(n_inference_envs)])
@@ -261,19 +273,9 @@ class controller():
                         wandb.save(self.save_loc)
                     return self.save_loc
                 return None
-            
-            self._last_switch_epoch = 0  # для отслеживания смены эпохи
 
             def periodic_train_hook(epoch, env_step):
-                # Переключение бэкенда раз в эпоху (SequentialBackend, epoch-level режим).
-                # Пропускается если switch_on_reset=True — в этом случае смена происходит
-                # в каждом env.reset(), обеспечивая смешанные батчи внутри каждого collect.
-                if isinstance(self.backend, SequentialBackend):
-                    if not self.backend.switch_on_reset:
-                        if epoch != self._last_switch_epoch:
-                            self._last_switch_epoch = epoch
-                            self.backend.next_backend()
-
+                # Periodic checkpoint save (every 30 min)
                 current_time = time.time()
                 
                 if current_time - self.last_periodic_save >= SAVE_INTERVAL_SECONDS:
@@ -324,21 +326,17 @@ class controller():
 
     def inference(self):
         if self.mode == "RL":
-            # Disable episode-level backend switching during inference —
-            # the caller (run_n_experiments) explicitly sets the active backend
-            # via set_active_backend() before each inference call.
-            _saved_switch = None
-            if isinstance(self.backend, SequentialBackend) and self.backend.switch_on_reset:
-                _saved_switch = True
-                self.backend.switch_on_reset = False
-
+            # During inference, the caller (run_n_experiments) explicitly sets the active backend
+            # via set_active_backend() before each inference call. That call automatically locks
+            # the backend to prevent next_backend() from switching during env.reset().
+            # After inference, we unlock for subsequent training.
             collector = ts.data.Collector[CollectStats](self.algo, self.env, exploration_noise=False)
             collector.reset_buffer()
             result = collector.collect(**self.inference_kwargs)
 
-            # Restore switch_on_reset for subsequent training
-            if _saved_switch is not None:
-                self.backend.switch_on_reset = _saved_switch
+            # Unlock backend for subsequent training (if it was locked)
+            if isinstance(self.backend, SequentialBackend):
+                self.backend.unlock()
             
             n_steps = result.n_collected_steps 
             buffer = collector.buffer

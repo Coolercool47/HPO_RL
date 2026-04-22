@@ -1,12 +1,12 @@
-"""Multi-backend wrapper for training on multiple optimization tasks.
+"""Multi-backend wrapper for domain randomization in HPO RL training.
 
 :class:`SequentialBackend` holds a list of child backends and switches
-the active one between training epochs, improving the RL agent's
+the active one on each episode reset, improving the RL agent's
 generalization across different optimization landscapes.
 """
 
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from hpo_rl.backends.base import EvaluationBackend
 
@@ -25,22 +25,19 @@ def _backend_name(backend: EvaluationBackend) -> str:
 
 
 class SequentialBackend(EvaluationBackend):
-    """Wrapper that switches between child backends each training epoch.
+    """Wrapper that switches between child backends for domain randomization.
+
+    Each env.reset() triggers a switch to a (possibly different) backend,
+    ensuring mixed training batches across multiple optimization landscapes.
 
     Switching modes:
         - ``"random"``     — uniform random choice (default).
         - ``"sequential"`` — strict round-robin.
         - ``"shuffle"``    — random permutation; each backend seen once per round.
 
-    The controller calls :meth:`next_backend` once per epoch via
-    ``periodic_train_hook``.
-
     Args:
         backends: Child :class:`EvaluationBackend` instances.
         mode: ``"random"`` | ``"sequential"`` | ``"shuffle"``.
-        merged_bounds: Union of all child bounds ``{"x0": (lo, hi), ...}``
-            for linear remapping.  Not needed when the env sets
-            ``skip_remap = True`` via ``sync_bounds_to_backend``.
     """
 
     VALID_MODES = ("random", "sequential", "shuffle")
@@ -49,8 +46,6 @@ class SequentialBackend(EvaluationBackend):
         self,
         backends: List[EvaluationBackend],
         mode: str = "random",
-        merged_bounds: Optional[Dict[str, tuple]] = None,
-        switch_on_reset: bool = False,
     ) -> None:
         if not backends:
             raise ValueError("backends list must not be empty")
@@ -69,26 +64,14 @@ class SequentialBackend(EvaluationBackend):
         self.backends = backends
         self.mode = mode
         self._switch_count = 0
-        self._merged_bounds = merged_bounds
-        self.skip_remap = False
-        # If True, next_backend() is called on every env.reset() instead of
-        # once per epoch from periodic_train_hook. This ensures each episode
-        # in the batch can be on a different function (multi-task mixing).
-        self.switch_on_reset = switch_on_reset
-
-        # Per-child bounds dicts for remapping (merged→child)
-        self._child_bounds: List[Optional[Dict[str, tuple]]] = []
-        for b in backends:
-            if hasattr(b, "bounds") and hasattr(b, "dimensions"):
-                self._child_bounds.append(
-                    {f"x{i}": b.bounds for i in range(b.dimensions)}
-                )
-            else:
-                self._child_bounds.append(None)
 
         # Shuffle state
         self._shuffle_order: List[int] = []
         self._shuffle_pos: int = 0
+
+        # Lock state — when True, next_backend() is a no-op.
+        # Used during inference to keep a specific backend active.
+        self._locked: bool = False
 
         # Init backend is only used for Tianshou's initial test step
         # (before epoch 1). Training starts from the first next_backend()
@@ -112,7 +95,13 @@ class SequentialBackend(EvaluationBackend):
         return self.backends[self._current_idx]
 
     def next_backend(self) -> None:
-        """Switch to the next backend (called by controller once per epoch)."""
+        """Switch to the next backend (called by env.reset() for domain randomization).
+
+        No-op if backend is locked via set_active_backend().
+        """
+        if self._locked:
+            return
+
         self._switch_count += 1
 
         if self.mode == "sequential":
@@ -126,27 +115,34 @@ class SequentialBackend(EvaluationBackend):
             self._current_idx = random.randint(0, len(self.backends) - 1)
 
         self._sync_attributes()
-        print(f"[SequentialBackend] Epoch {self._switch_count}: switched to '{self.name}'")
 
-    def set_active_backend(self, idx: int) -> None:
-        """Manually set active backend by index (used for per-child inference)."""
+    def set_active_backend(self, idx: int, lock: bool = True) -> None:
+        """Manually set active backend by index (used for per-child inference).
+
+        Args:
+            idx: Index of the backend to activate.
+            lock: If True (default), locks the backend so next_backend() is a no-op.
+                  Call unlock() to re-enable automatic switching.
+        """
         if not 0 <= idx < len(self.backends):
             raise IndexError(
                 f"Backend index {idx} out of range [0, {len(self.backends)})"
             )
         self._current_idx = idx
+        self._locked = lock
         self._sync_attributes()
-        print(f"[SequentialBackend] Manually switched to '{self.name}' (idx={idx})")
+
+    def unlock(self) -> None:
+        """Re-enable automatic backend switching after set_active_backend()."""
+        self._locked = False
 
     # ------------------------------------------------------------------
     # Evaluation
     # ------------------------------------------------------------------
 
     def _evaluate(self, config: Dict[str, Any]) -> float:
-        if self.skip_remap:
-            return self.current_backend.evaluate(config)
-        remapped = self._remap_config(config)
-        return self.current_backend.evaluate(remapped)
+        """Delegate evaluation to current backend (no remapping needed)."""
+        return self.current_backend.evaluate(config)
 
     # ------------------------------------------------------------------
     # Cache delegation
@@ -216,29 +212,3 @@ class SequentialBackend(EvaluationBackend):
             order[0], order[swap_idx] = order[swap_idx], order[0]
         self._shuffle_order = order
         self._shuffle_pos = 0
-        names = [_backend_name(self.backends[i]) for i in order]
-        print(f"[SequentialBackend] New shuffle order: {', '.join(names)}")
-
-    def _remap_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Linearly remap values from merged bounds to current child bounds.
-
-        ``merged [lo_m, hi_m] → child [lo_c, hi_c]`` per key.
-        Returns config unchanged if merged or child bounds are absent.
-        """
-        child_bounds = self._child_bounds[self._current_idx]
-        if self._merged_bounds is None or child_bounds is None:
-            return config
-
-        remapped: Dict[str, Any] = {}
-        for key, val in config.items():
-            if key in self._merged_bounds and key in child_bounds:
-                m_lo, m_hi = self._merged_bounds[key]
-                c_lo, c_hi = child_bounds[key]
-                if m_hi - m_lo > 1e-12 and (m_lo != c_lo or m_hi != c_hi):
-                    t = (val - m_lo) / (m_hi - m_lo)
-                    remapped[key] = c_lo + t * (c_hi - c_lo)
-                else:
-                    remapped[key] = val
-            else:
-                remapped[key] = val
-        return remapped

@@ -129,17 +129,31 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         }
 
         self._setup_function()
-        print(f"{function_name}: dims={dimensions}, bounds={self.bounds}, opt={self.global_optimum_value:.6f}")
+        # Print bounds summary (show range if all same, or per-dim if asymmetric)
+        if all(b == self.bounds[0] for b in self.bounds):
+            bounds_str = f"{self.bounds[0]}"
+        else:
+            bounds_str = f"{self.bounds}"
+        print(f"{function_name}: dims={self.dimensions}, bounds={bounds_str}, opt={self.global_optimum_value:.6f}")
 
     def _setup_function(self) -> None:
         """Настраивает границы, оптимум и значение оптимума для выбранной функции.
 
         Автоматически определяет конфигурацию функции на основе её названия.
         Для 2D-функций автоматически устанавливает ``dimensions=2``.
+
+        Attributes set:
+            bounds: Per-dimension bounds as List[Tuple[float, float]].
+                    E.g., [(-5.0, 5.0), (-5.0, 5.0)] for 2D sphere.
+            global_optimum: Coordinates of global optimum (or None).
+            global_optimum_value: Value at global optimum.
+            hp_space: Dict for RL environment hp_space config.
         """
         d = self.dimensions
 
-        configs = {
+        # N-D functions with symmetric bounds: (lo, hi) applied to all dims
+        # Format: (single_bound_tuple, global_optimum, global_optimum_value)
+        configs_symmetric = {
             "sphere":           ((-5.0, 5.0),    np.zeros(d), 0.0),
             "rosenbrock":       ((-1.0, 1.0),    np.ones(d), 0.0),
             "rastrigin":        ((-5.12, 5.12),  np.zeros(d),           0.0),
@@ -152,16 +166,24 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         }
 
         # 2D-only функции
-        if self.function_name in ("booth", "beale", "goldstein_price", "bukin_n6", "cross_in_tray", "drop_wave", "eggholder", "holder_table", "schaffer_n2", "schaffer_n4", "shubert", "dejong_n5", "easom", "levy_n13", "langermann"):
+        _2D_ONLY = ("booth", "beale", "goldstein_price", "bukin_n6", "cross_in_tray",
+                    "drop_wave", "eggholder", "holder_table", "schaffer_n2",
+                    "schaffer_n4", "shubert", "dejong_n5", "easom", "levy_n13", "langermann")
+        if self.function_name in _2D_ONLY:
             if d != 2:
                 print(f"{self.function_name} только для 2D, принимается dimensions=2")
                 self.dimensions = 2
+                d = 2
 
+        # 2D functions: most have symmetric bounds, but some are asymmetric
+        # Format for symmetric: (single_bound_tuple, global_optimum, global_optimum_value)
+        # Format for asymmetric: (per_dim_bounds_list, global_optimum, global_optimum_value)
         configs_2d = {
             "booth":           ((-10.0, 10.0), np.array([1.0, 3.0]),  0.0),
             "beale":           ((-4.5, 4.5),   np.array([3.0, 0.5]),  0.0),
             "goldstein_price": ((-2.0, 2.0),   np.array([0.0, -1.0]), 3.0),
-            "bukin_n6":        ((-15.0, 3.0),  np.array([-10.0, 1.0]), 0.0),
+            # bukin_n6: x ∈ [-15, -5], y ∈ [-3, 3] — ASYMMETRIC!
+            "bukin_n6":        ([(-15.0, -5.0), (-3.0, 3.0)], np.array([-10.0, 1.0]), 0.0),
             "cross_in_tray":   ((-10.0, 10.0), np.array([1.34941, 1.34941]), -2.06261),
             "drop_wave":       ((-5.12, 5.12), np.array([0.0, 0.0]), -1.0),
             "eggholder":       ((-512.0, 512.0), np.array([512.0, 404.2319]), -959.6407),
@@ -175,15 +197,25 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             "langermann":      ((0.0, 10.0), np.array([9.681, 4.774]), -1.493),
         }
 
+        # Get raw config
         if self.function_name in configs_2d:
-            self.bounds, self.global_optimum, self.global_optimum_value = configs_2d[self.function_name]
-        elif self.function_name in configs:
-            self.bounds, self.global_optimum, self.global_optimum_value = configs[self.function_name]
+            raw_bounds, self.global_optimum, self.global_optimum_value = configs_2d[self.function_name]
+        elif self.function_name in configs_symmetric:
+            raw_bounds, self.global_optimum, self.global_optimum_value = configs_symmetric[self.function_name]
         else:
             raise ValueError(f"Неизвестная функция: {self.function_name}")
 
+        # Normalize bounds to per-dimension list: List[Tuple[float, float]]
+        if isinstance(raw_bounds, list):
+            # Already per-dimension (asymmetric case)
+            self.bounds = raw_bounds
+        else:
+            # Single tuple — expand to all dimensions
+            self.bounds = [raw_bounds] * self.dimensions
+
+        # Build hp_space from per-dimension bounds
         self.hp_space = {
-            f"x{i}": {"values": [float(self.bounds[0]), float(self.bounds[1])], "type": "float", "log": False}
+            f"x{i}": {"values": [float(self.bounds[i][0]), float(self.bounds[i][1])], "type": "float", "log": False}
             for i in range(self.dimensions)
         }
 

@@ -24,7 +24,7 @@ class plot_and_save():
         backend: выбранный `backend`
     
     """
-    def __init__(self, history, best_result, save_path, backend, experiment_number = 0, merged_bounds = None): #Сделать experiment_number - optional
+    def __init__(self, history, best_result, save_path, backend, experiment_number=0):
         """Инициализация plot_and_save
 
         Args:
@@ -33,51 +33,13 @@ class plot_and_save():
             save_path: папка для сохранения таблиц и изображений
             backend: выбранный `backend`
             experiment_number: номер экперимента
-            merged_bounds: объединённые границы из SequentialBackend для ремаппинга координат
         
         """
         self.best_result = best_result
         self.save_path = save_path
         self.backend = backend
         self.experiment_number = experiment_number
-        self.merged_bounds = merged_bounds
-
-        # Если переданы merged_bounds и backend имеет свои bounds —
-        # ремапим координаты из merged в child bounds и пересчитываем метрики
-        if merged_bounds and hasattr(backend, 'bounds') and hasattr(backend, 'dimensions'):
-            self.history = self._remap_history(history)
-        else:
-            self.history = history
-
-    def _remap_history(self, history):
-        """Ремапит координаты из merged bounds в bounds текущего backend и пересчитывает метрики.
-
-        Returns:
-            Новая history с ремапленными координатами и пересчитанными метриками.
-        """
-        child_bounds_map = {}
-        for i in range(self.backend.dimensions):
-            key = f"x{i}"
-            child_bounds_map[key] = self.backend.bounds
-
-        remapped_history = []
-        for config, _metric in history:
-            new_config = {}
-            for key, val in config.items():
-                if key in self.merged_bounds and key in child_bounds_map:
-                    m_lo, m_hi = self.merged_bounds[key]
-                    c_lo, c_hi = child_bounds_map[key]
-                    if m_hi - m_lo > 1e-12 and (m_lo != c_lo or m_hi != c_hi):
-                        t = (val - m_lo) / (m_hi - m_lo)
-                        new_config[key] = c_lo + t * (c_hi - c_lo)
-                    else:
-                        new_config[key] = val
-                else:
-                    new_config[key] = val
-            # Пересчитываем метрику через child backend
-            new_metric = self.backend.evaluate(new_config)
-            remapped_history.append((new_config, new_metric))
-        return remapped_history
+        self.history = history
 
     def plot_3d(self, suffix=""):
         """Функция, создающая изображение функции на плоскости и в трехмерии.
@@ -97,9 +59,11 @@ class plot_and_save():
             'truncated_plasma', original_plasma(np.linspace(0, 0.85, 256))
         )
 
+        # bounds is now List[Tuple[float, float]], per-dimension
         bounds = self.backend.bounds
-        grid = np.linspace(bounds[0], bounds[1], 100)
-        X0, X1 = np.meshgrid(grid, grid)
+        grid_x0 = np.linspace(bounds[0][0], bounds[0][1], 100)
+        grid_x1 = np.linspace(bounds[1][0], bounds[1][1], 100) if len(bounds) > 1 else grid_x0
+        X0, X1 = np.meshgrid(grid_x0, grid_x1)
         Z = np.zeros_like(X0)
         for i in range(X0.shape[0]):
             for j in range(X0.shape[1]):
@@ -319,6 +283,28 @@ class plot_and_save():
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(latex_table)
         print(f"Saved TEX history: {out_path}")
+
+    def save_intermediate_csv(self, suffix=""):
+        """Сохраняет промежуточные результаты в CSV (без LaTeX/графиков).
+
+        Используется для checkpoint'ов во время оптимизации
+        и при сохранении после KeyboardInterrupt.
+
+        Args:
+            suffix: дополнительный суффикс для имени файла.
+        """
+        if not self.history:
+            return
+        data = []
+        for i, (params, score) in enumerate(self.history, 1):
+            row = {"Iteration": i}
+            row.update(params)
+            row["Objective"] = score
+            data.append(row)
+        df = pd.DataFrame(data).set_index("Iteration")
+        out_path = self.save_path / f"intermediate_results_{self.experiment_number}{suffix}.csv"
+        df.to_csv(out_path)
+        print(f"Saved intermediate CSV: {out_path}")
 
     def save_hmm_history(self, history_table, suffix=""):
         """Сохраняет таблицу состояний HMM MCMC в CSV.

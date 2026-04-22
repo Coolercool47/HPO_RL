@@ -4,6 +4,7 @@ import itertools
 
 from typing import Dict, Any, Optional, List
 from hpo_rl.backends.base import EvaluationBackend
+from hpo_rl.backends.sequential import SequentialBackend
 from hpo_rl.environments.base_env import BaseHPOEnv
 
 class CyclicPipelineEnvNew(BaseHPOEnv):
@@ -81,6 +82,29 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
             if entry["type"] in ("float", "int") and "values" not in entry:
                 self.hp_space_config[hp_name]["values"] = [entry["min"], entry["max"]]
 
+    def sync_bounds_to_backend(self) -> None:
+        """Синхронизирует ``hp_lin_spaces`` с текущим дочерним бэкендом.
+
+        Вызывается из ``reset()`` при использовании ``SequentialBackend``.
+        Пересоздаёт linspace-сетки для float-параметров по native bounds
+        текущей функции, чтобы агент работал в правильном масштабе
+        (а не в объединённых merged bounds).
+        """
+        if not isinstance(self.backend, SequentialBackend):
+            return
+        cb = self.backend.current_backend
+        if not hasattr(cb, 'bounds') or not hasattr(cb, 'dimensions'):
+            return
+        for i, hp_name in enumerate(self.hp_space_config):
+            if i >= len(cb.bounds):
+                break
+            info = self.hp_space_config[hp_name]
+            if info["type"] == "float":
+                lo, hi = cb.bounds[i]
+                self.hp_lin_spaces[hp_name] = np.linspace(
+                    lo, hi, num=self.num_bins, dtype=np.float32
+                )
+
     def _init_action_space(self):
         self.step_sizes = [-i for i in self.step_sizes] + [0] + self.step_sizes
         self.step_sizes = sorted(self.step_sizes)
@@ -108,6 +132,12 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed, options=options)
+
+        # Domain randomization: switch to next backend on each episode reset.
+        # Called BEFORE sync_bounds_to_backend so bounds match the new function.
+        if isinstance(self.backend, SequentialBackend):
+            self.backend.next_backend()
+        self.sync_bounds_to_backend()
 
         self.current_hyp_setup = {}
         self.best_config_so_far = {}

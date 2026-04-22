@@ -165,7 +165,7 @@ if __name__ == "__main__":
             },
             "num_training_envs": 20, 
             "num_test_envs": 20,
-            "load_checkpoint": "log/ppo/20260227-162201/final_policy.pth",
+            # "load_checkpoint": "log/ppo/20260422-155908/final_policy.pth",
 
         },
         "env": {
@@ -179,12 +179,12 @@ if __name__ == "__main__":
         },
         "backend": {
             "name": "sequential",
-            "mode": "random",  # по умолчанию
+            "mode": "shuffle",  # по умолчанию
             "backends": [
                 {"name": "function", "function": "rastrigin", "dimensions": 2},
                 {"name": "function", "function": "rosenbrock", "dimensions": 2},
                 {"name": "function", "function": "schwefel", "dimensions": 2},
-                # {"name": "function", "function": "goldstein_price", "dimensions": 2},
+                # {"name": "function", "function": "goldstein_price", "dimensions": 10},
             ]
         }
     }
@@ -219,9 +219,9 @@ if __name__ == "__main__":
             },
             "trainer":
             {
-                "max_epochs": 20,
+                "max_epochs": 100,
                 "epoch_num_steps": 4000,
-                "batch_size": 64,
+                "batch_size": 20,
                 "collection_step_num_env_steps": 2000,
                 "update_step_num_repetitions": 10,
                 "test_step_num_episodes": 20,
@@ -247,14 +247,13 @@ if __name__ == "__main__":
         "env": {
             "name": "instant_continuous_pipeline",
             "max_delta_frac": 0.3,
-            "max_steps": 200,
+            "max_steps": 50,
             "history_window": 3,
             "reward_mode": "absolute",
         },
         "backend": {
             "name": "sequential",
             "mode": "shuffle",
-            "switch_on_reset": True,
             "backends": [
                 {"name": "function", "function": "rastrigin", "dimensions": 2},
                 {"name": "function", "function": "rosenbrock", "dimensions": 2},
@@ -400,7 +399,6 @@ if __name__ == "__main__":
     "backend": {
             "name": "sequential",
             "mode": "shuffle",
-            "switch_on_reset": True,
             "backends": [
                 {"name": "function", "function": "rastrigin", "dimensions": 2},
                 {"name": "function", "function": "rosenbrock", "dimensions": 2},
@@ -652,4 +650,4 @@ if __name__ == "__main__":
         }
     }
 
-    run_n_experiments(config_dqn, 3, inference_only=False)
+    run_n_experiments(config_continuous_ppo, 3, inference_only=False)

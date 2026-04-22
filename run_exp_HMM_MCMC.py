@@ -97,7 +97,7 @@ config_HMM = {
     "full_args": {
         "algorithm": {
             "name": "HMM_MCMC",
-            "budget": 400,
+            "budget": 800,
             "n_init": 5,           # было 5 — 20 Sobol-точек даёт достаточное покрытие 10D
             "n_chains": 1,
             "orchestrate_every": 1000, # было 1000 (> budget) — оркестратор не срабатывал никогда
@@ -111,11 +111,12 @@ config_HMM = {
             "clone_noise": 0.05,
             "burnin_fraction": 0.0,
             "p_cat_step": 0.0,
+            "kde_tau": 0.05,
             "anneal_T": True
         }
     },
     "backend": {
-        "name": "function", "function": "schwefel", "dimensions": 2, "noise_std": 0
+        "name": "function", "function": "schwefel", "dimensions": 10, "noise_std": 0
     }
 }
 
@@ -125,14 +126,33 @@ config_TPE = {
             "name": "TPE",
             "N_init": 5,
             "N_s": 20,
-            "budget": 400,
+            "budget": 800,
             "separation_value": 0.2
         }
     },
-    "backend":  {
-        "name": "function", "function": "rastrigin", "dimensions": 10, "noise_std": 0
-    }
+    "backend": {
+        "name": "objective",
+        "objective_function": objective_function,
+        "hp_space": {
+            "lr": {
+                "type": "float", 
+                "values": [1e-6,1e-2]
+            },
+            "batch_size": {
+                "type": "categorical", 
+                "values": [32, 64, 128]
+            },
+            "optimizer": {
+                "type": "categorical", 
+                "values": ["Adam", "SGD"]
+            },
+            "n_params": {
+                "type": "categorical", 
+                "values": [16, 32, 64] 
+            }
+        }
+    },
 }
 
 if __name__ == "__main__":
-    run_n_experiments(config_HMM, n_experiments=5, inference_only=False)
+    run_n_experiments(config_HMM, n_experiments=3, inference_only=False)

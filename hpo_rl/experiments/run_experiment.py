@@ -53,7 +53,49 @@ def run_n_experiments(config, n_experiments, inference_only=False):
         if mode == "baseline" and i_experiment > 0:
             if hasattr(expreiment_controller.algorithm, "reset"):
                 expreiment_controller.algorithm.reset()
-        best_result = expreiment_controller.inference()
+        try:
+            best_result = expreiment_controller.inference()
+        except KeyboardInterrupt:
+            print("\n\n>>> KeyboardInterrupt: сохранение промежуточных результатов...")
+            # Извлекаем частичную историю из алгоритма
+            partial_history = None
+            if mode == "baseline" and hasattr(expreiment_controller, 'algorithm'):
+                alg = expreiment_controller.algorithm
+                if hasattr(alg, 'data') and alg.data:
+                    if expreiment_controller.backend.maximize:
+                        partial_history = [(cfg, -s) for cfg, s in alg.data]
+                    else:
+                        partial_history = list(alg.data)
+            elif hasattr(expreiment_controller, 'history') and expreiment_controller.history:
+                partial_history = expreiment_controller.history
+
+            if partial_history:
+                is_max = expreiment_controller.backend.maximize
+                best_partial = (max if is_max else min)(partial_history, key=lambda x: x[-1])
+                outputs = plot_and_save(
+                    partial_history, best_partial, save_path,
+                    expreiment_controller.backend, experiment_number=i_experiment
+                )
+                outputs.save_intermediate_csv(suffix="_interrupted")
+                outputs.save_history(as_latex=False, suffix="_interrupted")
+                outputs.plot_trajectory(suffix="_interrupted")
+                hmm_table = getattr(
+                    getattr(expreiment_controller, 'algorithm', None),
+                    'history_table', None
+                )
+                if hmm_table:
+                    outputs.save_hmm_history(hmm_table, suffix="_interrupted")
+                print(f"  Сохранено {len(partial_history)} результатов в {save_path}")
+            else:
+                print("  Нет данных для сохранения.")
+
+            # Сохраняем конфиг
+            config_file = save_path / "config.json"
+            with open(config_file, "w") as f:
+                json.dump(config, f, indent=4, default=str)
+            print(f"  Saved config: {config_file}")
+            return
+
         history = expreiment_controller.return_history()
         rewards = expreiment_controller.return_rewards()
         outputs = plot_and_save(history, best_result, save_path, expreiment_controller.backend, experiment_number=i_experiment)
@@ -62,13 +104,6 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             
         if backend_name == "sequential":
             backend = expreiment_controller.backend
-            merged_bounds = getattr(backend, '_merged_bounds', None)
-
-            # Если env использует sync_bounds_to_backend (InstantContinuousPipelineEnv),
-            # координаты в history уже в native bounds дочернего бэкенда — ремап не нужен.
-            raw_env = getattr(expreiment_controller.env, 'unwrapped', expreiment_controller.env)
-            env_has_native_bounds = hasattr(raw_env, 'sync_bounds_to_backend')
-            child_merged_bounds = None if env_has_native_bounds else merged_bounds
 
             # Для каждого дочернего бэкенда — отдельный inference
             seen_names = {}
@@ -79,7 +114,7 @@ def run_n_experiments(config, n_experiments, inference_only=False):
                     continue
                 seen_names[fn_name] = child_idx
 
-                # Переключаем SequentialBackend на этого child
+                # Переключаем SequentialBackend на этого child (locks switching)
                 backend.set_active_backend(child_idx)
                 # Отдельный inference на этом child
                 child_best = expreiment_controller.inference()
@@ -90,7 +125,6 @@ def run_n_experiments(config, n_experiments, inference_only=False):
                 child_outputs = plot_and_save(
                     child_history, child_best, save_path, child,
                     experiment_number=i_experiment,
-                    merged_bounds=child_merged_bounds,
                 )
                 if isinstance(child, OptimizationBenchmarkBackend) and child.dimensions == 2:
                     child_outputs.plot_3d(suffix=suffix)
@@ -105,9 +139,10 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             outputs.plot_reward(rewards)
 
         # Сохраняем HMM history, если алгоритм — HMM_MCMC
-        hmm_table = getattr(expreiment_controller.algorithm, 'history_table', None)
-        if hmm_table:
-            outputs.save_hmm_history(hmm_table)
+        if hasattr(expreiment_controller, "algorithm"):
+            hmm_table = getattr(expreiment_controller.algorithm, 'history_table', None)
+            if hmm_table:
+                outputs.save_hmm_history(hmm_table)
 
         full_history.append(history)
 

@@ -212,10 +212,9 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         Вызывается из ``reset()`` при использовании ``SequentialBackend``.
         Env переходит на **native** bounds текущего дочернего бэкенда,
         чтобы агент работал в правильном масштабе для каждой функции.
-        Ремаппинг в ``SequentialBackend._evaluate()`` при этом не нужен —
-        координаты уже в native bounds. Устанавливает ``backend.skip_remap = True``.
-        """
 
+        Поддерживает per-dimension bounds (e.g., bukin_n6 с асимметричными bounds).
+        """
         if not isinstance(self.backend, SequentialBackend):
             return
 
@@ -223,14 +222,13 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         if not hasattr(cb, 'bounds') or not hasattr(cb, 'dimensions'):
             return
 
-        child_lo, child_hi = cb.bounds
-        self._lo = np.full(self.num_hyperparams, child_lo, dtype=np.float64)
-        self._hi = np.full(self.num_hyperparams, child_hi, dtype=np.float64)
+        # bounds is now List[Tuple[float, float]], one per dimension
+        for i in range(min(self.num_hyperparams, len(cb.bounds))):
+            self._lo[i] = cb.bounds[i][0]
+            self._hi[i] = cb.bounds[i][1]
+
         self._range = self._hi - self._lo
         self._max_delta = self.max_delta_frac * self._range
-
-        # Отключаем ремаппинг — координаты уже в native bounds
-        self.backend.skip_remap = True
 
     # ------------------------------------------------------------------
     # Reset
@@ -238,10 +236,9 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         super().reset(seed=seed, options=options)
 
-        # Переключаем дочерний бэкенд на следующий (episode-level switching).
-        # Вызывается ПЕРЕД sync_bounds_to_backend, чтобы bounds соответствовали
-        # уже новой функции — это гарантирует смешанные батчи в каждом collect.
-        if isinstance(self.backend, SequentialBackend) and self.backend.switch_on_reset:
+        # Domain randomization: switch to next backend on each episode reset.
+        # Called BEFORE sync_bounds_to_backend so bounds match the new function.
+        if isinstance(self.backend, SequentialBackend):
             self.backend.next_backend()
 
         # Синхронизируем bounds с текущим дочерним бэкендом (SequentialBackend)
