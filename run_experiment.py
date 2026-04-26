@@ -194,10 +194,10 @@ if __name__ == "__main__":
             "algorithm":
             {
                 "name": "ppo",
-                "gamma": 0.99,
+                "gamma": 0.97,
                 "gae_lambda": 0.95,
                 "vf_coef": 0.5,
-                "ent_coef": 0.05,
+                "ent_coef": 0.01,
                 "max_grad_norm": 0.5,
                 "value_clip": True,
                 "return_scaling": True,
@@ -214,8 +214,7 @@ if __name__ == "__main__":
                 "actor": ContinuousActorProbabilistic,
                 "critic": ContinuousCritic,
                 "net": Net,
-                "hidden_sizes": [256, 256],
-                "norm_layer": nn.LayerNorm,
+                "hidden_sizes": [256, 256, 256],
             },
             "trainer":
             {
@@ -232,9 +231,9 @@ if __name__ == "__main__":
                 "dist_fn": lambda mu_sigma: torch.distributions.Independent(
                     torch.distributions.Normal(*mu_sigma), 1
                 ),
-                "action_scaling": False,
-                "action_bound_method": "tanh",
-                "actor_kwargs": {"unbounded": True, "conditioned_sigma": True},
+                "action_scaling": True,       
+                "action_bound_method": "clip", 
+                "actor_kwargs": {"unbounded": True, "conditioned_sigma": False  },
             },
             "inference":
             {
@@ -246,10 +245,13 @@ if __name__ == "__main__":
         },
         "env": {
             "name": "instant_continuous_pipeline",
-            "max_delta_frac": 0.3,
-            "max_steps": 50,
-            "history_window": 3,
+            "max_delta_frac": 0.05,
+            "max_steps": 200,
+            "history_window": 1,
             "reward_mode": "absolute",
+            "terminate_on_oob": False,   
+            "oob_penalty": -10.0,
+            "oob_tolerance": 3,                
         },
         "backend": {
             "name": "sequential",

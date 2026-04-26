@@ -101,29 +101,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         self._normalize_hp_space()
         self._validate_only_continuous()
 
-        self.max_delta_frac = max_delta_frac
-        self.max_steps_limit = max_steps
-        self.obs_mode = obs_mode
-        self.history_window = history_window
-        self.reward_mode = reward_mode
-        self.oob_penalty = oob_penalty
-        self.terminate_on_oob = terminate_on_oob
-        self.oob_tolerance = oob_tolerance
-
-        self.num_hyperparams = len(self.hp_names)
-        self.step_num_total = 0
-
-        # Текущие непрерывные значения параметров
-        self.current_hyp_setup: Dict[str, float] = {}
-        self.best_config_so_far: Dict[str, float] = {}
-        self.best_raw_metric = float("-inf") if self.backend.maximize else float("inf")
-        self.current_raw_metric = float("-inf") if self.backend.maximize else float("inf")
-        self.raw_metric = 0.0
-        self.reward = 0.0
-        self._initial_metric = 0.0  # для improvement reward mode
-        self._ema_abs_delta = 1.0  # EMA для адаптивного масштаба (bounded mode)
-
-        # Диапазоны
         self._lo = np.array(
             [self.hp_space_config[n]["values"][0] for n in self.hp_names],
             dtype=np.float64,
@@ -132,6 +109,18 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
             [self.hp_space_config[n]["values"][1] for n in self.hp_names],
             dtype=np.float64,
         )
+
+        # Also initialize max_delta_frac, max_steps BEFORE calling _init_action_space
+        self.max_delta_frac = max_delta_frac
+        self.max_steps_limit = max_steps
+        self.obs_mode = obs_mode
+        self.history_window = history_window
+        self.reward_mode = reward_mode
+        self.oob_penalty = oob_penalty
+        self.terminate_on_oob = terminate_on_oob
+        self.oob_tolerance = oob_tolerance
+        
+        self.num_hyperparams = len(self.hp_names)
         self._range = self._hi - self._lo
         self._max_delta = self.max_delta_frac * self._range  # вектор max_delta
 
@@ -140,6 +129,18 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
             [self.hp_space_config[n]["type"] == "int" for n in self.hp_names],
             dtype=bool,
         )
+
+        # Состояние эпизода (согласованные значения до первого reset — для безопасного доступа)
+        self.step_num_total = 0
+        self.current_hyp_setup: Dict[str, float] = {}
+        self.best_config_so_far: Dict[str, float] = {}
+        self.best_raw_metric = float("-inf") if self.backend.maximize else float("inf")
+        self.current_raw_metric = float("-inf") if self.backend.maximize else float("inf")
+        self.raw_metric = 0.0
+        self.reward = 0.0
+        self._initial_metric: Optional[float] = None
+        self._ema_abs_delta = 1.0
+        self.prev_raw_metric: Optional[float] = None
 
         self._init_action_space()
         self._init_observation_space()
@@ -249,6 +250,7 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         self.best_raw_metric = float("-inf") if self.backend.maximize else float("inf")
         self.current_raw_metric = float("-inf") if self.backend.maximize else float("inf")
         self.prev_raw_metric = None
+        self._initial_metric = None
 
         self.step_num_total = 0
         self._out_of_bounds = False
@@ -261,25 +263,22 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
             )
 
         self._spawn()
-        # Evaluate initial metric BEFORE _compute_reward so scale is correct
-        self._initial_metric = self.backend.evaluate(self.current_hyp_setup)
-        self.raw_metric = self._initial_metric
-        self.current_raw_metric = self._initial_metric
-        # Set best to initial so best_improvement doesn't get inf delta
-        self.best_raw_metric = self._initial_metric
-        self.best_config_so_far = self.current_hyp_setup.copy()
-        self.prev_raw_metric = self._initial_metric
         self._ema_abs_delta = 1.0  # reset EMA each episode
+
         self._compute_reward()
+
         # First step reward should be 0 for delta-based modes (no change yet)
         if self.reward_mode in ("delta", "relative_delta", "potential", "guided",
-                                "bounded", "ternary"):
+                                "bounded", "ternary", "abs_positive_delta"):
             self.reward = 0.0
 
-        # Заполняем историю начальным состоянием
+        # Заполняем историю начальным состоянием (текущие params + reward, все строки — как new_cycle)
         if self.history_window > 0:
-            entry = np.concatenate([self._current_param_vec(), [self.reward]])
-            self._history_buf[:] = entry
+            entry = np.concatenate([self._current_param_vec(), [self.reward]], dtype=np.float32)
+            self._history_buf[:, :] = np.tile(entry, (self.history_window, 1))
+
+        # #region agent log (removed verbose obs logging)
+        # #endregion
 
         return self._get_obs(), self._get_info()
 
@@ -304,9 +303,9 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         if self._out_of_bounds:
             self._oob_consecutive_count += 1
             reward += self.oob_penalty * self._oob_violation_frac
-            self.reward = reward
         else:
             self._oob_consecutive_count = 0
+        self.reward = reward
 
         observation = self._get_obs()
         info = self._get_info()
@@ -321,13 +320,26 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
     # ------------------------------------------------------------------
     # Action
     # ------------------------------------------------------------------
+    _dbg_action_count = 0
+
     def _take_action(self, action):
         """Применяет multi-dim действие ко всем гиперпараметрам одновременно.
 
         ``action[i]`` ∈ [-1, 1] масштабируется в ``[-max_delta_i, +max_delta_i]``
         и прибавляется к текущему значению параметра i.
         """
-        action = np.asarray(action, dtype=np.float32).flatten()
+        # Clip to [-1, 1] (Tianshou also maps raw actions to this range via
+        # Policy.map_action when action_bound_method is set, e.g. tanh).
+        action = np.clip(np.asarray(action, dtype=np.float32).flatten(), -1.0, 1.0)
+
+        # #region agent log
+        InstantContinuousPipelineEnv._dbg_action_count += 1
+        _c = InstantContinuousPipelineEnv._dbg_action_count
+        if _c <= 3 or _c % 50000 == 0:
+            import json as _json, time as _time, os as _os
+            _log_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), "debug-e46846.log")
+            with open(_log_path, "a") as _f: _f.write(_json.dumps({"sessionId":"e46846","hypothesisId":"H8_H9_H10_H11","location":"env._take_action","message":"Action values","data":{"action": action.tolist(), "abs_mean": float(np.mean(np.abs(action))), "max_abs": float(np.max(np.abs(action))), "step": self.step_num_total, "count": _c},"timestamp":int(_time.time()*1000)}) + "\n")
+        # #endregion
 
         current_vals = np.array(
             [self.current_hyp_setup[n] for n in self.hp_names], dtype=np.float64
@@ -343,13 +355,12 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         # Нормализуем нарушение по _max_delta (action=1 у стены → violation_frac=1)
         safe_max_delta = np.where(self._max_delta > 0, self._max_delta, 1.0)
         self._oob_violation_frac = float(np.max(violation / safe_max_delta))
-        # self._oob_violation_frac = violation
 
         self._out_of_bounds = self._oob_violation_frac > 0
 
         new_vals = np.clip(raw_new_vals, self._lo, self._hi)
 
-        # Округляем int параметры
+        # Округляем int параметры - ПОСЛЕ клиппинга
         if np.any(self._is_int):
             new_vals[self._is_int] = np.round(new_vals[self._is_int])
 
@@ -363,7 +374,7 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         for i, hp_name in enumerate(self.hp_names):
             lo = float(self._lo[i])
             hi = float(self._hi[i])
-            val = np.random.uniform(lo, hi)
+            val = float(self.np_random.uniform(lo, hi))
             if self._is_int[i]:
                 val = float(round(val))
             self.current_hyp_setup[hp_name] = val
@@ -387,7 +398,12 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
 
     def _compute_reward(self):
         self.raw_metric = self.backend.evaluate(self.current_hyp_setup)
+        if self._initial_metric is None:
+            self._initial_metric = self.raw_metric
         self.current_raw_metric = self.raw_metric
+        if self.prev_raw_metric is None:
+            # Первый eval эпизода: «предыдущая» метрика = текущей (дельта 0 в delta/bounded/…)
+            self.prev_raw_metric = self.raw_metric
 
         scale = abs(self._to_reward(self._initial_metric)) + 1.0
 
@@ -545,6 +561,10 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
                 self.best_config_so_far = self.current_hyp_setup.copy()
         else:
             warnings.warn("no mode selected")
+
+        # #region agent log (removed verbose reward logging)
+        # #endregion
+
         return self.reward
 
     # ------------------------------------------------------------------
@@ -565,13 +585,14 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         param_vec = self._current_param_vec()
 
         # Bounded metric signals — не зависят от масштаба функции
-        ema = self._ema_abs_delta + 1e-8
+        init_scale = abs(self._to_reward(self._initial_metric)) + 1.0
         gap = self._to_reward(self.raw_metric) - self._to_reward(self.best_raw_metric)
+        
+        # FIX: use init_scale instead of ema to prevent catastrophic tanh saturation in non-bounded modes
         obs_gap = np.array(
-            [np.tanh(gap / ema)], dtype=np.float32
+            [np.tanh(gap / init_scale)], dtype=np.float32
         )
 
-        init_scale = abs(self._to_reward(self._initial_metric)) + 1.0
         progress = self._to_reward(self.raw_metric) - self._to_reward(self._initial_metric)
         obs_progress = np.array(
             [np.tanh(progress / init_scale)], dtype=np.float32

@@ -126,10 +126,25 @@ class controller():
 
             # On-Policy Actor-Critic (PPO, A2C...)
             if alg_name in ON_POLICY_AC or alg_name in OFF_POLICY_SINGLE_AC:
-                net_a = NetClass(state_shape=state_shape, action_shape = action_shape, **net_params)
-                net_c = NetClass(state_shape=state_shape, action_shape = action_shape, **net_params)
+                net_a = NetClass(state_shape=state_shape, action_shape=0, **net_params)
+                net_c = NetClass(state_shape=state_shape, action_shape=0, **net_params)
+                
+                # #region agent log
+                import json as _json, time as _time, os as _os
+                _log_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), "debug-e46846.log")
+                with open(_log_path, "a") as _f: _f.write(_json.dumps({"sessionId":"e46846","hypothesisId":"H1_bottleneck","location":"controller.py:net_creation","message":"Net output_dim after creation","data":{"net_a_output_dim": net_a.output_dim, "net_c_output_dim": net_c.output_dim, "action_shape": str(action_shape), "state_shape": state_shape, "NetClass": NetClass.__name__},"timestamp":int(_time.time()*1000)}) + "\n")
+                # #endregion
                 
                 actor = ActorClass(preprocess_net=net_a, action_shape=action_shape, **actor_kwargs)
+                
+                # #region agent log
+                _actor_info = {"actor_class": ActorClass.__name__, "actor_kwargs": str(actor_kwargs)}
+                if hasattr(actor, 'sigma_param'):
+                    _actor_info["has_sigma_param"] = True
+                if hasattr(actor, 'sigma'):
+                    _actor_info["sigma_type"] = str(type(actor.sigma))
+                with open(_log_path, "a") as _f: _f.write(_json.dumps({"sessionId":"e46846","hypothesisId":"H12_sigma","location":"controller.py:actor_created","message":"Actor configuration","data":_actor_info,"timestamp":int(_time.time()*1000)}) + "\n")
+                # #endregion
                 critic = CriticClass(preprocess_net=net_c)
                 
                 _policy = PolicyClass(actor=actor, action_space=self.env.action_space, **PolicyParams)
