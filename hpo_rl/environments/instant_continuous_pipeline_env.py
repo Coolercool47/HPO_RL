@@ -277,9 +277,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
             entry = np.concatenate([self._current_param_vec(), [self.reward]], dtype=np.float32)
             self._history_buf[:, :] = np.tile(entry, (self.history_window, 1))
 
-        # #region agent log (removed verbose obs logging)
-        # #endregion
-
         return self._get_obs(), self._get_info()
 
     # ------------------------------------------------------------------
@@ -320,8 +317,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
     # ------------------------------------------------------------------
     # Action
     # ------------------------------------------------------------------
-    _dbg_action_count = 0
-
     def _take_action(self, action):
         """Применяет multi-dim действие ко всем гиперпараметрам одновременно.
 
@@ -331,15 +326,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
         # Clip to [-1, 1] (Tianshou also maps raw actions to this range via
         # Policy.map_action when action_bound_method is set, e.g. tanh).
         action = np.clip(np.asarray(action, dtype=np.float32).flatten(), -1.0, 1.0)
-
-        # #region agent log
-        InstantContinuousPipelineEnv._dbg_action_count += 1
-        _c = InstantContinuousPipelineEnv._dbg_action_count
-        if _c <= 3 or _c % 50000 == 0:
-            import json as _json, time as _time, os as _os
-            _log_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(__file__))), "debug-e46846.log")
-            with open(_log_path, "a") as _f: _f.write(_json.dumps({"sessionId":"e46846","hypothesisId":"H8_H9_H10_H11","location":"env._take_action","message":"Action values","data":{"action": action.tolist(), "abs_mean": float(np.mean(np.abs(action))), "max_abs": float(np.max(np.abs(action))), "step": self.step_num_total, "count": _c},"timestamp":int(_time.time()*1000)}) + "\n")
-        # #endregion
 
         current_vals = np.array(
             [self.current_hyp_setup[n] for n in self.hp_names], dtype=np.float64
@@ -561,9 +547,6 @@ class InstantContinuousPipelineEnv(BaseHPOEnv):
                 self.best_config_so_far = self.current_hyp_setup.copy()
         else:
             warnings.warn("no mode selected")
-
-        # #region agent log (removed verbose reward logging)
-        # #endregion
 
         return self.reward
 

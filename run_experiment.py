@@ -6,7 +6,9 @@ from hpo_rl.nets.recurrent_net import RecurrentBaseNet
 from hpo_rl.nets.recurrent_actor import MaskedRecurrentDiscreteActor
 from hpo_rl.nets.recurrent_critic import RecurrentCritic
 from hpo_rl.nets.masked_recurrent_net import MaskedRecurrentNet
+from hpo_rl.nets.gradient_monitor import GradientMonitoredNet
 from torch.optim import Adam
+import tianshou.algorithm.optim as opt
 from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
 from tianshou.algorithm.modelfree.dqn import DiscreteQLearningPolicy
 from tianshou.algorithm.modelfree.c51 import C51Policy
@@ -17,7 +19,7 @@ from tianshou.utils.net.continuous import ContinuousCritic
 import torch
 from tianshou.utils.net.common import Net
 from tianshou.utils.net.common import Recurrent
-from tianshou.algorithm.modelfree.sac import SACPolicy
+from tianshou.algorithm.modelfree.sac import SACPolicy, AutoAlpha
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -250,8 +252,85 @@ if __name__ == "__main__":
             "history_window": 1,
             "reward_mode": "absolute",
             "terminate_on_oob": False,   
-            "oob_penalty": -10.0,
+            "oob_penalty": 0.0,
             "oob_tolerance": 3,                
+        },
+        "backend": {
+            "name": "sequential",
+            "mode": "shuffle",
+            "backends": [
+                {"name": "function", "function": "rastrigin", "dimensions": 2},
+                {"name": "function", "function": "rosenbrock", "dimensions": 2},
+                {"name": "function", "function": "schwefel", "dimensions": 2},
+            ]
+        }
+    }
+
+    config_continuous_sac = {
+    "full_args": {
+            "algorithm":
+            {
+                "name": "sac",
+                "gamma": 0.99,
+                "tau": 0.005,
+                "alpha": AutoAlpha(
+                    target_entropy=-2,
+                    log_alpha=0.0,
+                    optim=opt.AdamOptimizerFactory(lr=1e-4),
+                ),
+                "n_step_return_horizon": 1,
+            },
+            "optim":
+            {
+                "name": "TorchOptimizerFactory",
+                "optim_class": torch.optim.Adam,
+                "lr": 3e-4,
+            },
+            "net":
+            {
+                "actor": ContinuousActorProbabilistic,
+                "critic": ContinuousCritic,
+                "net": Net,
+                "hidden_sizes": [256, 256, 256],
+            },
+            "buffer":
+            {
+                "total_size": 100000,
+                "buffer_num": 20,
+                "stack_num": 1,
+            },
+            "trainer":
+            {
+                "max_epochs": 20,
+                "epoch_num_steps": 4000,
+                "batch_size": 256,
+                "collection_step_num_env_steps": 2000,
+                "update_step_num_gradient_steps_per_sample": 1.0,
+                "test_step_num_episodes": 20,
+            },
+            "policy":
+            {
+                "class": SACPolicy,
+                "action_scaling": True,
+                "actor_kwargs": {"unbounded": True, "conditioned_sigma": False},
+            },
+            "inference":
+            {
+                "n_episode": 1,
+                "reset_before_collect": True,
+            },
+            "num_training_envs": 20,
+            "num_test_envs": 20,
+        },
+        "env": {
+            "name": "instant_continuous_pipeline",
+            "max_delta_frac": 0.05,
+            "max_steps": 200,
+            "history_window": 1,
+            "reward_mode": "absolute",
+            "terminate_on_oob": False,
+            "oob_penalty": 0.0,
+            "oob_tolerance": 3,
         },
         "backend": {
             "name": "sequential",
@@ -652,4 +731,4 @@ if __name__ == "__main__":
         }
     }
 
-    run_n_experiments(config_continuous_ppo, 3, inference_only=False)
+    run_n_experiments(config_continuous_sac, 3, inference_only=False)
