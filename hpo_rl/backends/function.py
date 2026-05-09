@@ -38,9 +38,14 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
     Args:
         function_name: Название функции из :attr:`FUNCTIONS`.
         dimensions: Размерность пространства поиска.
-        noise_std: Стандартное отклонение гауссова шума (0 = детерминированная).
+        noise_std: Стандартное отклонение гауссова шума, добавляемого к **значению**
+            функции после вычисления f(x) (0 = детерминированное значение).
+        position_noise_frac: Доля ширины бокса по каждой оси: перед вычислением f(x)
+            координаты заменяются на ``clip(x + N(0, (frac·(hi-lo))²), [lo,hi])``.
+            Снижает смещение к точным координатам сетки; кэш отключается при frac>0.
         maximize: True для максимизации, False для минимизации.
-        use_cache: Включить кэширование результатов (автоматически отключается при шуме).
+        use_cache: Включить кэширование результатов (автоматически отключается при шуме
+            по значению или по позиции).
 
     Attributes:
         function_name: Название используемой функции.
@@ -48,7 +53,8 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         bounds: Границы пространства поиска ``(min, max)``.
         global_optimum: Координаты глобального оптимума.
         global_optimum_value: Значение функции в глобальном оптимуме.
-        noise_std: Стандартное отклонение шума.
+        noise_std: Шум на выходе f(x).
+        position_noise_frac: Относительный шум координат перед f(x).
         maximize: Направление оптимизации.
 
     Пример::
@@ -57,8 +63,11 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         backend = OptimizationBenchmarkBackend("rastrigin", dimensions=2, maximize=False)
         reward = backend.evaluate({"x0": 0.0, "x1": 0.0})  # Близко к оптимуму
 
-        # С шумом (кэш автоматически отключён)
+        # С шумом значения (кэш автоматически отключён)
         backend = OptimizationBenchmarkBackend("sphere", dimensions=5, noise_std=0.1)
+
+        # Джиттер координат перед f(x): σ_i = 0.02 * (hi_i - lo_i)
+        backend = OptimizationBenchmarkBackend("rastrigin", dimensions=2, position_noise_frac=0.02)
 
     Note:
         Функции ``booth``, ``beale``, ``goldstein_price`` работают только в 2D.
@@ -78,6 +87,7 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         function_name: FUNCTIONS = "rastrigin",
         dimensions: int = 2,
         noise_std: float = 0.0,
+        position_noise_frac: float = 0.0,
         maximize: bool = False,
         use_cache: bool = True
     ):
@@ -86,15 +96,21 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
         Args:
             function_name: Название функции из :attr:`FUNCTIONS`.
             dimensions: Размерность пространства поиска.
-            noise_std: Стандартное отклонение гауссова шума (0 = детерминированная).
+            noise_std: Стандартное отклонение гауссова шума на **значении** f(x).
+            position_noise_frac: Доля (hi−lo) по оси как σ для джиттера координат перед f(x).
             maximize: True для максимизации, False для минимизации.
-            use_cache: Включить кэширование результатов (автоматически отключается при шуме).
+            use_cache: Включить кэширование (отключается при noise_std>0 или position_noise_frac>0).
         """
-        # Кэш имеет смысл только без шума
-        super().__init__(use_cache=(use_cache and noise_std == 0))
+        # Кэш имеет смысл только без шума значения и без джиттера позиции
+        super().__init__(
+            use_cache=(
+                use_cache and noise_std == 0.0 and float(position_noise_frac) == 0.0
+            )
+        )
         self.function_name = function_name
         self.dimensions = dimensions
         self.noise_std = noise_std
+        self.position_noise_frac = float(position_noise_frac)
         self.maximize = maximize
 
         # Уникальный сид для этого экземпляра бэкенда.
@@ -234,7 +250,20 @@ class OptimizationBenchmarkBackend(EvaluationBackend):
             Сырое значение тестовой функции (с шумом, если задан).
 
         """
-        x = np.array([config[f"x{i}"] for i in range(self.dimensions)])
+        x = np.asarray(
+            [config[f"x{i}"] for i in range(self.dimensions)],
+            dtype=np.float64,
+        )
+        if self.position_noise_frac > 0.0:
+            lo = np.array([self.bounds[i][0] for i in range(self.dimensions)], dtype=np.float64)
+            hi = np.array([self.bounds[i][1] for i in range(self.dimensions)], dtype=np.float64)
+            span = hi - lo
+            sigma = self.position_noise_frac * np.maximum(span, np.finfo(np.float64).tiny)
+            x = np.clip(
+                x + np.random.normal(0.0, sigma, size=x.shape),
+                lo,
+                hi,
+            )
 
         func = self.func_map.get(self.function_name)
         if func is None:

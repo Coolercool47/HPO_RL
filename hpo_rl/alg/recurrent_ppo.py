@@ -17,12 +17,9 @@ from typing import cast
 
 from tianshou.algorithm.modelfree.ppo import PPO
 from tianshou.algorithm.modelfree.a2c import A2CTrainingStats
-from tianshou.algorithm.modelfree.reinforce import ProbabilisticActorPolicy
 from tianshou.algorithm.optim import OptimizerFactory
 from tianshou.data import Batch, ReplayBuffer, SequenceSummaryStats, to_torch_as
 from tianshou.data.types import LogpOldProtocol, RolloutBatchProtocol
-from tianshou.utils.net.continuous import ContinuousCritic
-from tianshou.utils.net.discrete import DiscreteCritic
 import torch
 import numpy as np
 
@@ -134,7 +131,18 @@ class ChunkedRNNPPO(PPO):
         batch.obs_next = self._reshape_to_chunks(batch.obs_next, num_chunks, self.seq_len)
 
         # act, returns, adv, v_s: [valid_len] → [num_chunks, seq_len]
-        batch.act = batch.act.reshape(num_chunks, self.seq_len)
+        act = batch.act
+        if act.dim() == 1:
+            # Discrete: [valid_len] -> [num_chunks, seq_len]
+            batch.act = act.reshape(num_chunks, self.seq_len)
+        elif act.dim() == 2:
+            # Continuous: [valid_len, action_dim] -> [num_chunks, seq_len, action_dim]
+            batch.act = act.reshape(num_chunks, self.seq_len, act.shape[-1])
+        else:
+            raise ValueError(
+                f"Unexpected batch.act shape {tuple(act.shape)}; expected 1D (discrete) "
+                f"or 2D (continuous vector actions)."
+            )
         batch.returns = batch.returns.reshape(num_chunks, self.seq_len)
         batch.adv = batch.adv.reshape(num_chunks, self.seq_len)
         batch.v_s = batch.v_s.reshape(num_chunks, self.seq_len)
@@ -267,7 +275,13 @@ class ChunkedRNNPPO(PPO):
         flat = Batch()
         flat.obs = self._flatten_chunks(batch.obs)
         flat.obs_next = self._flatten_chunks(batch.obs_next)
-        flat.act = batch.act.reshape(-1)
+        if batch.act.dim() == 3:
+            flat.act = batch.act.reshape(
+                batch.act.shape[0] * batch.act.shape[1],
+                batch.act.shape[2],
+            )
+        else:
+            flat.act = batch.act.reshape(-1)
         flat.rew = batch.rew.reshape(-1) if hasattr(batch, 'rew') else None
         flat.done = batch.done.reshape(-1) if hasattr(batch, 'done') else None
         flat.terminated = batch.terminated.reshape(-1) if hasattr(batch, 'terminated') else None

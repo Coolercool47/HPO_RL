@@ -196,10 +196,10 @@ if __name__ == "__main__":
             "algorithm":
             {
                 "name": "ppo",
-                "gamma": 0.97,
+                "gamma": 0.99,
                 "gae_lambda": 0.95,
                 "vf_coef": 0.5,
-                "ent_coef": 0.01,
+                "ent_coef": 0.0,
                 "max_grad_norm": 0.5,
                 "value_clip": True,
                 "return_scaling": True,
@@ -222,7 +222,7 @@ if __name__ == "__main__":
             {
                 "max_epochs": 100,
                 "epoch_num_steps": 4000,
-                "batch_size": 20,
+                "batch_size": 256,
                 "collection_step_num_env_steps": 2000,
                 "update_step_num_repetitions": 10,
                 "test_step_num_episodes": 20,
@@ -235,7 +235,7 @@ if __name__ == "__main__":
                 ),
                 "action_scaling": True,       
                 "action_bound_method": "clip", 
-                "actor_kwargs": {"unbounded": True, "conditioned_sigma": False  },
+                "actor_kwargs": {"unbounded": True, "conditioned_sigma": True  },
             },
             "inference":
             {
@@ -247,7 +247,7 @@ if __name__ == "__main__":
         },
         "env": {
             "name": "instant_continuous_pipeline",
-            "max_delta_frac": 0.05,
+            "max_delta_frac": 0.1,
             "max_steps": 200,
             "history_window": 1,
             "reward_mode": "absolute",

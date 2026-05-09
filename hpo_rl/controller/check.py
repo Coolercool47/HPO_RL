@@ -318,6 +318,8 @@ def check(config):
             backend_params = {"function_name": function_name, "dimensions": config["backend"]["dimensions"]}
             if "noise_std" in config["backend"]:
                 backend_params["noise_std"] = config["backend"]["noise_std"]
+            if "position_noise_frac" in config["backend"]:
+                backend_params["position_noise_frac"] = config["backend"]["position_noise_frac"]
         else: 
             raise ValueError(f"Function {function_name} not supported")
             
@@ -344,10 +346,16 @@ def check(config):
                 fn = entry["function"]
                 dims = entry["dimensions"]
                 noise = entry.get("noise_std", 0.0)
+                pos_frac = float(entry.get("position_noise_frac", 0.0))
                 if fn not in functions:
                     raise ValueError(f"Function {fn} not supported")
                 child_backends.append(
-                    OptimizationBenchmarkBackend(function_name=fn, dimensions=dims, noise_std=noise)
+                    OptimizationBenchmarkBackend(
+                        function_name=fn,
+                        dimensions=dims,
+                        noise_std=noise,
+                        position_noise_frac=pos_frac,
+                    )
                 )
                 min_v, max_v = functions[fn]["values"][0], functions[fn]["values"][1]
                 all_hp_spaces.append(
