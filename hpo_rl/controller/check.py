@@ -208,6 +208,11 @@ def check(config):
         for key, value in config["full_args"]["trainer"].items():
             trainer_params[key] = value
 
+        if algorithm_name == "recurrent_ppo":
+            csteps = trainer_params.get("collection_step_num_env_steps")
+            if csteps is not None:
+                alg_params["collect_step_num_env_steps"] = int(csteps)
+
         if "test_step_num_episodes" not in trainer_params and config["full_args"].get("num_test_envs", {}):
             trainer_params["test_step_num_episodes"] = config["full_args"]["num_test_envs"]
 
@@ -235,6 +240,7 @@ def check(config):
         for key, value in config["full_args"]["policy"].items():
                 if key != "class":
                     policy_params[key] = value
+        eps_schedule = policy_params.pop("eps_schedule", None)  # handled separately by controller
         if config["full_args"]["net"].get("actor"):
             policy_params["actor"] = config["full_args"]["net"]["actor"]
         
@@ -458,7 +464,8 @@ def check(config):
             "alg_name": algorithm_name,
             "net_params": net_params,
             "save": save,
-            "load": load
+            "load": load,
+            "eps_schedule": eps_schedule,
             }
         
     elif mode == "baseline":

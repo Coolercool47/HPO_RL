@@ -9,11 +9,50 @@ import gymnasium
 from gymnasium.spaces import flatdim
 from gymnasium.wrappers import FlattenObservation
 from gymnasium.spaces.utils import unflatten
+import math
 import torch
 import pandas as pd
 import os
 import wandb
 import time
+
+
+def _build_eps_schedule_fn(schedule_cfg, eps_start, max_epochs):
+    """Build an epsilon schedule function: (epoch, env_step) -> float.
+
+    Supported types: ``linear``, ``exponential``, ``cosine``, ``step``.
+    """
+    stype = schedule_cfg.get("type", "linear")
+    start = schedule_cfg.get("start", eps_start)
+    end = schedule_cfg.get("end", 0.0)
+
+    if stype == "linear":
+        def fn(epoch, env_step):
+            frac = min(1.0, (epoch - 1) / max(1, max_epochs - 1))
+            return start + frac * (end - start)
+
+    elif stype == "exponential":
+        decay = schedule_cfg.get("decay", 0.99)
+        def fn(epoch, env_step):
+            return max(end, start * (decay ** (epoch - 1)))
+
+    elif stype == "cosine":
+        def fn(epoch, env_step):
+            frac = min(1.0, (epoch - 1) / max(1, max_epochs - 1))
+            return end + 0.5 * (start - end) * (1 + math.cos(math.pi * frac))
+
+    elif stype == "step":
+        step_size = schedule_cfg.get("step_size", 10)
+        gamma = schedule_cfg.get("gamma", 0.5)
+        def fn(epoch, env_step):
+            return max(end, start * (gamma ** ((epoch - 1) // step_size)))
+
+    else:
+        raise ValueError(
+            f"Unknown eps_schedule type '{stype}'. "
+            "Supported: linear, exponential, cosine, step"
+        )
+    return fn
 
 from tianshou.algorithm.modelbased.icm import ICMOnPolicyWrapper, ICMOffPolicyWrapper
 from tianshou.utils.net.discrete import IntrinsicCuriosityModule
@@ -52,7 +91,7 @@ class controller():
                  trainer=None, logger=None, net=None, net_params = {},
                  training_collector_kwargs={}, test_collector_kwargs={}, 
                  inference_kwargs={}, n_training_envs=1, n_inference_envs=1,
-                 env=None, save=None, load=None):
+                 env=None, save=None, load=None, eps_schedule=None):
         
         self.mode = mode
         
@@ -116,6 +155,10 @@ class controller():
             PolicyParams = policy["params"]
             AlgoClass = algorithm["class"]
             AlgoParams = algorithm["params"]
+
+            net_params = dict(net_params)
+            if net_params.get("device") is None:
+                net_params["device"] = str(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
             
             ActorClass = PolicyParams.pop("actor", None)
             actor_kwargs = PolicyParams.pop("actor_kwargs", {})
@@ -123,6 +166,7 @@ class controller():
             icm_config = AlgoParams.pop("icm", None)
 
             # --- ФАБРИКА СБОРОК ---
+            _eps_policy = None  # policy ref for eps scheduler (VALUE_BASED only)
 
             # On-Policy Actor-Critic (PPO, A2C...)
             if alg_name in ON_POLICY_AC or alg_name in OFF_POLICY_SINGLE_AC:
@@ -168,6 +212,7 @@ class controller():
                     )
                 _policy = PolicyClass(model=q_net, action_space=self.env.action_space, **PolicyParams)
                 self.algo = AlgoClass(policy=_policy, **AlgoParams)
+                _eps_policy = _policy  # expose for eps scheduler
             # Pure Policy (REINFORCE)
             elif alg_name in PURE_POLICY:
                 net_a = NetClass(state_shape=state_shape, **net_params)
@@ -273,7 +318,30 @@ class controller():
                     return self.save_loc
                 return None
 
+            # Build epsilon scheduler for value-based algorithms
+            _eps_schedule_fn = None
+            if eps_schedule is not None:
+                if _eps_policy is not None:
+                    _max_epochs = trainer["params"].get("max_epochs", 1)
+                    _eps_start = getattr(_eps_policy, "eps_training", 1.0)
+                    _eps_schedule_fn = _build_eps_schedule_fn(eps_schedule, _eps_start, _max_epochs)
+                    print(
+                        f"[EpsSchedule] type={eps_schedule.get('type','linear')}, "
+                        f"start={eps_schedule.get('start', _eps_start):.3f}, "
+                        f"end={eps_schedule.get('end', 0.0):.3f}, "
+                        f"epochs={_max_epochs}"
+                    )
+                else:
+                    print(f"[EpsSchedule] WARNING: eps_schedule ignored — '{alg_name}' is not a value-based algorithm.")
+
             def periodic_train_hook(epoch, env_step):
+                # Epsilon schedule update
+                if _eps_schedule_fn is not None:
+                    new_eps = _eps_schedule_fn(epoch, env_step)
+                    _eps_policy.eps_training = new_eps
+                    if wandb.run is not None:
+                        wandb.log({"eps_training": new_eps}, commit=False)
+
                 # Periodic checkpoint save (every 30 min)
                 current_time = time.time()
                 
