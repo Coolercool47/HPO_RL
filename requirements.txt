@@ -13,6 +13,7 @@ pyyaml>=6.0.0
 
 # Scientific Computing
 scipy>=1.10.0  # Используется в TPE и BOHB для статистических функций
+optuna>=3.0.0  # HPO сравнения (TPE / Hyperband / BOHB-style)
 
 # Data Processing
 pandas>=2.0.0  # Используется в plot.py для работы с данными

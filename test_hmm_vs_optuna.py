@@ -2,8 +2,12 @@
 Сравнение HMM_MCMC vs Optuna TPE на 10-мерных бенчмарках.
 
 Тесты:
-  1. Непрерывные 10D функции (schwefel, rastrigin, ackley, levy, styblinski_tang)
-  2. Функции с фиктивными категориальными параметрами (schwefel, rastrigin)
+  1. Все N-мерные функции из OptimizationBenchmarkBackend (10D, без шума)
+  2. Подмножество с гауссовым шумом (как в бэкенде)
+  3. Смешанное пространство: 10D + фиктивные категориальные параметры
+
+Графики PNG: для каждой группы — сходимость по best-so-far и по значению
+функции на каждой оценке (per_eval_*.png).
 
 Запуск:
     python test_hmm_vs_optuna.py
@@ -13,13 +17,14 @@ import numpy as np
 import sys
 import os
 import optuna
+import matplotlib.pyplot as plt
 
 from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
 
 # ── Общие настройки ──────────────────────────────────────────────
 N_SEEDS = 5
-BUDGET = 100
+BUDGET = 500
 DIMENSIONS = 10
 
 # Гиперпараметры HMM_MCMC (из run_exp_HMM_MCMC.py)
@@ -41,49 +46,111 @@ HMM_PARAMS = dict(
     anneal_T=True,
 )
 
-# ── Функции-бенчмарки для 10D ───────────────────────────────────
-# noise_std ≈ 20% от типичных значений функции при оптимизации
+# Все 9 N-мерных функций: границы совпадают с hpo_rl/backends/function.py
 CONTINUOUS_BENCHMARKS = {
-    "schwefel":        {"bounds": (-500.0, 500.0),   "noise_std": 300},
-    "rastrigin":       {"bounds": (-5.12, 5.12),     "noise_std": 8},
-    "ackley":          {"bounds": (-32.768, 32.768),  "noise_std": 2},
-    "levy":            {"bounds": (-10.0, 10.0),      "noise_std": 1.5},
-    "styblinski_tang": {"bounds": (-5.0, 5.0),        "noise_std": 65},
+    "sphere": {"bounds": (-5.0, 5.0)},
+    "rosenbrock": {"bounds": (-1.0, 1.0)},
+    "rastrigin": {"bounds": (-5.12, 5.12)},
+    "ackley": {"bounds": (-32.768, 32.768)},
+    "griewank": {"bounds": (-600.0, 600.0)},
+    "schwefel": {"bounds": (-500.0, 500.0)},
+    "levy": {"bounds": (-10.0, 10.0)},
+    "michalewicz": {"bounds": (0.0, float(np.pi))},
+    "styblinski_tang": {"bounds": (-5.0, 5.0)},
 }
 
+# Значения глобального минимума (минимизация), d=10 для styblinski_tang
+GLOBAL_OPTIMUM_VALUE = {
+    "sphere": 0.0,
+    "rosenbrock": 0.0,
+    "rastrigin": 0.0,
+    "ackley": 0.0,
+    "griewank": 0.0,
+    "schwefel": 0.0,
+    "levy": 0.0,
+    "michalewicz": 0.0,
+    "styblinski_tang": round(-39.16617 * DIMENSIONS, 5),
+}
+
+# Подмножество с шумом: noise_std ≈ доля от типичного масштаба loss
+NOISY_BENCHMARKS = {
+    "sphere": 0.5,
+    "rastrigin": 8.0,
+    "ackley": 2.0,
+    "schwefel": 300.0,
+    "levy": 1.5,
+}
+
+# Категориальные тесты: те же границы, что в CONTINUOUS_BENCHMARKS
 CATEGORICAL_BENCHMARKS = {
-    "schwefel":  {"bounds": (-500.0, 500.0),  "noise_std": 300},
-    "rastrigin": {"bounds": (-5.12, 5.12),    "noise_std": 8},
+    "sphere": {"bounds": (-5.0, 5.0)},
+    "rastrigin": {"bounds": (-5.12, 5.12)},
+    "ackley": {"bounds": (-32.768, 32.768)},
+    "schwefel": {"bounds": (-500.0, 500.0)},
+    "levy": {"bounds": (-10.0, 10.0)},
 }
 
 # Фиктивные категориальные параметры (не влияют на loss)
 DUMMY_CATEGORIES = {
-    "optimizer":   {"values": ["adam", "sgd", "rmsprop", "adamw"], "type": "categorical"},
-    "activation":  {"values": ["relu", "tanh", "gelu", "silu"],   "type": "categorical"},
-    "scheduler":   {"values": ["cosine", "step", "plateau"],      "type": "categorical"},
+    "optimizer": {"values": ["adam", "sgd", "rmsprop", "adamw"], "type": "categorical"},
+    "activation": {"values": ["relu", "tanh", "gelu", "silu"], "type": "categorical"},
+    "scheduler": {"values": ["cosine", "step", "plateau"], "type": "categorical"},
 }
+
+PLOT_FILES = {
+    "continuous": "convergence_continuous.png",
+    "continuous_raw": "per_eval_continuous.png",
+    "noisy": "convergence_noisy.png",
+    "noisy_raw": "per_eval_noisy.png",
+    "categorical": "convergence_categorical.png",
+    "categorical_raw": "per_eval_categorical.png",
+}
+
+RESULTS_FILE = "hmm_vs_optuna_results.txt"
 
 
 # ── Утилиты ──────────────────────────────────────────────────────
 def make_continuous_space(func_name: str) -> dict:
     lo, hi = CONTINUOUS_BENCHMARKS[func_name]["bounds"]
     return {
-        f"x{i}": {"values": [lo, hi], "type": "float", "log": False}
+        f"x{i}": {"values": [float(lo), float(hi)], "type": "float", "log": False}
         for i in range(DIMENSIONS)
     }
+
+
+def make_noisy_continuous_space(func_name: str) -> dict:
+    """Те же границы, что для чистого continuous."""
+    return make_continuous_space(func_name)
 
 
 def make_categorical_space(func_name: str) -> dict:
     lo, hi = CATEGORICAL_BENCHMARKS[func_name]["bounds"]
     space = {
-        f"x{i}": {"values": [lo, hi], "type": "float", "log": False}
+        f"x{i}": {"values": [float(lo), float(hi)], "type": "float", "log": False}
         for i in range(DIMENSIONS)
     }
     space.update(DUMMY_CATEGORIES)
     return space
 
 
-def run_hmm_mcmc(backend, space: dict, seed: int) -> float:
+def _scores_to_curve(scores: list[float]) -> np.ndarray:
+    """Кумулятивный лучший результат по шагам; длина = len(scores)."""
+    arr = np.asarray(scores, dtype=float)
+    return np.minimum.accumulate(arr)
+
+
+def _pad_curve_to_budget(curve: np.ndarray, budget: int) -> np.ndarray:
+    if len(curve) >= budget:
+        return curve[:budget]
+    if len(curve) == 0:
+        return np.full(budget, np.nan)
+    pad = np.full(budget - len(curve), curve[-1])
+    return np.concatenate([curve, pad])
+
+
+def run_hmm_mcmc(
+    backend, space: dict, seed: int
+) -> tuple[float, np.ndarray, np.ndarray]:
     np.random.seed(seed)
     alg = HMM_MCMC(
         objective_func=backend.evaluate,
@@ -91,18 +158,21 @@ def run_hmm_mcmc(backend, space: dict, seed: int) -> float:
         dict_to_optimize=space,
         **HMM_PARAMS,
     )
-    # Подавляем verbose-вывод HMM-таблицы и tqdm
     with open(os.devnull, "w") as devnull:
         _saved_out, _saved_err = sys.stdout, sys.stderr
         sys.stdout = sys.stderr = devnull
         try:
-            _best_config, best_loss = alg.main_loop()
+            _best = alg.main_loop()
         finally:
             sys.stdout, sys.stderr = _saved_out, _saved_err
-    return best_loss
+    best_loss = float(_best[1])
+    scores = [float(s) for _, s in alg.data]
+    raw_curve = _pad_curve_to_budget(np.asarray(scores, dtype=float), BUDGET)
+    best_curve = _pad_curve_to_budget(_scores_to_curve(scores), BUDGET)
+    return best_loss, best_curve, raw_curve
 
 
-def run_optuna_tpe(backend, space: dict, seed: int) -> float:
+def run_optuna_tpe(backend, space: dict, seed: int) -> tuple[float, np.ndarray, np.ndarray]:
     """Запускает Optuna TPE с тем же бюджетом."""
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -122,11 +192,22 @@ def run_optuna_tpe(backend, space: dict, seed: int) -> float:
     sampler = optuna.samplers.TPESampler(seed=seed, n_startup_trials=32)
     study = optuna.create_study(direction="minimize", sampler=sampler)
     study.optimize(objective, n_trials=BUDGET, show_progress_bar=False)
-    return study.best_value
+    scores = []
+    for t in sorted(study.trials, key=lambda tr: tr.number):
+        if t.state == optuna.trial.TrialState.COMPLETE and t.value is not None:
+            scores.append(float(t.value))
+    raw_arr = np.asarray(scores, dtype=float)
+    raw_curve = _pad_curve_to_budget(raw_arr, BUDGET)
+    best_curve = _pad_curve_to_budget(_scores_to_curve(scores), BUDGET)
+    return float(study.best_value), best_curve, raw_curve
 
 
-# ── Основной цикл ───────────────────────────────────────────────
-def run_benchmark(func_name: str, space_builder, label: str, noise_std: float = 0.0):
+def run_benchmark(
+    func_name: str,
+    space_builder,
+    label: str,
+    noise_std: float = 0.0,
+):
     backend = OptimizationBenchmarkBackend(
         function_name=func_name, dimensions=DIMENSIONS, noise_std=noise_std
     )
@@ -134,74 +215,227 @@ def run_benchmark(func_name: str, space_builder, label: str, noise_std: float = 
 
     hmm_losses = []
     optuna_losses = []
+    hmm_best: list[np.ndarray] = []
+    optuna_best: list[np.ndarray] = []
+    hmm_raw: list[np.ndarray] = []
+    optuna_raw: list[np.ndarray] = []
 
     for s in range(N_SEEDS):
         seed = 42 + s
-        # HMM_MCMC
-        hl = run_hmm_mcmc(backend, space, seed)
+        hl, hb, hr = run_hmm_mcmc(backend, space, seed)
         hmm_losses.append(hl)
-        # Optuna TPE
-        ol = run_optuna_tpe(backend, space, seed)
+        hmm_best.append(hb)
+        hmm_raw.append(hr)
+        ol, ob, opt_r = run_optuna_tpe(backend, space, seed)
         optuna_losses.append(ol)
+        optuna_best.append(ob)
+        optuna_raw.append(opt_r)
 
-    return hmm_losses, optuna_losses
+    return (
+        hmm_losses,
+        optuna_losses,
+        hmm_best,
+        optuna_best,
+        hmm_raw,
+        optuna_raw,
+    )
 
 
-def print_table(results: list[tuple[str, str, list[float], list[float]]], out=None):
+def plot_convergence(
+    group_name: str,
+    items: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]],
+    outfile: str,
+    *,
+    y_axis_label: str = "Best loss so far",
+    title_prefix: str = "Best-so-far convergence",
+):
+    """
+    items: список (func_name, label_tag, hmm_curves, optuna_curves)
+    """
+    n = len(items)
+    if n == 0:
+        return
+    ncols = min(3, n)
+    nrows = int(np.ceil(n / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 3.8 * nrows), squeeze=False)
+    evals = np.arange(1, BUDGET + 1)
+
+    for idx, (func_name, _tag, hmm_cs, opt_cs) in enumerate(items):
+        r, c = divmod(idx, ncols)
+        ax = axes[r][c]
+        hmm_stack = np.vstack(hmm_cs)
+        opt_stack = np.vstack(opt_cs)
+        hmm_m, hmm_s = np.nanmean(hmm_stack, axis=0), np.nanstd(hmm_stack, axis=0)
+        opt_m, opt_s = np.nanmean(opt_stack, axis=0), np.nanstd(opt_stack, axis=0)
+
+        ax.plot(evals, hmm_m, label="HMM_MCMC", color="C0")
+        ax.fill_between(evals, hmm_m - hmm_s, hmm_m + hmm_s, color="C0", alpha=0.2)
+        ax.plot(evals, opt_m, label="Optuna TPE", color="C1")
+        ax.fill_between(evals, opt_m - opt_s, opt_m + opt_s, color="C1", alpha=0.2)
+        ax.set_title(func_name)
+        ax.set_xlabel("Evaluation")
+        ax.set_ylabel(y_axis_label)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    # пустые оси
+    for j in range(n, nrows * ncols):
+        r, c = divmod(j, ncols)
+        axes[r][c].set_visible(False)
+
+    fig.suptitle(
+        f"{title_prefix}: {group_name} "
+        f"(mean ± std over {N_SEEDS} seeds)"
+    )
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=150)
+    plt.close(fig)
+    print(f"Saved plot: {outfile}")
+
+
+def print_table(
+    results: list[tuple[str, str, list[float], list[float], float]],
+    out=None,
+):
     p = lambda s: print(s, file=out, flush=True) if out else print(s)
-    header = f"{'Benchmark':<30} | {'HMM_MCMC mean+/-std':>22} | {'HMM min':>8} | {'Optuna TPE mean+/-std':>22} | {'Opt min':>8} | {'delta%':>8}"
+    header = (
+        f"{'Benchmark':<32} | {'f*':>12} | {'HMM mean±std':>22} | {'HMM min':>9} | "
+        f"{'Optuna mean±std':>22} | {'Opt min':>9} | {'Winner':>8} | {'Δ%':>8}"
+    )
     sep = "-" * len(header)
     p(sep)
     p(header)
     p(sep)
 
-    for name, label, hmm, opt in results:
+    for name, label, hmm, opt, f_star in results:
         hm, hs = np.mean(hmm), np.std(hmm)
         h_min = np.min(hmm)
         om, os_ = np.mean(opt), np.std(opt)
         o_min = np.min(opt)
-        delta = (hm - om) / (om + 1e-30) * 100
+        delta = (hm - om) / (abs(om) + 1e-30) * 100
+        if hm < om:
+            winner = "HMM"
+        elif om < hm:
+            winner = "Optuna"
+        else:
+            winner = "tie"
         tag = f"{label} {name}"
-        p(f"{tag:<30} | {hm:10.2f} +/- {hs:8.2f} | {h_min:8.2f} | {om:10.2f} +/- {os_:8.2f} | {o_min:8.2f} | {delta:+7.1f}%")
+        p(
+            f"{tag:<32} | {f_star:12.4f} | {hm:10.2f} ± {hs:8.2f} | {h_min:9.4f} | "
+            f"{om:10.2f} ± {os_:8.2f} | {o_min:9.4f} | {winner:>8} | {delta:+7.1f}%"
+        )
     p(sep)
-
-
-RESULTS_FILE = "hmm_vs_optuna_results.txt"
 
 
 if __name__ == "__main__":
     f = open(RESULTS_FILE, "w", encoding="utf-8")
+
     def log(s=""):
         print(s, file=f, flush=True)
         print(s)
 
-    all_results = []
+    all_results: list[tuple[str, str, list[float], list[float], float]] = []
+    plot_continuous: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
+    plot_continuous_raw: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
+    plot_noisy: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
+    plot_noisy_raw: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
+    plot_cat: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
+    plot_cat_raw: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
 
-    # 1) Continuous 10D
+    # 1) Continuous 10D, без шума
     log(f"\n{'='*70}")
-    log(f"  CONTINUOUS 10D  (budget={BUDGET}, seeds={N_SEEDS})")
+    log(f"  CONTINUOUS 10D  (budget={BUDGET}, seeds={N_SEEDS}, noise_std=0)")
     log(f"{'='*70}")
-    for func_name, binfo in CONTINUOUS_BENCHMARKS.items():
-        ns = binfo["noise_std"]
+    for func_name in CONTINUOUS_BENCHMARKS:
+        log(f"\n>>> {func_name} ...")
+        hmm, opt, hb, ob, hr, o_r = run_benchmark(
+            func_name, make_continuous_space, "cont", noise_std=0.0
+        )
+        f_star = GLOBAL_OPTIMUM_VALUE[func_name]
+        all_results.append((func_name, "cont", hmm, opt, f_star))
+        plot_continuous.append((func_name, "cont", hb, ob))
+        plot_continuous_raw.append((func_name, "cont", hr, o_r))
+        log(f"    HMM_MCMC: {np.mean(hmm):.2f} ± {np.std(hmm):.2f}  (min={np.min(hmm):.4f})")
+        log(f"    Optuna:   {np.mean(opt):.2f} ± {np.std(opt):.2f}  (min={np.min(opt):.4f})")
+
+    plot_convergence(
+        "continuous clean",
+        plot_continuous,
+        PLOT_FILES["continuous"],
+        y_axis_label="Best loss so far",
+        title_prefix="Best-so-far convergence",
+    )
+    plot_convergence(
+        "continuous clean",
+        plot_continuous_raw,
+        PLOT_FILES["continuous_raw"],
+        y_axis_label="Observed loss (this evaluation)",
+        title_prefix="Per-evaluation objective",
+    )
+
+    # 2) Noisy subset
+    log(f"\n{'='*70}")
+    log(f"  NOISY  (budget={BUDGET}, seeds={N_SEEDS})")
+    log(f"{'='*70}")
+    for func_name, ns in NOISY_BENCHMARKS.items():
         log(f"\n>>> {func_name} (noise_std={ns}) ...")
-        hmm, opt = run_benchmark(func_name, make_continuous_space, "cont", noise_std=ns)
-        all_results.append((func_name, "cont", hmm, opt))
-        log(f"    HMM_MCMC: {np.mean(hmm):.2f} +/- {np.std(hmm):.2f}  (min={np.min(hmm):.2f})")
-        log(f"    Optuna:   {np.mean(opt):.2f} +/- {np.std(opt):.2f}  (min={np.min(opt):.2f})")
+        hmm, opt, hb, ob, hr, o_r = run_benchmark(
+            func_name, make_noisy_continuous_space, "noisy", noise_std=float(ns)
+        )
+        f_star = GLOBAL_OPTIMUM_VALUE[func_name]
+        all_results.append((func_name, "noisy", hmm, opt, f_star))
+        plot_noisy.append((func_name, "noisy", hb, ob))
+        plot_noisy_raw.append((func_name, "noisy", hr, o_r))
+        log(f"    HMM_MCMC: {np.mean(hmm):.2f} ± {np.std(hmm):.2f}  (min={np.min(hmm):.4f})")
+        log(f"    Optuna:   {np.mean(opt):.2f} ± {np.std(opt):.2f}  (min={np.min(opt):.4f})")
 
-    # 2) Categorical
+    plot_convergence(
+        "noisy",
+        plot_noisy,
+        PLOT_FILES["noisy"],
+        y_axis_label="Best loss so far",
+        title_prefix="Best-so-far convergence",
+    )
+    plot_convergence(
+        "noisy",
+        plot_noisy_raw,
+        PLOT_FILES["noisy_raw"],
+        y_axis_label="Observed loss (this evaluation)",
+        title_prefix="Per-evaluation objective",
+    )
+
+    # 3) Categorical
     log(f"\n{'='*70}")
-    log(f"  CATEGORICAL 10D  (budget={BUDGET}, seeds={N_SEEDS})")
+    log(f"  CATEGORICAL + 10D  (budget={BUDGET}, seeds={N_SEEDS}, noise_std=0)")
     log(f"{'='*70}")
-    for func_name, binfo in CATEGORICAL_BENCHMARKS.items():
-        ns = binfo["noise_std"]
-        log(f"\n>>> {func_name} + categorical (noise_std={ns}) ...")
-        hmm, opt = run_benchmark(func_name, make_categorical_space, "cat", noise_std=ns)
-        all_results.append((func_name, "cat", hmm, opt))
-        log(f"    HMM_MCMC: {np.mean(hmm):.2f} +/- {np.std(hmm):.2f}  (min={np.min(hmm):.2f})")
-        log(f"    Optuna:   {np.mean(opt):.2f} +/- {np.std(opt):.2f}  (min={np.min(opt):.2f})")
+    for func_name in CATEGORICAL_BENCHMARKS:
+        log(f"\n>>> {func_name} + dummy categorical ...")
+        hmm, opt, hb, ob, hr, o_r = run_benchmark(
+            func_name, make_categorical_space, "cat", noise_std=0.0
+        )
+        f_star = GLOBAL_OPTIMUM_VALUE[func_name]
+        all_results.append((func_name, "cat", hmm, opt, f_star))
+        plot_cat.append((func_name, "cat", hb, ob))
+        plot_cat_raw.append((func_name, "cat", hr, o_r))
+        log(f"    HMM_MCMC: {np.mean(hmm):.2f} ± {np.std(hmm):.2f}  (min={np.min(hmm):.4f})")
+        log(f"    Optuna:   {np.mean(opt):.2f} ± {np.std(opt):.2f}  (min={np.min(opt):.4f})")
 
-    # 3) Summary table
+    plot_convergence(
+        "categorical",
+        plot_cat,
+        PLOT_FILES["categorical"],
+        y_axis_label="Best loss so far",
+        title_prefix="Best-so-far convergence",
+    )
+    plot_convergence(
+        "categorical",
+        plot_cat_raw,
+        PLOT_FILES["categorical_raw"],
+        y_axis_label="Observed loss (this evaluation)",
+        title_prefix="Per-evaluation objective",
+    )
+
+    # 4) Summary table
     log(f"\n{'='*70}")
     log(f"  SUMMARY  (budget={BUDGET}, dims={DIMENSIONS}, seeds={N_SEEDS})")
     log(f"{'='*70}")
@@ -209,5 +443,4 @@ if __name__ == "__main__":
     print_table(all_results)
 
     f.close()
-    log = print
-    log(f"\nResults saved to {RESULTS_FILE}")
+    print(f"\nResults saved to {RESULTS_FILE}")
