@@ -6,18 +6,29 @@ from tianshou.utils.net.common import ModuleWithVectorOutput
 
 
 class RecurrentBaseNet(ModuleWithVectorOutput):
-    """GRU backbone with optional per-timestep resets (episode / chunk starts).
+    """GRU-backbone с пошаговым сбросом скрытого состояния.
 
-    Pass ``info["episode_reset"]`` as a boolean tensor:
-    - shape ``[B, T]`` when features are 3D ``[B, T, H]`` (after FC + LN + ReLU).
-    - Before a timestep where ``episode_reset[b, t]`` is True, hidden state for batch
-      element ``b`` is zeroed (fresh RNN context).
+    Args:
+        state_shape: форма наблюдения.
+        action_shape: не используется (совместимость с API Net).
+        hidden_layer_size: размер скрытого слоя GRU.
+        num_layers: число слоёв GRU.
+        device: устройство вычислений.
 
-    If ``episode_reset`` is omitted and the input is 3D, the GRU runs with a single
-    initial state (standard BPTT / truncated sequences without mid-sequence breaks).
+    В ``info["episode_reset"]`` передаётся bool-тензор ``[B, T]``:
+    перед шагом ``t``, где флаг True, hidden для элемента батча обнуляется.
     """
 
     def __init__(self, state_shape, action_shape, hidden_layer_size=128, num_layers=1, device="cpu"):
+        """Инициализирует RecurrentBaseNet.
+
+        Args:
+            state_shape: форма наблюдения.
+            action_shape: форма действий (не используется).
+            hidden_layer_size: размерность GRU.
+            num_layers: число слоёв GRU.
+            device: устройство.
+        """
         super().__init__(output_dim=hidden_layer_size)
         self.device = device
         self.hidden_layer_size = hidden_layer_size
@@ -46,7 +57,16 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
         return x
 
     def _init_h0(self, batch_size: int, x_device: torch.device, state):
-        """Build initial hidden [num_layers, B, H] from ``state``."""
+        """Формирует начальное hidden ``[num_layers, B, H]`` из ``state``.
+
+        Args:
+            batch_size: размер батча
+            x_device: устройство тензора
+            state: предыдущее hidden или None
+
+        Returns:
+            тензор hidden для GRU
+        """
         is_empty = state is None or (isinstance(state, dict) and not state) or (
             hasattr(state, "is_empty") and state.is_empty()
         )
@@ -74,7 +94,16 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
         return h_0
 
     def _gru_with_step_resets(self, x, h, episode_reset):
-        """``x``: [B, T, H]; ``episode_reset``: [B, T] bool."""
+        """Пошаговый GRU с обнулением hidden на ``episode_reset``.
+
+        Args:
+            x: вход ``[B, T, H]``
+            h: hidden ``[num_layers, B, H]``
+            episode_reset: bool-тензор ``[B, T]``
+
+        Returns:
+            кортеж (выход RNN, финальное hidden)
+        """
         _bsz, time_steps, _h = x.shape
         outs = []
         for t in range(time_steps):

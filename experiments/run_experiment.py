@@ -121,15 +121,15 @@ if __name__ == "__main__":
             "algorithm":
             {
                 "name": "ppo",
-                "gamma": 0.97,                # shorter horizon: 1/(1-0.97)≈33 steps — достаточно для HPO
+                "gamma": 0.97,              
                 "gae_lambda": 0.95, 
-                # "seq_len": 10,                # MUST divide max_steps (200 % 10 = 0)
-                "vf_coef": 0.5,               # стандартное значение: critic важен для качественных advantages
-                "ent_coef": 0.01,             # exploration: не слишком много, чтобы не мешать сходимости
-                "max_grad_norm": 0.5,         # gradient clipping — КРИТИЧНО для RNN!
-                "value_clip": True,           # стабилизация value function
-                "return_scaling": True,       # нормализация returns по running std — критик работает с любым масштабом
-                "recompute_advantage": True,  # пересчёт advantages после каждого update — точнее для RNN
+                # "seq_len": 10,              
+                "vf_coef": 0.5,               
+                "ent_coef": 0.01,            
+                "max_grad_norm": 0.5,        
+                "value_clip": True,          
+                "return_scaling": True,       
+                "recompute_advantage": True, 
             },  
             "optim":
             {
@@ -143,15 +143,15 @@ if __name__ == "__main__":
                 "critic": DiscreteCritic, 
                 "net": BaseNet,
                 "hidden_sizes": [256, 256, 256]
-                # "hidden_layer_size": 64,      # 64 вместо 128: obs_dim=5, 12.8x ratio — лучше для маленьких задач
+                # "hidden_layer_size": 64,    
             },
             "trainer":
             {
-                "max_epochs": 100,            # больше эпох для delta rewards (меньший сигнал)
-                "epoch_num_steps": 4000,       # кратно collection (4000/2000=2 collects)
-                "batch_size": 20,             # chunks: 2000/10=200 chunks → 10 minibatch
-                "collection_step_num_env_steps": 2000,  # 10 полных эпизодов → больше данных для GAE
-                "update_step_num_repetitions": 8, # 8 прохождений по данным (было 4) — больше обновлений
+                "max_epochs": 100,          
+                "epoch_num_steps": 4000,      
+                "batch_size": 20,             
+                "collection_step_num_env_steps": 2000,  
+                "update_step_num_repetitions": 8, 
                 "test_step_num_episodes": 20
             },
             "policy":
@@ -181,7 +181,7 @@ if __name__ == "__main__":
         },
         "backend": {
             "name": "sequential",
-            "mode": "shuffle",  # по умолчанию
+            "mode": "shuffle", 
             "backends": [
                 {"name": "function", "function": "rastrigin", "dimensions": 2},
                 {"name": "function", "function": "rosenbrock", "dimensions": 2},
@@ -348,15 +348,15 @@ if __name__ == "__main__":
             "algorithm":
             {
                 "name": "recurrent_ppo",
-                "gamma": 0.97,                # shorter horizon: 1/(1-0.97)≈33 steps — достаточно для HPO
+                "gamma": 0.97,               
                 "gae_lambda": 0.95, 
-                "seq_len": 10,                # MUST divide max_steps (200 % 10 = 0)
-                "vf_coef": 0.5,               # стандартное значение: critic важен для качественных advantages
-                "ent_coef": 0.01,             # exploration: не слишком много, чтобы не мешать сходимости
-                "max_grad_norm": 0.5,         # gradient clipping — КРИТИЧНО для RNN!
-                "value_clip": True,           # стабилизация value function
-                "return_scaling": True,       # нормализация returns по running std — критик работает с любым масштабом
-                "recompute_advantage": True,  # пересчёт advantages после каждого update — точнее для RNN
+                "seq_len": 10,                
+                "vf_coef": 0.5,             
+                "ent_coef": 0.01,           
+                "max_grad_norm": 0.5,       
+                "value_clip": True,          
+                "return_scaling": True,      
+                "recompute_advantage": True,  
             },  
             "optim":
             {
@@ -369,15 +369,15 @@ if __name__ == "__main__":
                 "actor": MaskedRecurrentDiscreteActor,
                 "critic": RecurrentCritic, 
                 "net": RecurrentBaseNet,
-                "hidden_layer_size": 64,      # 64 вместо 128: obs_dim=5, 12.8x ratio — лучше для маленьких задач
+                "hidden_layer_size": 64,      
             },
             "trainer":
             {
-                "max_epochs": 50,            # больше эпох для delta rewards (меньший сигнал)
-                "epoch_num_steps": 4000,       # кратно collection (4000/2000=2 collects)
-                "batch_size": 20,             # chunks: 2000/10=200 chunks → 10 minibatch
-                "collection_step_num_env_steps": 2000,  # 10 полных эпизодов → больше данных для GAE
-                "update_step_num_repetitions": 8, # 8 прохождений по данным (было 4) — больше обновлений
+                "max_epochs": 50,           
+                "epoch_num_steps": 4000,      
+                "batch_size": 20,           
+                "collection_step_num_env_steps": 2000, 
+                "update_step_num_repetitions": 8, 
             },
             "policy":
             {
@@ -405,7 +405,7 @@ if __name__ == "__main__":
         },
         "backend": {
             "name": "sequential",
-            "mode": "random",  # по умолчанию
+            "mode": "random", 
             "backends": [
                 {"name": "function", "function": "rastrigin", "dimensions": 2},
                 {"name": "function", "function": "rosenbrock", "dimensions": 2},
@@ -522,132 +522,6 @@ if __name__ == "__main__":
         }
         }
     }
-
-    # config_rainbow = {
-    # "full_args": {
-    #     "algorithm":
-    #     {
-    #         "name": "rainbow",
-    #         "gamma": 0.9,
-    #         # "n_step_return_horizon": 3,
-    #         # "target_update_freq": 320,
-    #     },  
-    #     "optim":
-    #     {
-    #         "name": "TorchOptimizerFactory",
-    #         "optim_class": Adam,
-    #         "lr": 1e-3,
-    #     },
-    #     "net":
-    #     {
-    #         # "actor": DiscreteActor,
-    #         # "critic": DiscreteCritic, 
-    #         "hidden_sizes": [64, 64],
-    #         "net": Net
-    #     },
-    #     "trainer":
-    #     {
-    #         "max_epochs": 10,
-    #         "epoch_num_steps": 1000,
-    #         "batch_size": 64,
-    #         "collection_step_num_env_steps": 10,
-    #         # "update_step_num_repetitions": 5,
-    #         # "test_in_training": True,
-    #         # "stop_fn": stop_fn
-    #     },
-    #     "policy":
-    #     {
-    #         "class": C51Policy,
-    #         # "dist_fn": torch.distributions.Categorical,
-    #         # "action_scaling": False,
-    #         # "eps_training": 0.1,
-    #         # "eps_inference": 0.05,
-    #     },
-    #     "inference": 
-    #     {
-    #         "n_episode": 1,
-    #         "reset_before_collect": True,
-    #     },
-    #     "num_training_envs": 10,
-    #     "num_test_envs": 10,
-    # },
-    # "env": {
-    #     "name": "cycle_move_pipeline",
-    #     "num_bins": 300,
-    #     # "action_type": "continuous",
-    #     "max_steps": 100,
-    #     "reward_mode": "per_step",
-    #     "step_sizes": [1, 5, 25],
-    #     "history_window": 3
-    # },
-    # "backend": {
-    #     "name": "function",
-    #     "function": "rastrigin",
-    #     "dimensions": 2
-    # }
-    # }
-    # config_sac = {
-    # "full_args": {
-    #     "algorithm":
-    #     {
-    #         "name": "sac",
-    #         "gamma": 0.9,
-    #         # "n_step_return_horizon": 3,
-    #         # "target_update_freq": 320,
-    #     },  
-    #     "optim":
-    #     {
-    #         "name": "TorchOptimizerFactory",
-    #         "optim_class": Adam,
-    #         "lr": 1e-3,
-    #     },
-    #     "net":
-    #     {
-    #         "actor": ContinuousActorProbabilistic,
-    #         "critic": ContinuousCritic, 
-    #         "hidden_sizes": [64, 64],
-    #         "net": Net
-    #     },
-    #     "trainer":
-    #     {
-    #         "max_epochs": 100,
-    #         "epoch_num_steps": 100,
-    #         "batch_size": 64,
-    #         "collection_step_num_env_steps": 10,
-    #         # "update_step_num_repetitions": 5,
-    #         # "test_in_training": True,
-    #         # "stop_fn": stop_fn
-    #     },
-    #     "policy":
-    #     {
-    #         "class": SACPolicy,
-    #         # "dist_fn": torch.distributions.Categorical,
-    #         "action_scaling": False,
-    #         # "eps_training": 0.1,
-    #         # "eps_inference": 0.05,
-    #     },
-    #     "inference": 
-    #     {
-    #         "n_episode": 1,
-    #         "reset_before_collect": True,
-    #     },
-    #     "num_training_envs": 10,
-    #     "num_test_envs": 10,
-    # },
-    # "env": {
-    #     "name": "cycle_move_pipeline",
-    #     # "num_bins": 300,
-    #     "action_type": "continuous",
-    #     "max_steps": 100,
-    #     "reward_mode": "per_step",
-    #     "step_sizes": [1, 5, 25]
-    # },
-    # "backend": {
-    #     "name": "function",
-    #     "function": "rastrigin",
-    #     "dimensions": 2
-    # }
-    # }
 
     config_recurrent_ppo_icm = {
     "full_args": {

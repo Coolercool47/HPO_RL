@@ -1,19 +1,3 @@
-"""
-Grid search over HMM-MCMC-FMP hyperparameters on the Schwefel function.
-
-Varied hyperparameters:
-    - T_mcmc             : MH temperature
-    - sigma_fraction     : narrow-step σ (fraction of domain width)
-    - n_chains           : number of parallel MCMC chains
-    - wide_sigma_fraction: wide-step σ (fraction of domain width)
-
-Reports best config and writes it to `tune_schwefel_results.txt`.
-Plots saved to `tune_schwefel_plots/`.
-
-Usage:
-    python tune_schwefel_hmm_mcmc.py
-"""
-
 from __future__ import annotations
 
 import itertools
@@ -29,13 +13,11 @@ from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 from hpo_rl.controller.plot import plot_and_save
 
-# ── Configuration ──────────────────────────────────────────────────────────────
 
-DIMENSIONS = 2       # 2D so plot_3d works
-BUDGET     = 200     # evaluations per run
+DIMENSIONS = 2       
+BUDGET     = 200    
 SEED       = 42
 
-# Grid: each list contains the values to sweep
 GRID: dict[str, list] = {
     "T_mcmc":              [0.01, 0.1, 0.5],
     "sigma_fraction":      [0.05, 0.0055, 0.006],
@@ -43,7 +25,6 @@ GRID: dict[str, list] = {
     "wide_sigma_fraction": [0.20, 0.40, 0.60],
 }
 
-# Fixed HMM-MCMC parameters (held constant across the grid)
 FIXED_PARAMS: dict = dict(
     n_init=1,
     orchestrate_every=5,
@@ -61,11 +42,7 @@ FIXED_PARAMS: dict = dict(
 OUTPUT_FILE = "tune_schwefel_results.txt"
 PLOTS_DIR   = Path("tune_schwefel_plots")
 
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
 def make_search_space(dims: int) -> dict:
-    """Build HMM_MCMC dict_to_optimize for an N-D box [-500, 500]^N."""
     return {
         f"x{i}": {"values": [-500.0, 500.0], "type": "float"}
         for i in range(dims)
@@ -77,7 +54,6 @@ def run_config(
     search_space: dict,
     backend: OptimizationBenchmarkBackend,
 ) -> tuple[float, list]:
-    """Run HMM_MCMC with *varied* hyperparams; return (best_loss, data)."""
     np.random.seed(SEED)
 
     optimizer = HMM_MCMC(
@@ -98,9 +74,6 @@ def best_so_far(data: list) -> np.ndarray:
 def cfg_tag(cfg: dict) -> str:
     return "  ".join(f"{k}={v}" for k, v in cfg.items())
 
-
-# ── Main ───────────────────────────────────────────────────────────────────────
-
 def main() -> None:
     PLOTS_DIR.mkdir(exist_ok=True)
 
@@ -111,7 +84,6 @@ def main() -> None:
         maximize=False,
     )
 
-    # ── Build Cartesian grid ───────────────────────────────────────────────────
     grid_keys  = list(GRID.keys())
     grid_vals  = list(GRID.values())
     combos     = list(itertools.product(*grid_vals))
@@ -131,7 +103,6 @@ def main() -> None:
         best_loss, data = run_config(varied, search_space, backend)
         results.append((varied, best_loss, data))
 
-        # Per-config plots ─────────────────────────────────────────────────────
         suffix = (
             f"_T{varied['T_mcmc']}"
             f"_sf{varied['sigma_fraction']}"
@@ -156,11 +127,9 @@ def main() -> None:
 
         print(f"  → best loss = {best_loss:.4f}")
 
-    # ── Sort by best value ─────────────────────────────────────────────────────
     results.sort(key=lambda r: r[1])
     best_cfg, best_loss, best_data = results[0]
 
-    # ── Convergence comparison plot ────────────────────────────────────────────
     fig, ax = plt.subplots(figsize=(13, 7))
     palette = cm.viridis(np.linspace(0.0, 0.9, total))
 
@@ -173,7 +142,6 @@ def main() -> None:
         )
         ax.plot(bsf, color=color, linewidth=1.0, alpha=0.65, label=label)
 
-    # Highlight best in red
     ax.plot(
         best_so_far(best_data),
         color="red", linewidth=2.5, zorder=10,
@@ -194,7 +162,6 @@ def main() -> None:
     plt.close()
     print(f"\nConvergence comparison plot: {conv_path}")
 
-    # ── Top-5 bar chart ────────────────────────────────────────────────────────
     top5 = results[:5]
     bar_labels = [
         f"T={c['T_mcmc']}\nσ={c['sigma_fraction']}\nK={c['n_chains']}\nσw={c['wide_sigma_fraction']}"
@@ -222,7 +189,6 @@ def main() -> None:
     plt.close()
     print(f"Top-5 bar chart: {bar_path}")
 
-    # ── Heatmap: T_mcmc × sigma_fraction (averaged over n_chains, wide_sigma) ──
     T_vals     = sorted(set(c["T_mcmc"]              for c, _, _ in results))
     sf_vals    = sorted(set(c["sigma_fraction"]      for c, _, _ in results))
     heat_data  = np.full((len(sf_vals), len(T_vals)), np.nan)
@@ -256,7 +222,6 @@ def main() -> None:
     plt.close()
     print(f"Heatmap: {heat_path}")
 
-    # ── Write results file ─────────────────────────────────────────────────────
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(OUTPUT_FILE, "w", encoding="utf-8") as fh:
         fh.write("HMM-MCMC-FMP Grid Search on Schwefel\n")

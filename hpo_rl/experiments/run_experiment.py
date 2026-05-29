@@ -1,3 +1,8 @@
+"""Точка входа для запуска серии экспериментов HPO.
+
+Объединяет :func:`check`, :class:`controller` и :class:`plot_and_save`:
+обучение (RL), инференс, визуализация и сохранение агрегированных результатов.
+"""
 from hpo_rl.controller.plot import plot_and_save
 from hpo_rl.controller.check import check
 from hpo_rl.controller.controller import controller
@@ -10,14 +15,20 @@ import numpy as np
 import json
 
 def run_n_experiments(config, n_experiments, inference_only=False):
-    """Функция запускающая полный пайплайн несколько раз, начиная с конфигурации пользователя, заканчивая отображением изображений и истории поиска.
-    
-    Args: 
-        config: необработанная конфигурация
-        n_experiments: количество экспериментов
-        inference_only: если True — пропускает обучение и сразу запускает инференс.
-            Требует ``load_checkpoint`` в конфиге для загрузки обученной модели.
+    """Запускает полный пайплайн HPO ``n_experiments`` раз: обучение, инференс, графики.
 
+    Args:
+        config: необработанная конфигурация (dict/YAML).
+        n_experiments: число повторов инференса (для baseline — с ``reset`` алгоритма).
+        inference_only: если True — пропускает ``train()``, только инференс RL;
+            требует ``load_checkpoint`` в конфиге.
+
+    Returns:
+        None. Сохраняет графики, таблицы истории и ``inference_results.json`` в ``logs/``.
+
+    Raises:
+        ValueError: ``inference_only`` без ``load_checkpoint``.
+        RuntimeError: чекпоинт не загружен при ``inference_only``.
     """
     parsed_config = check(config)
     # print(config, parsed_config, sep="\n\n", end="\n\n")
@@ -37,13 +48,13 @@ def run_n_experiments(config, n_experiments, inference_only=False):
     elif mode == "RL" and inference_only:
         if not getattr(expreiment_controller, 'load_loc', None):
             raise ValueError(
-                "inference_only=True requires 'load_checkpoint' in config to load trained model weights. "
+                "inference_only=True требует 'load_checkpoint' в конфиге для загрузки весов модели. "
             )
         if not getattr(expreiment_controller, '_checkpoint_loaded', False):
             raise RuntimeError(
-                f"inference_only=True but checkpoint was NOT loaded from: "
+                f"inference_only=True, но чекпоинт НЕ загружен из: "
                 f"{expreiment_controller.load_loc!r}\n"
-                f"Hint: если путь содержит backslash, используйте r\"...\" или '/' "
+                f"Подсказка: если путь содержит backslash, используйте r\"...\" или '/' "
                 f"(Python интерпретирует \\f как form-feed, \\n как newline и т.д.)"
             )
 
@@ -57,7 +68,6 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             best_result = expreiment_controller.inference()
         except KeyboardInterrupt:
             print("\n\n>>> KeyboardInterrupt: сохранение промежуточных результатов...")
-            # Извлекаем частичную историю из алгоритма
             partial_history = None
             if mode == "baseline" and hasattr(expreiment_controller, 'algorithm'):
                 alg = expreiment_controller.algorithm
@@ -89,7 +99,6 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             else:
                 print("  Нет данных для сохранения.")
 
-            # Сохраняем конфиг
             config_file = save_path / "config.json"
             with open(config_file, "w") as f:
                 json.dump(config, f, indent=4, default=str)
@@ -105,18 +114,14 @@ def run_n_experiments(config, n_experiments, inference_only=False):
         if backend_name == "sequential":
             backend = expreiment_controller.backend
 
-            # Для каждого дочернего бэкенда — отдельный inference
             seen_names = {}
             for child_idx, child in enumerate(backend.backends):
                 fn_name = getattr(child, 'function_name', type(child).__name__)
-                # Пропускаем дубликаты (schwefel встречается дважды — достаточно одного)
                 if fn_name in seen_names:
                     continue
                 seen_names[fn_name] = child_idx
 
-                # Переключаем SequentialBackend на этого child (locks switching)
                 backend.set_active_backend(child_idx)
-                # Отдельный inference на этом child
                 child_best = expreiment_controller.inference()
                 child_history = expreiment_controller.return_history()
                 child_rewards = expreiment_controller.return_rewards()
@@ -138,7 +143,6 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             outputs.save_history(as_latex=False)
             outputs.plot_reward(rewards)
 
-        # Сохраняем HMM history, если алгоритм — HMM_MCMC
         if hasattr(expreiment_controller, "algorithm"):
             hmm_table = getattr(expreiment_controller.algorithm, 'history_table', None)
             if hmm_table:
@@ -148,9 +152,6 @@ def run_n_experiments(config, n_experiments, inference_only=False):
 
     is_maximize = expreiment_controller.backend.maximize
 
-    # Эпизоды могут иметь разную длину из-за early termination,
-    # поэтому нельзя сложить в np.array напрямую.
-    # Извлекаем лучший trial из каждого эпизода отдельно.
     best = []
     for history in full_history:
         scores = [trial[1] for trial in history]
@@ -160,7 +161,6 @@ def run_n_experiments(config, n_experiments, inference_only=False):
             idx = int(np.argmin(scores))
         best.append(history[idx])
 
-    # Сортируем так, чтобы worst был первым (idx 0), best — последним (idx -1)
     best_scores = [item[1] for item in best]
     if is_maximize:
         sorted_idx = np.argsort(best_scores).tolist()
@@ -179,7 +179,7 @@ def run_n_experiments(config, n_experiments, inference_only=False):
     worst_of_last, best_of_last, median_of_last = last[last_idxs[0]], last[last_idxs[-1]], last[last_idxs[len(last_idxs)//2]]
 
     def _trial_to_serializable(trial):
-        """Конвертирует trial (config, metric) в JSON-сериализуемый формат."""
+        """Конвертирует пробу (конфигурация, метрика) в JSON-сериализуемый формат."""
         config, metric = trial
         if isinstance(config, dict):
             serialized_config = {k: float(v) if isinstance(v, (np.floating,)) else v for k, v in config.items()}
@@ -207,6 +207,7 @@ def run_n_experiments(config, n_experiments, inference_only=False):
     }
 
     def serialize(obj):
+        """Преобразует numpy-типы в JSON-сериализуемые значения для ``default=`` в json.dump."""
         if isinstance(obj, (np.float32, np.float64)): return float(obj)
         if isinstance(obj, np.ndarray): return obj.tolist()
         return str(obj)

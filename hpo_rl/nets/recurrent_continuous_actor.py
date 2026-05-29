@@ -1,4 +1,4 @@
-"""Recurrent Gaussian actor for continuous action spaces (chunked BPTT compatible)."""
+"""Рекуррентный гауссовский актор для непрерывных действий (chunked BPTT)."""
 
 from __future__ import annotations
 
@@ -15,11 +15,15 @@ SIGMA_MAX = 2
 
 
 class RecurrentContinuousActorProbabilistic(AbstractContinuousActorProbabilistic):
-    """Continuous actor: ``preprocess_net`` -> (mu, sigma) with 3D chunked activations.
+    """Непрерывный актор: preprocess_net → (μ, σ); поддержка ``[B, T, H]``.
 
-    Matches :class:`~tianshou.utils.net.continuous.ContinuousActorProbabilistic`,
-    but applies ``mu`` / ``sigma`` MLPs per timestep when the backbone returns
-    ``[B, T, H]`` (recurrent training chunks).
+    Args:
+        preprocess_net: backbone (в т.ч. рекуррентный).
+        action_shape: форма действия.
+        hidden_sizes: MLP для μ и σ.
+        max_action: масштаб после tanh.
+        unbounded: без ограничения действия по max_action.
+        conditioned_sigma: σ от наблюдения, иначе обучаемый параметр.
     """
 
     def __init__(
@@ -32,6 +36,16 @@ class RecurrentContinuousActorProbabilistic(AbstractContinuousActorProbabilistic
         unbounded: bool = False,
         conditioned_sigma: bool = False,
     ) -> None:
+        """Инициализирует RecurrentContinuousActorProbabilistic.
+
+        Args:
+            preprocess_net: сеть признаков.
+            action_shape: форма действия.
+            hidden_sizes: скрытые слои μ/σ.
+            max_action: предел действия.
+            unbounded: неограниченное действие.
+            conditioned_sigma: условная дисперсия.
+        """
         output_dim = int(np.prod(action_shape))
         super().__init__(output_dim)
         if unbounded and not np.isclose(max_action, 1.0):

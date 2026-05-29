@@ -1,3 +1,8 @@
+"""Визуализация и сохранение результатов экспериментов HPO.
+
+Модуль содержит :class:`plot_and_save` — построение графиков траектории,
+3D-ландшафта, наград и экспорт истории в CSV/LaTeX.
+"""
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 import matplotlib.colors as mcolors
@@ -22,6 +27,13 @@ class plot_and_save():
         best_result: лучший результат
         save_path: папка для сохранения таблиц и изображений
         backend: выбранный `backend`
+        experiment_number: номер эксперимента в серии запусков
+
+    Пример::
+
+        outputs = plot_and_save(history, best, save_path, backend, experiment_number=0)
+        outputs.plot_trajectory()
+        outputs.save_history(as_latex=True)
 
     """
     def __init__(self, history, best_result, save_path, backend, experiment_number=0):
@@ -32,7 +44,7 @@ class plot_and_save():
             best_result: лучший результат
             save_path: папка для сохранения таблиц и изображений
             backend: выбранный `backend`
-            experiment_number: номер экперимента
+            experiment_number: номер эксперимента
 
         """
         self.best_result = best_result
@@ -169,7 +181,7 @@ class plot_and_save():
         plt.close()
 
     def plot_reward(self, rewards, suffix=""):
-        """Строит график per-step reward и кумулятивного reward.
+        """Строит график пошаговой награды и кумулятивной награды.
 
         Args:
             rewards: список наград за каждый шаг эпизода.
@@ -222,7 +234,7 @@ class plot_and_save():
         plt.close()
 
     def save_history(self, as_latex=True, suffix=""):
-        """Функция, сохраняющая историю в виде таблицы и Latex кода
+        """Функция, сохраняющая историю в виде таблицы и LaTeX-кода
 
         Args:
             as_latex: если True — сохраняет .tex, иначе .csv
@@ -285,7 +297,7 @@ class plot_and_save():
     def save_intermediate_csv(self, suffix=""):
         """Сохраняет промежуточные результаты в CSV (без LaTeX/графиков).
 
-        Используется для checkpoint'ов во время оптимизации
+        Используется для промежуточных сохранений во время оптимизации
         и при сохранении после KeyboardInterrupt.
 
         Args:
@@ -308,7 +320,7 @@ class plot_and_save():
         """Сохраняет таблицу состояний HMM MCMC в CSV.
 
         Args:
-            history_table: list[dict] из HMM_MCMC_Optimizer.history_table.
+            history_table: list[dict] из :class:`HMM_MCMC`.history_table.
             suffix: дополнительный суффикс для имени файла.
         """
         if not history_table:

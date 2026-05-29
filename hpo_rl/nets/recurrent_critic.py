@@ -1,7 +1,18 @@
 from torch import nn
 
 class RecurrentCritic(nn.Module):
+    """Критик V(s): preprocess_net → линейная голова на 1.
+
+    Args:
+        preprocess_net: рекуррентный или плоский backbone с ``output_dim``.
+    """
+
     def __init__(self, preprocess_net):
+        """Инициализирует RecurrentCritic.
+
+        Args:
+            preprocess_net: сеть признаков.
+        """
         super().__init__()
         self.preprocess = preprocess_net
 

@@ -21,10 +21,33 @@ class SimpleGA:
         Attributes:
             data: история всех оценок (список кортежей (config, score))
             population: текущая популяция (список config)
+
+        Пример::
+
+            def objective_function(params):
+                return sum(v ** 2 for v in params.values())
+
+            dict_config = {"x0": {"type": "float", "values": [0.0, 1.0]}}
+
+            ga = SimpleGA(objective_func=objective_function, N_pop=20, budget=200,
+                          dict_to_optimize=dict_config)
+            best_config, best_score = ga.main_loop()
     """
 
-    def __init__(self, objective_func, N_pop, budget, dict_to_optimize, 
+    def __init__(self, objective_func, N_pop, budget, dict_to_optimize,
                  mutation_prob=0.1, crossover_prob=0.8, tournament_size=3, elitism=True):
+        """Инициализирует генетический алгоритм.
+
+        Args:
+            objective_func: целевая функция (минимизация)
+            N_pop: размер популяции
+            budget: количество вызовов целевой функции
+            dict_to_optimize: конфигурация допустимых гиперпараметров
+            mutation_prob: вероятность мутации гена
+            crossover_prob: вероятность скрещивания
+            tournament_size: размер турнира
+            elitism: сохранять ли лучшую особь
+        """
         self.objective_func = objective_func
         self.N_pop = N_pop
         self.budget = budget
@@ -50,19 +73,21 @@ class SimpleGA:
             self.population.append(individual)
 
     def _random_individual(self):
-        """Генерирует одну случайную конфигурацию"""
+        """Генерирует одну случайную конфигурацию.
+
+        Returns:
+            словарь конфигурации гиперпараметров
+        """
         setup = {}
         for param_name, info in self.dict_to_optimize.items():
             p_type = info["type"]
             values = info["values"]
 
             if p_type == "float":
-                # values = [L, R]
                 L, R = values
                 value = np.random.uniform(L, R)
 
             elif p_type == "int":
-                # values = [L, R], включительные границы
                 L, R = values
                 value = np.random.randint(L, R + 1)
 
@@ -78,17 +103,15 @@ class SimpleGA:
     def main_loop(self):
         """Исполняет логику генетического алгоритма.
         
-        Returns: 
-            наилучшая найденная конфигурация гиперпараметров
+        Returns:
+            кортеж (наилучшая конфигурация, наилучшая оценка)
         """
         if not self.population:
             self.initialize()
 
-        # Оценка начальной популяции
         scores = []
         parent_bar = tqdm(total=self.budget, position=0)
         
-        # Первичная оценка (если data пустая)
         if len(self.data) == 0:
             for ind in self.population:
                 score = self.objective_func(ind)
@@ -98,45 +121,34 @@ class SimpleGA:
                 if len(self.data) >= self.budget:
                     break
         else:
-            # Если перезапуск, восстанавливаем scores для текущей популяции
-            # (Здесь упрощение: предполагаем, что self.population синхронизирована с последними N_pop из data)
             scores = [x[1] for x in self.data[-len(self.population):]]
 
         while len(self.data) < self.budget:
-            # Создание нового поколения
             new_population = []
             
-            # Элитизм: переносим лучшего
             if self.elitism:
                 best_idx = np.argmin(scores)
                 new_population.append(copy.deepcopy(self.population[best_idx]))
 
             while len(new_population) < self.N_pop:
-                # Селекция
                 parent1 = self.tournament_selection(scores)
                 parent2 = self.tournament_selection(scores)
 
-                # Скрещивание
                 if np.random.rand() < self.crossover_prob:
                     child = self.crossover(parent1, parent2)
                 else:
                     child = copy.deepcopy(parent1)
 
-                # Мутация
                 child = self.mutate(child)
                 new_population.append(child)
 
-            # Обновление популяции
             self.population = new_population
             scores = []
 
-            # Оценка нового поколения
             for ind in self.population:
                 if len(self.data) >= self.budget:
                     break
                 
-                # Пропускаем пересчет элитной особи, если она не менялась (опционально, но здесь считаем честно)
-                # Для простоты считаем всех, так как мутация стохастична
                 score = self.objective_func(ind)
                 self.data.append((ind, score))
                 scores.append(score)
@@ -147,7 +159,11 @@ class SimpleGA:
         return best_overall
 
     def tournament_selection(self, scores):
-        """Выбирает родителя методом турнира"""
+        """Выбирает родителя методом турнира.
+
+        Returns:
+            конфигурация выбранного родителя
+        """
         indices = np.random.choice(len(self.population), size=self.tournament_size, replace=False)
         best_idx = indices[0]
         best_score = scores[best_idx]
@@ -159,10 +175,9 @@ class SimpleGA:
         return self.population[best_idx]
 
     def crossover(self, p1, p2):
-        """Равномерное скрещивание (Uniform Crossover)"""
+        """Равномерное скрещивание."""
         child = {}
         for key in self.dict_to_optimize.keys():
-            # С вероятностью 50% берем ген от первого или второго родителя
             if np.random.rand() < 0.5:
                 child[key] = p1[key]
             else:
@@ -170,7 +185,11 @@ class SimpleGA:
         return child
 
     def mutate(self, individual):
-        """Мутация особи"""
+        """Мутация особи.
+
+        Returns:
+            мутированная копия особи
+        """
         mutated_ind = copy.deepcopy(individual)
         for key, info in self.dict_to_optimize.items():
             if np.random.rand() < self.mutation_prob:
@@ -180,24 +199,20 @@ class SimpleGA:
                 if p_type == "float":
                     L, R = values
                     domain_range = R - L
-                    # Добавляем нормальный шум, 10% от диапазона
                     sigma = domain_range * 0.1
                     delta = np.random.normal(0, sigma)
                     val = mutated_ind[key] + delta
-                    # Clip to bounds
                     mutated_ind[key] = np.clip(val, L, R)
 
                 elif p_type == "int":
                     L, R = values
                     domain_range = max(1, R - L)
-                    # Шум ~ 10% от диапазона, но минимум 1
                     sigma = max(1.0, domain_range * 0.1)
                     delta = int(np.round(np.random.normal(0, sigma)))
                     val = int(mutated_ind[key]) + delta
                     mutated_ind[key] = int(np.clip(val, L, R))
 
                 elif p_type == "categorical":
-                    # Выбираем случайное значение, отличное от текущего (если возможно)
                     vals = values
                     if len(vals) > 1:
                         current = mutated_ind[key]

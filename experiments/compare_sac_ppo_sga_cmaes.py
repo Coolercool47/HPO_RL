@@ -1,24 +1,3 @@
-"""
-Compare SAC and PPO (trained checkpoints, inference only) vs SimpleGA and CMA-ES on the
-same 2D benchmark suite as ``compare_rl_vs_baselines.py``.
-
-Budget: 200 objective evaluations per method per seed (RL episode length matches ``max_steps``
-in ``instant_continuous_pipeline``).
-
-SAC / PPO use your saved hyperparameter layouts (see ``config_sac``, ``config_ppo``) with the
-full ``FUNCTION_ORDER`` sequential backend — checkpoints must match that ordering and net specs.
-
-Usage:
-    python compare_sac_ppo_sga_cmaes.py --ckpt-sac log/sac/<run>/final_policy.pth \\
-        --ckpt-ppo log/ppo/<run>/final_policy.pth
-
-Use forward slashes on Windows for checkpoint paths. Training saves ``algo.state_dict()`` —
-``config_sac`` / ``config_ppo`` hyperparameters (net sizes, env deltas, AutoAlpha, etc.) must
-match the run that produced each checkpoint.
-
-Set WANDB_MODE=disabled to avoid W&B uploads (default for this script).
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -49,7 +28,6 @@ BUDGET = 200
 N_SEEDS = 3
 
 FUNCTION_ORDER = [
-    # N-D functions (work in 2D)
     "rastrigin",
     "rosenbrock",
     "schwefel",
@@ -59,7 +37,6 @@ FUNCTION_ORDER = [
     "levy",
     "michalewicz",
     "styblinski_tang",
-    # 2D-only functions
     "booth",
     "beale",
     "goldstein_price",
@@ -77,35 +54,31 @@ FUNCTION_ORDER = [
     "langermann",
 ]
 
-# noise_std ≈ 10 % of each function's typical value range.
-# Large enough to be significant, small enough not to bury the landscape signal.
 NOISE_STD_MAP: dict[str, float] = {
-    # N-D functions
-    "sphere":           5.0,    # range [0, ~50]
-    "rosenbrock":       20.0,   # range [0, ~400]  (2D, bounds [-1,1])
-    "rastrigin":        8.0,    # range [0, ~80]
-    "ackley":           2.0,    # range [0, ~22]
-    "griewank":         10.0,   # range [0, ~100]
-    "schwefel":         150.0,  # range [0, ~1677]
-    "levy":             8.0,    # range [0, ~100]
-    "michalewicz":      0.1,    # range [-2, 0]
-    "styblinski_tang":  10.0,   # range [-78, ~250]
-    # 2D-only functions
-    "booth":            30.0,   # range [0, ~1200]
-    "beale":            5.0,    # typical near-optimum values
-    "goldstein_price":  50.0,   # range [3, ~1e4]
-    "bukin_n6":         20.0,   # range [0, ~500]
-    "cross_in_tray":    0.05,   # range [-2.06, 0]
-    "drop_wave":        0.05,   # range [-1, 0.5]
-    "eggholder":        50.0,   # range [-960, ~1000]
-    "holder_table":     1.0,    # range [-19, 0]
-    "schaffer_n2":      0.05,   # range [0, 1]
-    "schaffer_n4":      0.05,   # range [0, 1]
-    "shubert":          15.0,   # range [-186, ~200]
-    "dejong_n5":        10.0,   # range [~1, ~500]
-    "easom":            0.05,   # range [-1, 0]
-    "levy_n13":         15.0,   # range [0, ~300]
-    "langermann":       0.1,    # range [-1.5, ~1]
+    "sphere":           5.0,    
+    "rosenbrock":       20.0,   
+    "rastrigin":        8.0,   
+    "ackley":           2.0,  
+    "griewank":         10.0,  
+    "schwefel":         150.0, 
+    "levy":             8.0,    
+    "michalewicz":      0.1,    
+    "styblinski_tang":  10.0, 
+    "booth":            30.0, 
+    "beale":            5.0,    
+    "goldstein_price":  50.0,  
+    "bukin_n6":         20.0,  
+    "cross_in_tray":    0.05, 
+    "drop_wave":        0.05,  
+    "eggholder":        50.0,  
+    "holder_table":     1.0,   
+    "schaffer_n2":      0.05,   
+    "schaffer_n4":      0.05,  
+    "shubert":          15.0,   
+    "dejong_n5":        10.0,  
+    "easom":            0.05,   
+    "levy_n13":         15.0,  
+    "langermann":       0.1,    
 }
 
 BACKENDS_LIST = [
@@ -136,14 +109,12 @@ def _seed_all(seed: int) -> None:
 
 
 def config_sac(load_checkpoint: str | None, backends_list: list | None = None) -> dict:
-    """SAC hyperparameters from your saved config; sequential backend = ``FUNCTION_ORDER``."""
     cfg = {
         "full_args": {
             "algorithm": {
                 "name": "sac",
                 "gamma": 0.99,
                 "tau": 0.005,
-                # JSON dumps show ``AutoAlpha()``; this tianshou build requires explicit args.
                 "alpha": AutoAlpha(
                     target_entropy=-2.0,
                     log_alpha=0.0,
@@ -209,7 +180,6 @@ def config_sac(load_checkpoint: str | None, backends_list: list | None = None) -
 
 
 def config_ppo(load_checkpoint: str | None, backends_list: list | None = None) -> dict:
-    """PPO hyperparameters from your saved config; sequential backend = ``FUNCTION_ORDER``."""
     cfg = {
         "full_args": {
             "algorithm": {
@@ -302,7 +272,6 @@ def run_rl_episode(
     seed: int,
     budget: int,
 ) -> np.ndarray:
-    """One inference rollout on a locked Sequential child; returns best-so-far curve."""
     _seed_all(seed)
     cfg = deepcopy(raw_config)
     parsed = check(cfg)
@@ -333,7 +302,6 @@ def run_baseline(
     budget: int,
     noise_std: float = 0.0,
 ) -> np.ndarray:
-    """SimpleGA or CMA_ES on a single function backend; best-so-far curve length ``budget``."""
     _seed_all(seed)
     backend_cfg = {"name": "function", "function": function_name, "dimensions": 2,
                    "noise_std": noise_std}
@@ -376,7 +344,6 @@ def _plot_per_function(
     budget: int,
     n_seeds: int,
 ) -> None:
-    """Saves one PNG per benchmark function into *out_dir*."""
     os.makedirs(out_dir, exist_ok=True)
     evals = np.arange(1, budget + 1)
     methods_styles = [

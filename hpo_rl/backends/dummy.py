@@ -73,7 +73,7 @@ class DummyBackend(EvaluationBackend):
         Returns:
             Награда в диапазоне [0, 1]:
             - ``1.0`` при точном совпадении всех параметров с оптимумом
-            - ``0.0`` только в edge cases (невалидный config или нет общих параметров)
+            - ``0.0`` только в краевых случаях (невалидный config или нет общих параметров)
             - ``(0, 1)`` при отклонениях (чем больше отклонение, тем ближе к 0)
             
             Формула: ``reward = exp(-MSE)``, где MSE — среднее квадратичное
@@ -94,7 +94,6 @@ class DummyBackend(EvaluationBackend):
             cfg_val = config[key]
 
             if isinstance(opt_val, (int, float)):
-                # Числовой параметр: относительное отклонение
                 if not isinstance(cfg_val, (int, float)):
                     dist = 1.0
                 else:
@@ -107,7 +106,6 @@ class DummyBackend(EvaluationBackend):
                         dist = abs_diff / abs_opt
                     dist = min(dist, 10.0)
             else:
-                # Категориальный параметр: точное совпадение
                 dist = 0.0 if cfg_val == opt_val else 1.0
 
             total_dist += dist ** 2

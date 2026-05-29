@@ -3,17 +3,26 @@ import torch
 from tianshou.data import Batch
 
 class MaskedRecurrentDiscreteActor(DiscreteActor):
-    """Actor для рекуррентных сетей с поддержкой action masking.
+    """Дискретный актор для рекуррентных сетей с action masking.
 
-    Решает проблему: стандартный DiscreteActor использует MLP с flatten(1),
-    что ломает 3D вход [batch, seq_len, hidden_dim] от RNN.
+        Args:
+            preprocess_net: рекуррентный backbone
+            action_shape: форма действий
+            hidden_sizes: не используется (голова — один Linear)
 
-    Этот класс:
-    1. Вызывает preprocess_net напрямую (а не через super().forward())
-    2. Применяет финальный Linear per-timestep (без flatten)
-    3. Накладывает action mask на логиты
+        Note:
+            Стандартный DiscreteActor делает flatten(1), что ломает 3D вход
+            ``[batch, seq_len, hidden_dim]`` от RNN. Этот класс вызывает
+            preprocess_net напрямую и накладывает mask на логиты.
     """
     def __init__(self, preprocess_net, action_shape, hidden_sizes=()):
+        """Инициализирует MaskedRecurrentDiscreteActor.
+
+        Args:
+            preprocess_net: рекуррентный backbone.
+            action_shape: форма действий.
+            hidden_sizes: не используется (голова — один Linear).
+        """
         super().__init__(
             preprocess_net=preprocess_net,
             action_shape=action_shape,

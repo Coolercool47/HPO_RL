@@ -1,4 +1,4 @@
-"""Policy wrapper that forwards recurrent training signals (e.g. episode_reset) to the actor."""
+"""Обёртка политики: пробрасывает ``episode_reset`` в актор для RNN."""
 
 from __future__ import annotations
 
@@ -10,11 +10,14 @@ from tianshou.data.types import DistBatchProtocol, ObsBatchProtocol
 
 
 class RecurrentProbabilisticActorPolicy(ProbabilisticActorPolicy):
-    """Like :class:`~tianshou.algorithm.modelfree.reinforce.ProbabilisticActorPolicy`
-    but merges ``batch.episode_reset`` (if present) into ``info`` for the actor.
+    """ProbabilisticActorPolicy с ``episode_reset`` в ``info`` для RNN-актёра.
 
-    This lets :class:`~hpo_rl.nets.recurrent_net.RecurrentBaseNet` reset hidden
-    states at chunk starts and at true episode boundaries mid-chunk.
+        Args:
+            (наследуются от ProbabilisticActorPolicy)
+
+        Note:
+            Позволяет :class:`~hpo_rl.nets.recurrent_net.RecurrentBaseNet`
+            сбрасывать hidden на границах чанка и эпизода.
     """
 
     def _info_for_actor(self, batch: ObsBatchProtocol) -> dict[str, Any] | None:

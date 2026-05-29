@@ -1,22 +1,4 @@
-"""
-ChunkedRNNPPO — PPO с рекуррентными сетями для tianshou 2.0.0.
-
-Подход: Chunked BPTT (Truncated Backpropagation Through Time).
-On-policy данные нарезаются на последовательности (chunks) длиной seq_len.
-Actor и Critic получают 3D-входы [num_chunks, seq_len, obs_dim],
-но loss считается по ВСЕМ шагам (не только по последнему).
-
-Ключевые отличия от обычного PPO:
-1. `_add_returns_and_advantages`: для рекуррентного критика значения V(s), V(s')
-   считаются вдоль **непрерывных сегментов** траекторий (пер-env буферы + episode_start),
-   а не через независимый one-step GRU.
-2. `_preprocess_batch`: GAE на плоских данных, затем упаковка в chunks + `episode_reset`
-   (границы эпизода **и** первый шаг каждого chunk для согласованности с truncated BPTT).
-3. `_update_with_batch`: PPO-loss по 3D obs / act с учётом `episode_reset` (через policy info).
-
-Рекомендуется использовать :class:`~hpo_rl.nets.recurrent_policy.RecurrentProbabilisticActorPolicy`,
-чтобы маска ``episode_reset`` доходила до `RecurrentBaseNet`.
-"""
+"""PPO с chunked BPTT для рекуррентных политик и критиков."""
 
 from __future__ import annotations
 
@@ -39,13 +21,17 @@ class ChunkedRNNPPO(PPO):
     """PPO с поддержкой рекуррентных сетей через Chunked BPTT.
 
     Args:
-        seq_len: длина окна (chunk) для RNN. Число шагов в выборке после сбора
-            не должно быть меньше `seq_len`; «хвост» обрезается до кратности `seq_len`.
-        collect_step_num_env_steps: если задано — проверяется, что делится на `seq_len`.
-        **kwargs: аргументы :class:`~tianshou.algorithm.modelfree.ppo.PPO` (keyword-only).
+        seq_len: длина окна (chunk) для RNN; rollout обрезается до кратности ``seq_len``.
+        collect_step_num_env_steps: если задано — должно делиться на ``seq_len``.
+        **kwargs: аргументы :class:`~tianshou.algorithm.modelfree.ppo.PPO`.
     """
 
     def __init__(self, **kwargs: Any) -> None:
+        """Инициализирует ChunkedRNNPPO.
+
+        Args:
+            **kwargs: ``seq_len``, ``collect_step_num_env_steps`` и параметры PPO.
+        """
         seq_len = int(kwargs.pop("seq_len", 16))
         collect_step_num_env_steps = kwargs.pop("collect_step_num_env_steps", None)
         super().__init__(**kwargs)
@@ -58,10 +44,18 @@ class ChunkedRNNPPO(PPO):
                     f"seq_len={self.seq_len} so each collect yields an integer number of chunks."
                 )
 
-    #  Утилиты для reshape / маски сброса
-
     @staticmethod
     def _reshape_to_chunks(x: Any, num_chunks: int, seq_len: int) -> Any:
+        """Рекурсивно преобразует rollout в форму ``[num_chunks, seq_len, ...]``.
+
+        Args:
+            x: тензор, ndarray, :class:`~tianshou.data.Batch` или вложенная структура.
+            num_chunks: число chunk'ов.
+            seq_len: длина окна (chunk) для RNN.
+
+        Returns:
+            данные той же структуры с формой ``[num_chunks, seq_len, ...]``.
+        """
         if isinstance(x, Batch):
             new_b = Batch()
             for k in x.keys():
@@ -75,6 +69,14 @@ class ChunkedRNNPPO(PPO):
 
     @staticmethod
     def _flatten_chunks(x: Any) -> Any:
+        """Рекурсивно сворачивает chunked-тензоры в плоский rollout.
+
+        Args:
+            x: тензор, ndarray или Batch формы ``[num_chunks, seq_len, ...]``.
+
+        Returns:
+            данные формы ``[num_chunks * seq_len, ...]``.
+        """
         if isinstance(x, Batch):
             new_b = Batch()
             for k in x.keys():
@@ -88,6 +90,11 @@ class ChunkedRNNPPO(PPO):
 
     @staticmethod
     def _buffer_subindices(buffer: ReplayBuffer, indices: np.ndarray) -> np.ndarray:
+        """Индексы под-буферов (эпизодов) для каждого шага rollout.
+
+        Returns:
+            массив длины ``len(indices)`` с id под-буфера на шаг.
+        """
         indices = np.asarray(indices)
         if hasattr(buffer, "_offset"):
             off = np.asarray(buffer._offset)
@@ -96,7 +103,17 @@ class ChunkedRNNPPO(PPO):
 
     @staticmethod
     def _episode_start_flags(buffer: ReplayBuffer, indices: np.ndarray, batch: Batch) -> np.ndarray:
-        """True на шаге t, если RNN-контекст должен обнулиться перед обработкой s_t."""
+        """Маска начала эпизода для сброса RNN-контекста.
+
+        Args:
+            buffer: replay-буфер с эпизодами.
+            indices: индексы шагов rollout в буфере.
+            batch: батч с полями ``terminated`` и ``truncated``.
+
+        Returns:
+            булев массив длины ``len(batch)``; ``True`` на шаге t, если контекст
+            обнуляется перед обработкой ``s_t``.
+        """
         n = len(batch)
         term = np.asarray(batch.terminated)
         trunc = np.asarray(batch.truncated)
@@ -110,7 +127,16 @@ class ChunkedRNNPPO(PPO):
         return starts
 
     def _wrap_seq_obs(self, obs: Any, device: torch.device) -> Any:
-        """obs: срез по времени [L, ...] или dict с ключом 'obs' (+ 'mask'). -> batch для RNN [1,L,...]."""
+        """Формирует batch наблюдений ``[1, L, ...]`` для рекуррентного критика.
+
+        Args:
+            obs: срез по времени ``[L, ...]``, dict или Batch с ключом ``obs``
+                (и опционально ``mask``).
+            device: устройство для тензоров.
+
+        Returns:
+            тензор или Batch с наблюдениями формы ``[1, L, ...]``.
+        """
         if isinstance(obs, Batch) and "obs" in obs:
             d = {k: obs[k] for k in obs.keys()}
         elif isinstance(obs, dict):
@@ -141,7 +167,17 @@ class ChunkedRNNPPO(PPO):
         return t.unsqueeze(0)
 
     def _critic_values_sequential(self, batch: Batch, buffer: ReplayBuffer, indices: np.ndarray, *, field: str) -> torch.Tensor:
-        """V(s) или V(s') по сегментам (корректный рекуррентный контекст)."""
+        """Последовательно вычисляет V(s) или V(s') с корректным рекуррентным контекстом.
+
+        Args:
+            batch: rollout-батч.
+            buffer: replay-буфер.
+            indices: индексы шагов в буфере.
+            field: ``"obs"`` или ``"obs_next"`` — какое поле использовать.
+
+        Returns:
+            тензор значений критика длины ``len(batch)``.
+        """
         n = len(batch)
         starts = self._episode_start_flags(buffer, indices, batch)
         device = next(self.critic.parameters()).device
@@ -166,6 +202,11 @@ class ChunkedRNNPPO(PPO):
         buffer: ReplayBuffer,
         indices: np.ndarray,
     ) -> BatchWithAdvantagesProtocol:
+        """Считает V(s), returns и advantages с учётом рекуррентного критика.
+
+        Returns:
+            батч с полями ``returns``, ``adv``, ``v_s``.
+        """
         if self.recompute_adv:
             self._buffer, self._indices = buffer, indices
 
@@ -203,22 +244,26 @@ class ChunkedRNNPPO(PPO):
 
     @staticmethod
     def _tensor_action_suffix(act: torch.Tensor) -> tuple[int, ...]:
+        """Размерность действия без batch/time (для reshape в chunks)."""
         if act.dim() <= 1:
             return ()
         return tuple(int(x) for x in act.shape[1:])
 
     @staticmethod
     def _log_probs_for_dist(dist: torch.distributions.Distribution, acts: torch.Tensor) -> torch.Tensor:
+        """Вычисляет log π(a|s) для распределения политики.
+
+        Args:
+            dist: распределение действий.
+            acts: выбранные действия.
+
+        Returns:
+            log-вероятности; для многомерных действий суммирует по последней оси.
+        """
         lp = dist.log_prob(acts)
-        # For continuous actions with per-element log_prob (e.g. raw Normal without
-        # Independent wrapper), lp has the same shape as acts including the action dim.
-        # In chunked mode acts is [B, T] (discrete) or [B, T, A] (continuous).
-        # Sum only when there's a genuine action dimension beyond batch+time (dim > 2).
         if lp.shape == acts.shape and lp.dim() > 2:
             lp = lp.sum(dim=-1)
         return lp
-
-    #  Переопределение _preprocess_batch (tianshou 2.0.0 API)
 
     def _preprocess_batch(
         self,
@@ -226,6 +271,11 @@ class ChunkedRNNPPO(PPO):
         buffer: ReplayBuffer,
         indices: np.ndarray,
     ) -> LogpOldProtocol:
+        """GAE, chunking obs/act и ``logp_old`` для PPO-обновления.
+
+        Returns:
+            батч в форме ``[num_chunks, seq_len, ...]`` с ``episode_reset``.
+        """
         if self.recompute_adv:
             self._buffer, self._indices = buffer, indices
 
@@ -258,7 +308,6 @@ class ChunkedRNNPPO(PPO):
         batch.adv = batch.adv.reshape(num_chunks, self.seq_len)
         batch.v_s = batch.v_s.reshape(num_chunks, self.seq_len)
 
-        # episode_reset: границы эпизода + первый шаг каждого chunk (обязательный сброс для TBPTT)
         er = np.zeros((num_chunks, self.seq_len), dtype=bool)
         flat = starts[:valid_len].reshape(num_chunks, self.seq_len)
         er |= flat
@@ -280,6 +329,11 @@ class ChunkedRNNPPO(PPO):
         batch_size: int | None,
         repeat: int,
     ) -> A2CTrainingStats:
+        """PPO-шаги по chunked-батчу с опциональным пересчётом advantages.
+
+        Returns:
+            статистика обучения A2C/PPO.
+        """
         losses, clip_losses, vf_losses, ent_losses = [], [], [], []
         gradient_steps = 0
         split_batch_size = batch_size or -1
@@ -354,7 +408,14 @@ class ChunkedRNNPPO(PPO):
         )
 
     def _flatten_to_1d_for_gae(self, batch: LogpOldProtocol) -> Batch:
-        """Восстанавливает плоский rollout-батч для пересчёта GAE."""
+        """Восстанавливает плоский rollout-батч для пересчёта GAE.
+
+        Args:
+            batch: chunked-батч формы ``[num_chunks, seq_len, ...]``.
+
+        Returns:
+            Batch с полями ``obs``, ``obs_next``, ``act`` и служебными ключами в 1D.
+        """
         flat = Batch()
         flat.obs = self._flatten_chunks(batch.obs)
         flat.obs_next = self._flatten_chunks(batch.obs_next)

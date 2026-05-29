@@ -1,20 +1,3 @@
-"""
-Визуализация ландшафта всех 2D функций из OptimizationBenchmarkBackend:
-сравнение TPE (Optuna) и HMM_MCMC (FMP-MCMC).
-
-Использует plot_and_save из hpo_rl.controller:
-  - plot_3d()        — контурная карта + 3D поверхность + траектория точек
-  - plot_trajectory() — кривая сходимости best-so-far
-
-Для каждой функции и каждого метода создаётся подпапка:
-  out_dir/<func_name>/tpe/   — графики TPE
-  out_dir/<func_name>/hmm/   — графики HMM-MCMC
-
-Запуск:
-    python plot_2d_benchmarks.py
-    python plot_2d_benchmarks.py --budget 150 --seeds 1 --out_dir plots_2d
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -33,7 +16,6 @@ from hpo_rl.controller import plot_and_save
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 warnings.filterwarnings("ignore")
 
-# ── Параметры по умолчанию ─────────────────────────────────────────────────
 BUDGET = 400
 N_SEEDS = 1
 OUT_DIR = "plots_2d"
@@ -56,20 +38,16 @@ HMM_PARAMS = dict(
     anneal_T=True,
 )
 
-# ── Все 2D функции из function.py ──────────────────────────────────────────
 ALL_2D_FUNCTIONS: list[str] = [
-    # 2D-only
     "booth", "beale", "goldstein_price", "bukin_n6",
     "cross_in_tray", "drop_wave", "eggholder", "holder_table",
     "schaffer_n2", "schaffer_n4", "shubert", "dejong_n5",
     "easom", "levy_n13", "langermann",
-    # N-D в 2D-режиме
     "sphere", "rosenbrock", "rastrigin", "ackley",
     "griewank", "schwefel", "levy", "michalewicz", "styblinski_tang",
 ]
 
 
-# ── Запуск методов ─────────────────────────────────────────────────────────
 def _make_space(backend: OptimizationBenchmarkBackend) -> dict:
     return {
         f"x{i}": {"values": [float(backend.bounds[i][0]), float(backend.bounds[i][1])], "type": "float"}
@@ -78,7 +56,6 @@ def _make_space(backend: OptimizationBenchmarkBackend) -> dict:
 
 
 def run_tpe(backend: OptimizationBenchmarkBackend, seed: int, budget: int) -> list:
-    """Запускает Optuna TPE; возвращает history в формате [(config, score), ...]."""
     space = _make_space(backend)
 
     def objective(trial: optuna.Trial) -> float:
@@ -97,7 +74,6 @@ def run_tpe(backend: OptimizationBenchmarkBackend, seed: int, budget: int) -> li
 
 
 def run_hmm(backend: OptimizationBenchmarkBackend, seed: int, budget: int) -> list:
-    """Запускает HMM_MCMC; возвращает history в формате [(config, score), ...]."""
     np.random.seed(seed)
     space = _make_space(backend)
     alg = HMM_MCMC(
@@ -116,9 +92,7 @@ def run_hmm(backend: OptimizationBenchmarkBackend, seed: int, budget: int) -> li
     return [(cfg, float(val)) for cfg, val in alg.data]
 
 
-# ── Основная логика ────────────────────────────────────────────────────────
 def process_function(func_name: str, budget: int, seed: int, out_dir: str) -> None:
-    """Запускает оба метода для одной функции и сохраняет графики через plot_and_save."""
     backend = OptimizationBenchmarkBackend(function_name=func_name, dimensions=2, noise_std=0.0)
 
     for method_name, history in [

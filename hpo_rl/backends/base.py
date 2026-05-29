@@ -8,9 +8,6 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Tuple
 
 CATASTROPHIC_FAILURE_REWARD: float = -1e9
-"""Большой штраф при сбое (ошибка обучения, некорректные параметры)."""
-
-# Сделать выгрузку на диск или lru_cache
 
 class EvaluationBackend(ABC):
     """Абстрактный базовый класс для бэкендов оценки конфигураций.
@@ -104,7 +101,6 @@ class EvaluationBackend(ABC):
         items = []
         for k in sorted(config.keys()):
             v = config[k]
-            # Округляем float для устойчивости к погрешностям
             if isinstance(v, float):
                 v = round(v, 10)
             items.append((k, v))

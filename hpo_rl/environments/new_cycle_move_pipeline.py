@@ -8,17 +8,49 @@ from hpo_rl.backends.sequential import SequentialBackend
 from hpo_rl.environments.base_env import BaseHPOEnv
 
 class CyclicPipelineEnvNew(BaseHPOEnv):
+    """Циклическая дискретная среда HPO: за шаг изменяется один гиперпараметр.
+
+    Float-параметры дискретизируются в ``num_bins``; categorical — прямой выбор.
+    Наблюдение — dict с ``obs`` и маской допустимых действий ``mask``.
+
+    Args:
+        hp_space: пространство гиперпараметров (float/int/categorical).
+        backend: бэкенд оценки метрики.
+        step_sizes: размеры шагов по сетке для float-параметров.
+        num_bins: число бинов дискретизации float.
+        max_steps: лимит шагов эпизода.
+        obs_mode: ``index`` (норм. индекс) или ``ohe`` (one-hot).
+        history_window: окно истории в наблюдении (0 — без истории).
+        reward_mode: схема награды (``absolute``, ``delta``, ``best_improvement`` и др.).
+
+    Attributes:
+        num_hyperparams: число параметров.
+        cur_step_num: индекс активного параметра в цикле.
+        best_config_so_far: лучшая конфигурация эпизода.
+    """
+
     def __init__(self,
         hp_space: Dict[str, Any],
         backend: EvaluationBackend,
         step_sizes: List[int],
         num_bins: int = 20,
         max_steps: int = 200,
-        obs_mode: str = "index",  # "index" | "ohe"
-        history_window: int = 0,  # 0 = no history, N = last N cycles
-        reward_mode: str = "absolute",  # "absolute" | "delta"
+        obs_mode: str = "index",  
+        history_window: int = 0, 
+        reward_mode: str = "absolute", 
         ):
+        """Инициализирует циклическую pipeline-среду.
 
+        Args:
+            hp_space: пространство гиперпараметров.
+            backend: бэкенд оценки.
+            step_sizes: шаги по сетке для float.
+            num_bins: число бинов float.
+            max_steps: максимум шагов.
+            obs_mode: ``index`` или ``ohe``.
+            history_window: окно истории.
+            reward_mode: режим награды.
+        """
         super().__init__(hp_space, backend)
         self._normalize_hp_space()
 
@@ -49,7 +81,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
 
         self.hp_space_keys_iterator = itertools.cycle(self.hp_space_config)
 
-        self.hp_lin_spaces = {} #инициализация np.linspace для гиперов 
+        self.hp_lin_spaces = {} 
         self._max_categorical_hyp_len = 0
         self._param_obs_slices = {}
         ohe_dim = 0
@@ -106,6 +138,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
                 )
 
     def _init_action_space(self):
+        """Инициализирует дискретное action space с шагами по сетке и категориальными действиями."""
         self.step_sizes = [-i for i in self.step_sizes] + [0] + self.step_sizes
         self.step_sizes = sorted(self.step_sizes)
 
@@ -113,12 +146,13 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.action_space = gym.spaces.Discrete(num_actions)
 
     def _init_observation_space(self):
+        """Инициализирует Dict observation space: ``obs`` (flat vector) и ``mask`` (MultiBinary)."""
         if self.obs_mode == "ohe":
             self._param_dim = self._ohe_param_dim
         else:
             self._param_dim = self.num_hyperparams
 
-        flat_obs_dim = self._param_dim + 1 + self.num_hyperparams  # params + reward + active_param ohe
+        flat_obs_dim = self._param_dim + 1 + self.num_hyperparams 
 
         if self.history_window > 0:
             self._snapshot_depth = self.history_window * self.num_hyperparams
@@ -131,10 +165,17 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         })
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        """Сбрасывает эпизод: случайная конфигурация, начальная оценка, obs+mask.
+
+        Args:
+            seed: seed генератора.
+            options: опции Gymnasium.
+
+        Returns:
+            tuple: (observation, info).
+        """
         super().reset(seed=seed, options=options)
 
-        # Domain randomization: switch to next backend on each episode reset.
-        # Called BEFORE sync_bounds_to_backend so bounds match the new function.
         if isinstance(self.backend, SequentialBackend):
             self.backend.next_backend()
         self.sync_bounds_to_backend()
@@ -144,7 +185,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.best_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         self.current_raw_metric = float('-inf') if self.backend.maximize else float('inf')
         self.prev_raw_metric = None
-        self._initial_raw_metric = None  # будет установлен в _compute_reward
+        self._initial_raw_metric = None  
         
         self.step_num_total = 0
         self.cur_step_num = 0
@@ -159,7 +200,6 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.hp_space_keys_iterator = itertools.cycle(self.hp_space_config)
 
         self._spawn()
-        # Evaluate initial metric BEFORE _compute_reward so best/prev are correct
         initial_val = self.backend.evaluate(self.current_hyp_setup)
         self._initial_raw_metric = initial_val
         self.raw_metric = initial_val
@@ -168,7 +208,6 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         self.best_config_so_far = self.current_hyp_setup.copy()
         self.prev_raw_metric = initial_val
         self._compute_reward()
-        # First step reward should be 0 for delta modes (no change yet)
         if self.reward_mode in ("delta", "relative_delta"):
             self.reward = 0.0
 
@@ -178,14 +217,20 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         return self._get_obs(), self._get_info()
 
     def step(self, action):
-        # --- Сохраняем ПРЕДЫДУЩЕЕ состояние в history ДО действия ---
-        # Это гарантирует: history[-1] ≠ текущие obs (без дублирования)
+        """Сдвигает один параметр в цикле, оценивает конфигурацию.
+
+        Args:
+            action: индекс шага (float) или категории (categorical).
+
+        Returns:
+            tuple: (observation, reward, terminated, truncated, info).
+        """
         if self.history_window > 0:
             self._reward_history_buf = np.roll(self._reward_history_buf, -1)
-            self._reward_history_buf[-1] = self.reward  # reward ПРЕДЫДУЩЕГО шага
+            self._reward_history_buf[-1] = self.reward  
 
             self._param_snapshot_buf = np.roll(self._param_snapshot_buf, -1, axis=0)
-            self._param_snapshot_buf[-1] = self._current_param_vec()  # params ПРЕДЫДУЩЕГО шага
+            self._param_snapshot_buf[-1] = self._current_param_vec()  
 
         hp_names_list = list(self.hp_space_config.keys())
         cur_hp_name = hp_names_list[self.cur_step_num]
@@ -213,16 +258,15 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         return observation, reward, terminated, truncated, info
 
     def _calculate_mask(self):
+        """Формирует маску допустимых действий для текущего активного параметра."""
         mask = np.zeros(self.action_space.n, dtype=bool)
 
-        # Определяем текущий параметр
         hp_names_list = list(self.hp_space_config.keys())
         cur_hp_name = hp_names_list[self.cur_step_num]
         info = self.hp_space_config[cur_hp_name]
 
         if info["type"] == "float":
-            # step_sizes уже развёрнуты в [-5, -1, 0, 1, 5] — всё это валидные действия
-            n_valid = len(self.step_sizes)  # после expand: 2*orig+1
+            n_valid = len(self.step_sizes)  
             mask[:n_valid] = True
         elif info["type"] == "categorical":
             n_valid = len(info["values"])
@@ -231,15 +275,17 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         return mask
     
     def _intended_delta(self, action, hp_info):
+        """Возвращает задуманное изменение индекса параметра (0 для categorical без смены)."""
         if hp_info["type"] == "float":
             return self.step_sizes[action]
         return 0 if action == self.cur_idx_dict[list(self.hp_space_config.keys())[self.cur_step_num]] else 1
 
     def _take_action(self, action):
+        """Применяет действие к текущему параметру в цикле и обновляет конфигурацию."""
         cur_hp_name = next(self.hp_space_keys_iterator)
         hp_info = self.hp_space_config[cur_hp_name]
 
-        if hp_info["type"] == "float": # мейби бейби но маски шоу
+        if hp_info["type"] == "float": 
             self.cur_idx_dict[cur_hp_name] = int(np.clip(
                 self.cur_idx_dict[cur_hp_name] + self.step_sizes[action],
                 0, self.num_bins - 1
@@ -251,6 +297,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
             self.current_hyp_setup[cur_hp_name] = hp_info["values"][action]
     
     def _spawn(self):
+        """Сэмплирует случайную начальную конфигурацию гиперпараметров."""
         for hp_name, values in self.hp_space_config.items():
             if values["type"] == "float":
                 self.cur_idx_dict[hp_name] = int(self.np_random.integers(0, self.num_bins))
@@ -262,35 +309,34 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
                 self.current_hyp_setup[hp_name] = values["values"][idx]
 
     def _truncated_logic(self):
+        """Проверяет достижение лимита шагов эпизода (truncated)."""
         return self.max_steps_limit <= self.step_num_total
 
     def _terminated_logic(self):
+        """Проверяет условие терминации эпизода (всегда False для этой среды)."""
         return False
 
     def _symlog(self, x):
+        """Симметричный log-преобразование: ``sign(x) * log1p(|x|)``."""
         return np.sign(x) * np.log1p(np.abs(x))
 
     def _compute_reward(self):
+        """Оценивает конфигурацию через backend и вычисляет reward по ``reward_mode``."""
         self.raw_metric = self.backend.evaluate(self.current_hyp_setup)
         self.current_raw_metric = self.raw_metric
 
-        # _initial_raw_metric is set in reset() before first _compute_reward call
         scale = abs(self._to_reward(self._initial_raw_metric)) + 1.0
 
         if self.reward_mode in ("delta", "relative_delta"):
-            # Raw linear delta — split-proof by linearity.
             delta = self._to_reward(self.raw_metric) - self._to_reward(self.prev_raw_metric)
             self.reward = float(delta / scale)
             self.prev_raw_metric = self.raw_metric
 
         elif self.reward_mode == "rank_shaped":
-            # Position-based: reward depends only on CURRENT position
-            # relative to initial. symlog is safe here (no delta to split).
             improvement = self._to_reward(self.raw_metric) - self._to_reward(self._initial_raw_metric)
             self.reward = float(self._symlog(improvement / scale * 10.0))
 
         elif self.reward_mode == "best_improvement":
-            # Bonus for new best, small penalty for distance from best.
             if self._is_improvement(self.raw_metric, self.best_raw_metric):
                 delta = self._to_reward(self.raw_metric) - self._to_reward(self.best_raw_metric)
                 self.reward = float(delta / scale) + 0.5
@@ -298,27 +344,26 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
                 gap = self._to_reward(self.raw_metric) - self._to_reward(self.best_raw_metric)
                 self.reward = float(np.clip(gap / scale, -0.5, 0.0))
 
-        else:  # absolute
+        else:  
             self.reward = float(self._symlog(self._to_reward(self.raw_metric)))
 
-        # Update best metric
         if self._is_improvement(self.raw_metric, self.best_raw_metric):
             self.best_raw_metric = self.raw_metric
             self.best_config_so_far = self.current_hyp_setup.copy()
 
-        # Stagnation penalty
         if self._steps_without_change > 0:
             self.reward -= 0.02 * min(self._steps_without_change, 5)
 
         return self.reward
 
     def _current_param_vec(self):
-        """Returns current param representation matching obs_mode."""
+        """Возвращает представление текущих параметров согласно ``obs_mode``."""
         if self.obs_mode == "ohe":
             return self._get_obs_ohe()
         return self._get_obs_index()
 
     def _get_obs(self):
+        """Формирует dict-наблюдение: flat ``obs`` + ``mask`` допустимых действий."""
         param_vec = self._current_param_vec()
         reward_val = np.array([self.reward], dtype=np.float32)
         active_param_ohe = np.zeros(self.num_hyperparams, dtype=np.float32)
@@ -335,7 +380,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         return {"obs": flat_obs, "mask": mask}
 
     def _get_obs_index(self):
-        """Each param -> single normalized value in [0, 1]."""
+        """Кодирует каждый параметр одним нормализованным значением в [0, 1]."""
         chosen_norm = np.zeros(self.num_hyperparams, dtype=np.float32)
         for i, hp_name in enumerate(self.hp_space_config):
             info = self.hp_space_config[hp_name]
@@ -347,7 +392,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         return chosen_norm
 
     def _get_obs_ohe(self):
-        """Float params -> normalized [0,1]; categorical params -> one-hot vector."""
+        """Float-параметры -> [0, 1]; categorical -> one-hot вектор."""
         param_vec = np.zeros(self._ohe_param_dim, dtype=np.float32)
         for hp_name, info in self.hp_space_config.items():
             start, end = self._param_obs_slices[hp_name]
@@ -359,6 +404,7 @@ class CyclicPipelineEnvNew(BaseHPOEnv):
         return param_vec
 
     def _get_info(self) -> Dict[str, Any]:
+        """Возвращает служебную информацию: текущая и лучшая конфигурация, метрики."""
         return {
             "best_config": self.best_config_so_far,
             "best_metric": self.best_raw_metric,

@@ -1,21 +1,4 @@
-"""ICM-обёртка, совместимая с рекуррентным PPO (ChunkedRNNPPO).
-
-Проблема
---------
-Стандартный ``ICMOnPolicyWrapper`` вызывает ``_icm_preprocess_batch``
-**до** того, как ``ChunkedRNNPPO._preprocess_batch`` перестроит
-``batch.act`` из ``[T]`` в ``[num_chunks, seq_len]``.
-
-В результате ``batch.policy.act_hat`` имеет форму ``[T, action_dim]``,
-а ``batch.act`` — ``[num_chunks, seq_len]``.  При вычислении
-``cross_entropy(act_hat, act)`` в ``_icm_update`` размерности не совпадают.
-
-Решение
--------
-``RecurrentICMOnPolicyWrapper`` переопределяет ``_wrapper_update_with_batch``
-и **flatten-ит** ``batch.act`` перед вычислением ICM loss, чтобы размерности
-``act_hat`` и ``act`` снова совпали.
-"""
+"""ICM-обёртка для on-policy алгоритмов с рекуррентными батчами."""
 
 from __future__ import annotations
 
@@ -38,11 +21,19 @@ from tianshou.algorithm.optim import OptimizerFactory
 
 
 class RecurrentICMOnPolicyWrapper(ICMOnPolicyWrapper):
-    """ICMOnPolicyWrapper с поддержкой рекуррентных алгоритмов.
+    """ICM-обёртка для on-policy алгоритмов с рекуррентными батчами.
 
-    Единственное отличие от базового класса — в ``_wrapper_update_with_batch``
-    ``batch.act`` и ``batch.policy.act_hat`` / ``mse_loss`` приводятся к
-    одинаковой «плоской» размерности перед вычислением ICM loss.
+    Отличается от :class:`~tianshou.algorithm.modelbased.icm.ICMOnPolicyWrapper` тем,
+    что в ``_wrapper_update_with_batch`` поля ``act`` и ``policy.act_hat`` /
+    ``mse_loss`` выравниваются в плоский вид перед ICM loss.
+
+    Args:
+        wrapped_algorithm: базовый on-policy алгоритм (например, ChunkedRNNPPO).
+        model: модуль :class:`~tianshou.utils.net.discrete.IntrinsicCuriosityModule`.
+        optim: фабрика оптимизатора для ICM.
+        lr_scale: множитель learning rate ICM относительно базового алгоритма.
+        reward_scale: масштаб intrinsic reward при сборе rollout.
+        forward_loss_weight: вес forward-loss в суммарном ICM loss.
     """
 
     def _wrapper_update_with_batch(
@@ -52,11 +43,21 @@ class RecurrentICMOnPolicyWrapper(ICMOnPolicyWrapper):
         repeat: int,
         original_stats: TrainingStats,
     ) -> ICMTrainingStats:
-        # ---- flatten act/act_hat/mse_loss для совместимости ----
-        act_hat = batch.policy.act_hat          # [T, action_dim]
-        mse_loss = batch.policy.mse_loss        # [T]
+        """Шаг ICM: выравнивает ``act`` и ``act_hat``, считает inverse/forward loss.
 
-        act = batch.act                         # может быть [num_chunks, seq_len]
+        Args:
+            batch: rollout с ``policy.act_hat`` и ``policy.mse_loss``.
+            batch_size: размер мини-батча (не используется в переопределении).
+            repeat: число повторов (не используется).
+            original_stats: статистика базового алгоритма.
+
+        Returns:
+            ``ICMTrainingStats`` с суммарным и раздельными ICM-loss.
+        """
+        act_hat = batch.policy.act_hat       
+        mse_loss = batch.policy.mse_loss       
+
+        act = batch.act                       
         if isinstance(act, torch.Tensor):
             act_flat = act.reshape(-1)
         else:
@@ -64,7 +65,6 @@ class RecurrentICMOnPolicyWrapper(ICMOnPolicyWrapper):
 
         act_flat = act_flat.to(dtype=torch.long, device=act_hat.device)
 
-        # Убедимся, что размерности совпадают
         if act_hat.shape[0] != act_flat.shape[0]:
             raise ValueError(
                 f"ICM act_hat batch ({act_hat.shape[0]}) != "

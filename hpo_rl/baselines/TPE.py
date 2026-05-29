@@ -3,7 +3,7 @@ from scipy.stats import norm, truncnorm
 from tqdm.auto import tqdm
 
 class TPE:
-    """Класс, реализурующий алгоритм BOHB.
+    """Класс, реализурующий алгоритм TPE.
         
         Статьи:  
             `Algorithms for Hyper-Parameter Optimization <https://papers.nips.cc/paper_files/paper/2011/file/86e8f7ab32cfd12577bc2619bc635690-Paper.pdf>`_

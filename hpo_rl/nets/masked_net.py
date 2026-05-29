@@ -5,7 +5,24 @@ from tianshou.data import Batch
 from tianshou.utils.net.common import ModuleWithVectorOutput
 
 class MaskedNet(ModuleWithVectorOutput):
+    """MLP с маскированием недопустимых действий в логитах.
+
+    Args:
+        state_shape: форма наблюдения.
+        action_shape: форма пространства действий.
+        hidden_sizes: размеры скрытых слоёв.
+        device: устройство для тензоров.
+    """
+
     def __init__(self, state_shape, action_shape, hidden_sizes=[128, 128], device='cpu'):
+        """Инициализирует MaskedNet.
+
+        Args:
+            state_shape: форма наблюдения.
+            action_shape: форма пространства действий.
+            hidden_sizes: размеры скрытых слоёв.
+            device: устройство.
+        """
 
         out_dim = int(np.prod(action_shape))
 

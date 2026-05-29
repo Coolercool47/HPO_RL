@@ -1,65 +1,57 @@
-from typing import Callable, Dict, Any
-import numpy as np
+"""Бэкенд для оценки конфигураций через пользовательскую целевую функцию."""
 
-from hpo_rl.backends.base import EvaluationBackend, CATASTROPHIC_FAILURE_REWARD
+from typing import Callable, Dict, Any
+
+from hpo_rl.backends.base import EvaluationBackend
 
 
 class ObjectiveBackend(EvaluationBackend):
-    """Бэкенд для обучения моделей с помощью `objective_function`.
+    """Бэкенд для обучения моделей через пользовательскую целевую функцию.
 
-    Для работы данного `backend` пользователю нужно предоставить только целевую функцию, возвращающую оценку, и набор гиперпараметров с ограничениями.
-    Использует кэширование для экономии времени при повторных оценках одинаковых конфигураций.
+        Args:
+            objective_function: целевая функция, возвращающая оценку
+            hp_space: пространство гиперпараметров
 
-    Args:
-        objective_function: целевая функция
-        hp_space: набор гиперпараметров для оптимизации
+        Attributes:
+            objective_function: целевая функция
+            hp_space: пространство гиперпараметров
+            maximize: всегда False (минимизация loss)
 
-    Attributes:
-        objective_function: целевая функция
-        hp_space: набор гиперпараметров для оптимизации
-        maximize: Всегда False (минимизируем loss).
+        Пример::
 
-    Пример::
+            def objective_function(params, hp_space):
+                return train_and_eval(params)
 
-        def objective_function(params): 
-            score = ...
-            return score
+            hp_space = {"lr": {"type": "float", "values": [1e-4, 1e-1]}}
 
-        dict_config = {
-            "x0": {type: float, min: 0.0, max:1.0} , 
-            "x1": {type: categorical, values: ["a", "b"]}
-        }
-
-        backend = ObjectiveBackend(objective_function = objective_function, hp_space = dict_config)
-
-        reward = backend.evaluate({"x0": 0.1, "x1": "a"})
+            backend = ObjectiveBackend(objective_function, hp_space)
+            reward = backend.evaluate({"lr": 0.01})
     """
+
     def __init__(
         self,
         objective_function: Callable,
         hp_space: Dict[str, Any],
     ):
-        """
-        Инициализирует ObjectiveBackend
+        """Инициализирует ObjectiveBackend.
 
         Args:
-        objective_function: целевая функция
-        hp_space: набор гиперпараметров для оптимизации
-        
+            objective_function: целевая функция
+            hp_space: пространство гиперпараметров
         """
-        super().__init__(use_cache=False)  # кэш экономит много на повторных конфигах
-        self.maximize = False  # минимизируем loss
+        super().__init__(use_cache=False)
+        self.maximize = False
 
         self.objective_function = objective_function
         self.hp_space = hp_space
-       
+
     def _evaluate(self, config: Dict[str, Any]):
-        """Выполняет обучение модели и вычисляет награду.
+        """Вычисляет оценку конфигурации.
 
         Args:
-            config: Конфигурация гиперпараметров.
+            config: конфигурация гиперпараметров
 
         Returns:
-            Оценка из `objective_function`
+            значение целевой функции
         """
         return self.objective_function(config, self.hp_space)

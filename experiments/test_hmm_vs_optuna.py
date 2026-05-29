@@ -1,18 +1,3 @@
-"""
-Сравнение HMM_MCMC vs Optuna TPE на 10-мерных бенчмарках.
-
-Тесты:
-  1. Все N-мерные функции из OptimizationBenchmarkBackend (10D, без шума)
-  2. Подмножество с гауссовым шумом (как в бэкенде)
-  3. Смешанное пространство: 10D + фиктивные категориальные параметры
-
-Графики PNG: для каждой группы — сходимость по best-so-far и по значению
-функции на каждой оценке (per_eval_*.png).
-
-Запуск:
-    python test_hmm_vs_optuna.py
-"""
-
 import numpy as np
 import sys
 import os
@@ -22,12 +7,10 @@ import matplotlib.pyplot as plt
 from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 from hpo_rl.backends.function import OptimizationBenchmarkBackend
 
-# ── Общие настройки ──────────────────────────────────────────────
 N_SEEDS = 5
 BUDGET = 500
 DIMENSIONS = 10
 
-# Гиперпараметры HMM_MCMC (из run_exp_HMM_MCMC.py)
 HMM_PARAMS = dict(
     n_init=32,
     n_chains=1,
@@ -46,7 +29,6 @@ HMM_PARAMS = dict(
     anneal_T=True,
 )
 
-# Все 9 N-мерных функций: границы совпадают с hpo_rl/backends/function.py
 CONTINUOUS_BENCHMARKS = {
     "sphere": {"bounds": (-5.0, 5.0)},
     "rosenbrock": {"bounds": (-1.0, 1.0)},
@@ -59,7 +41,6 @@ CONTINUOUS_BENCHMARKS = {
     "styblinski_tang": {"bounds": (-5.0, 5.0)},
 }
 
-# Значения глобального минимума (минимизация), d=10 для styblinski_tang
 GLOBAL_OPTIMUM_VALUE = {
     "sphere": 0.0,
     "rosenbrock": 0.0,
@@ -72,7 +53,6 @@ GLOBAL_OPTIMUM_VALUE = {
     "styblinski_tang": round(-39.16617 * DIMENSIONS, 5),
 }
 
-# Подмножество с шумом: noise_std ≈ доля от типичного масштаба loss
 NOISY_BENCHMARKS = {
     "sphere": 0.5,
     "rastrigin": 8.0,
@@ -81,7 +61,6 @@ NOISY_BENCHMARKS = {
     "levy": 1.5,
 }
 
-# Категориальные тесты: те же границы, что в CONTINUOUS_BENCHMARKS
 CATEGORICAL_BENCHMARKS = {
     "sphere": {"bounds": (-5.0, 5.0)},
     "rastrigin": {"bounds": (-5.12, 5.12)},
@@ -90,7 +69,6 @@ CATEGORICAL_BENCHMARKS = {
     "levy": {"bounds": (-10.0, 10.0)},
 }
 
-# Фиктивные категориальные параметры (не влияют на loss)
 DUMMY_CATEGORIES = {
     "optimizer": {"values": ["adam", "sgd", "rmsprop", "adamw"], "type": "categorical"},
     "activation": {"values": ["relu", "tanh", "gelu", "silu"], "type": "categorical"},
@@ -109,7 +87,6 @@ PLOT_FILES = {
 RESULTS_FILE = "hmm_vs_optuna_results.txt"
 
 
-# ── Утилиты ──────────────────────────────────────────────────────
 def make_continuous_space(func_name: str) -> dict:
     lo, hi = CONTINUOUS_BENCHMARKS[func_name]["bounds"]
     return {
@@ -119,7 +96,6 @@ def make_continuous_space(func_name: str) -> dict:
 
 
 def make_noisy_continuous_space(func_name: str) -> dict:
-    """Те же границы, что для чистого continuous."""
     return make_continuous_space(func_name)
 
 
@@ -134,7 +110,6 @@ def make_categorical_space(func_name: str) -> dict:
 
 
 def _scores_to_curve(scores: list[float]) -> np.ndarray:
-    """Кумулятивный лучший результат по шагам; длина = len(scores)."""
     arr = np.asarray(scores, dtype=float)
     return np.minimum.accumulate(arr)
 
@@ -173,7 +148,6 @@ def run_hmm_mcmc(
 
 
 def run_optuna_tpe(backend, space: dict, seed: int) -> tuple[float, np.ndarray, np.ndarray]:
-    """Запускает Optuna TPE с тем же бюджетом."""
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
     def objective(trial: optuna.Trial) -> float:
@@ -249,9 +223,6 @@ def plot_convergence(
     y_axis_label: str = "Best loss so far",
     title_prefix: str = "Best-so-far convergence",
 ):
-    """
-    items: список (func_name, label_tag, hmm_curves, optuna_curves)
-    """
     n = len(items)
     if n == 0:
         return
@@ -278,7 +249,6 @@ def plot_convergence(
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.3)
 
-    # пустые оси
     for j in range(n, nrows * ncols):
         r, c = divmod(j, ncols)
         axes[r][c].set_visible(False)
@@ -342,7 +312,6 @@ if __name__ == "__main__":
     plot_cat: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
     plot_cat_raw: list[tuple[str, str, list[np.ndarray], list[np.ndarray]]] = []
 
-    # 1) Continuous 10D, без шума
     log(f"\n{'='*70}")
     log(f"  CONTINUOUS 10D  (budget={BUDGET}, seeds={N_SEEDS}, noise_std=0)")
     log(f"{'='*70}")
@@ -373,7 +342,6 @@ if __name__ == "__main__":
         title_prefix="Per-evaluation objective",
     )
 
-    # 2) Noisy subset
     log(f"\n{'='*70}")
     log(f"  NOISY  (budget={BUDGET}, seeds={N_SEEDS})")
     log(f"{'='*70}")
@@ -404,7 +372,6 @@ if __name__ == "__main__":
         title_prefix="Per-evaluation objective",
     )
 
-    # 3) Categorical
     log(f"\n{'='*70}")
     log(f"  CATEGORICAL + 10D  (budget={BUDGET}, seeds={N_SEEDS}, noise_std=0)")
     log(f"{'='*70}")
@@ -435,7 +402,6 @@ if __name__ == "__main__":
         title_prefix="Per-evaluation objective",
     )
 
-    # 4) Summary table
     log(f"\n{'='*70}")
     log(f"  SUMMARY  (budget={BUDGET}, dims={DIMENSIONS}, seeds={N_SEEDS})")
     log(f"{'='*70}")

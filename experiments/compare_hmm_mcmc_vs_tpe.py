@@ -1,17 +1,3 @@
-"""
-CNN HPO comparison: HMM_MCMC vs Optuna (TPE, BOHB-style).
-
-Compares three methods on CIFAR-100 with a small CNN (500 HPO trials each by default).
-Plots best-so-far validation loss vs trial index; saves CSV and a summary table.
-Prints validation loss and accuracy after each training epoch.
-
-Usage:
-    python compare_hmm_mcmc_vs_tpe.py
-    python compare_hmm_mcmc_vs_tpe.py --seeds 3 --trials 500 --epochs 5
-
-BOHB here = TPESampler + HyperbandPruner (Optuna has no dedicated BOHB sampler).
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -31,7 +17,6 @@ from torchvision import datasets, transforms
 
 from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 
-# ── Defaults ──────────────────────────────────────────────────────────
 N_TRIALS = 1
 N_SEEDS = 3
 TRAIN_SUBSET = 10_000
@@ -44,7 +29,6 @@ RESULTS_CSV = str(OUT_DIR / "compare_hmm_mcmc_cifar_history.csv")
 RESULTS_TXT = str(OUT_DIR / "compare_hmm_mcmc_cifar_results.txt")
 PLOT_FILE = str(OUT_DIR / "compare_hmm_mcmc_cifar_convergence.png")
 
-# HMM_MCMC hyperparameters (aligned with test_hmm_vs_optuna.py style)
 HMM_PARAMS = dict(
     n_init=32,
     n_chains=1,
@@ -63,7 +47,6 @@ HMM_PARAMS = dict(
     anneal_T=True,
 )
 
-# Search space for HMM_MCMC (values + type schema)
 HMM_SPACE = {
     "learning_rate": {"values": [1e-5, 1e-1], "type": "float", "log": False},
     "weight_decay": {"values": [1e-6, 1e-2], "type": "float", "log": False},
@@ -74,7 +57,6 @@ HMM_SPACE = {
 
 
 class SmallCNN(nn.Module):
-    """Light CNN for CIFAR-100 (32x32)."""
 
     def __init__(self, num_classes: int = 100, dropout: float = 0.0) -> None:
         super().__init__()
@@ -168,7 +150,6 @@ def prepare_data(
 def evaluate(
     model: nn.Module, loader: DataLoader, device: torch.device
 ) -> tuple[float, float]:
-    """Returns (mean cross-entropy loss, accuracy in [0, 1])."""
     model.eval()
     total, correct, loss_sum = 0, 0, 0.0
     criterion = nn.CrossEntropyLoss(reduction="sum")
@@ -192,11 +173,6 @@ def train_one_trial(
     trial: optuna.Trial | None = None,
     metrics_out: list[tuple[float, float]] | None = None,
 ) -> tuple[float, float]:
-    """
-    Train SmallCNN; optionally report per-epoch val loss for pruning.
-    Returns (best validation loss over epochs, val accuracy [0,1] at that epoch).
-    If metrics_out is given, appends exactly one (loss, acc) per call (incl. pruned).
-    """
     lr = float(config["learning_rate"])
     wd = float(config["weight_decay"])
     dropout = float(config["dropout"])
@@ -282,8 +258,6 @@ def build_hmm_objective(
     epochs: int,
     metrics_out: list[tuple[float, float]],
 ):
-    """Returns objective_func(config) -> val_loss; appends (loss, acc) per eval."""
-
     def objective_func(cfg: dict) -> float:
         bs = int(cfg["batch_size"])
         train_loader, val_loader = prepare_data(
@@ -623,7 +597,6 @@ def main() -> None:
             seed, args.train_subset, args.val_subset
         )
 
-        # HMM_MCMC
         hmm_losses, hmm_metrics = run_hmm_mcmc(
             seed,
             args.trials,
@@ -668,7 +641,6 @@ def main() -> None:
                 }
             )
 
-        # TPE
         tpe_losses, tpe_accs = run_optuna_tpe(
             seed,
             args.trials,
@@ -704,7 +676,6 @@ def main() -> None:
                 }
             )
 
-        # BOHB (TPE + HyperbandPruner)
         bohb_losses, bohb_accs = run_optuna_bohb(
             seed,
             args.trials,

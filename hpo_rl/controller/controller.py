@@ -1,3 +1,5 @@
+"""Контроллер экспериментов HPO: связывает backend, алгоритм (RL или baseline) и среду."""
+
 from tqdm.auto import tqdm
 import inspect
 import numpy as np
@@ -54,17 +56,36 @@ class controller():
                  training_collector_kwargs={}, test_collector_kwargs={}, 
                  inference_kwargs={}, n_training_envs=1, n_inference_envs=1,
                  env=None, save=None, load=None):
+        """Инициализирует контроллер эксперимента.
+
+        Args:
+            mode: ``"RL"`` или ``"baseline"``
+            backend: dict с ключами ``class`` и ``params`` для бэкенда
+            algorithm: dict с ключами ``class`` и ``params`` для алгоритма
+            alg_name: имя RL-алгоритма (``"ppo"``, ``"recurrent_dqn"`` и т.д.)
+            policy: конфигурация политики (``class``, ``params``)
+            trainer: конфигурация тренера Tianshou
+            logger: логгер (WandbLogger / TensorboardLogger)
+            net: класс нейросети
+            net_params: параметры нейросети
+            training_collector_kwargs: аргументы training collector
+            test_collector_kwargs: аргументы test collector
+            inference_kwargs: аргументы collector при инференсе
+            n_training_envs: число параллельных сред обучения
+            n_inference_envs: число параллельных сред тестирования
+            env: конфигурация среды (``class``, ``params``)
+            save: путь сохранения лучшей политики
+            load: путь загрузки чекпоинта
+        """
         
         self.mode = mode
         
-        # Инициализация Backend
         backend_class = backend.get("class")
         self.backend = backend_class(**(backend.get("params")))
 
-        # Группировка алгоритмов по парадигмам
         ON_POLICY_AC = ["ppo", "a2c", "trpo", "npg", "recurrent_ppo"]
-        OFF_POLICY_TWIN_AC = ["sac", "td3"] # 1 Actor + 2 Critics
-        OFF_POLICY_SINGLE_AC = ["ddpg", "discrete_sac"] # 1 Actor + 1 Critic
+        OFF_POLICY_TWIN_AC = ["sac", "td3"] 
+        OFF_POLICY_SINGLE_AC = ["ddpg", "discrete_sac"]
         VALUE_BASED = ["dqn", "recurrent_dqn", "rainbow", "c51", "qrdqn", "iqn", "fqf"] 
         PURE_POLICY = ["reinforce"]
 
@@ -76,17 +97,12 @@ class controller():
             self.last_periodic_save = time.time()
             SAVE_INTERVAL_SECONDS = 30 * 60 
             
-            # 1. Среды
             env_class = env.get("class")
             env_params = env.get("params")
             self.env = FlattenObservation(env_class(backend=self.backend, **env_params)) if net == Net else env_class(backend=self.backend, **env_params)
 
             def make_env():
-                # Each training/test env gets its own SequentialBackend instance so
-                # that backend.next_backend() calls in env.reset() are independent
-                # (no mid-episode contamination from other parallel envs).
-                # Child backends (OptimizationBenchmarkBackend) are shared since
-                # they are stateless / cache-safe.
+                """Фабрика среды: отдельный бэкенд на каждый воркер в vector env."""
                 if isinstance(self.backend, SequentialBackend):
                     per_env_backend = SequentialBackend(
                         backends=self.backend.backends,
@@ -99,7 +115,6 @@ class controller():
             training_envs = ts.env.DummyVectorEnv([make_env for _ in range(n_training_envs)])
             test_envs = ts.env.DummyVectorEnv([make_env for _ in range(n_inference_envs)])
 
-            # 2. Определение размерностей
             if net == Net:
                 state_shape = flatdim(self.env.observation_space)
             elif isinstance(self.env.observation_space, gym.spaces.Dict) and "obs" in self.env.observation_space.spaces:
@@ -111,7 +126,6 @@ class controller():
             else:
                 action_shape = self.env.action_space.shape
 
-            # 3. Извлечение классов
             NetClass = net
             PolicyClass = policy["class"]
             PolicyParams = policy["params"]
@@ -119,7 +133,6 @@ class controller():
             AlgoParams = algorithm["params"]
 
             net_params = dict(net_params)
-            # Tianshou 2.x ``Net`` no longer takes ``device``; project nets (e.g. BaseNet) still do.
             _net_init_params = inspect.signature(NetClass.__init__).parameters
             if "device" in _net_init_params:
                 if net_params.get("device") is None:
@@ -134,9 +147,6 @@ class controller():
             CriticClass = AlgoParams.pop("critic", None)
             icm_config = AlgoParams.pop("icm", None)
 
-            # --- ФАБРИКА СБОРОК ---
-
-            # On-Policy Actor-Critic (PPO, A2C...)
             if alg_name in ON_POLICY_AC or alg_name in OFF_POLICY_SINGLE_AC:
                 net_a = NetClass(state_shape=state_shape, action_shape=0, **net_params)
                 net_c = NetClass(state_shape=state_shape, action_shape=0, **net_params)
@@ -146,7 +156,6 @@ class controller():
                 _policy = PolicyClass(actor=actor, action_space=self.env.action_space, **PolicyParams)
                 self.algo = AlgoClass(policy=_policy, critic=critic, **AlgoParams)
 
-            # Off-Policy Twin Actor-Critic (SAC, TD3...)
             elif alg_name in OFF_POLICY_TWIN_AC:
                 net_a = NetClass(state_shape=state_shape, **net_params)
                 actor = ActorClass(preprocess_net=net_a, action_shape=action_shape, **actor_kwargs)
@@ -159,18 +168,15 @@ class controller():
 
                 _policy = PolicyClass(actor=actor, action_space=self.env.action_space, **PolicyParams)
                 self.algo = AlgoClass(policy=_policy, policy_optim =optim, critic=critics[0]["critic"], critic_optim = critics[0]["optim"], critic2=critics[1]["critic"], critic2_optim = critics[1]["optim"], **AlgoParams)
-            # Value-Based (DQN...)
             elif alg_name in VALUE_BASED:
                 num_atoms = PolicyParams.get("num_atoms", 51)
     
                 if alg_name in ["rainbow", "c51"]:
-                    # Initialize standard net with total flat size (7 * 51 = 357)
                     base_net = NetClass(
                         state_shape=state_shape, 
                         action_shape=action_shape * num_atoms, 
                         **net_params
                     )
-                    # Wrap it to reshape output to [Batch, 7, 51]
                     q_net = RainbowNetWrapper(base_net, action_shape, num_atoms)
                 else:
                     q_net = NetClass(
@@ -180,7 +186,6 @@ class controller():
                     )
                 _policy = PolicyClass(model=q_net, action_space=self.env.action_space, **PolicyParams)
                 self.algo = AlgoClass(policy=_policy, **AlgoParams)
-            # Pure Policy (REINFORCE)
             elif alg_name in PURE_POLICY:
                 net_a = NetClass(state_shape=state_shape, **net_params)
                 actor = ActorClass(preprocess_net=net_a, action_shape=action_shape)
@@ -190,7 +195,6 @@ class controller():
                 supported = ON_POLICY_AC + OFF_POLICY_TWIN_AC + OFF_POLICY_SINGLE_AC + VALUE_BASED + PURE_POLICY
                 raise ValueError(f"Algorithm '{alg_name}' is not supported. Supported: {supported}")
 
-            # 3.5. ICM обёртка (Intrinsic Curiosity Module)
             if icm_config is not None:
                 icm_model_cls = icm_config.get("model_class", IntrinsicCuriosityModule)
                 feature_net = ICMFeatureNet(icm_config["feature_net"])
@@ -230,14 +234,11 @@ class controller():
                     )
                 print(f"ICM wrapper applied to '{alg_name}' (reward_scale={icm_reward_scale}, lr_scale={icm_lr_scale})")
 
-            # 4. Загрузка чекпоинта (если указан load)
             self.load_loc = load
             if self.load_loc:
-                # Нормализация пути: замена / на os.sep, устранение escaped-символов
-                # (например "\f" → form feed вместо "\final...")
                 normalized = os.path.normpath(self.load_loc)
                 if not os.path.isfile(normalized) and os.path.isfile(self.load_loc):
-                    normalized = self.load_loc  # fallback: оригинальный путь работает
+                    normalized = self.load_loc  
                 self.load_loc = normalized
 
             self._checkpoint_loaded = False
@@ -246,11 +247,9 @@ class controller():
                 state_dict = torch.load(self.load_loc, map_location=device, weights_only=False)
                 
                 if "_optimizers" in state_dict:
-                    # Полный чекпоинт algo.state_dict() — сети + оптимизаторы
                     self.algo.load_state_dict(state_dict)
                     print(f"Loaded full checkpoint (networks + optimizers) from: {self.load_loc}")
                 else:
-                    # Только policy.state_dict() — только веса актора
                     self.algo.policy.load_state_dict(state_dict)
                     print(f"Loaded policy weights (actor only) from: {self.load_loc}")
                     print("  Warning: optimizer state not restored, training continues with fresh optimizer")
@@ -261,7 +260,6 @@ class controller():
                 print(f"  Hint: если путь содержит backslash, используйте r\"...\" или '/'")
                 print(f"  Модель будет инициализирована случайными весами!")
 
-            # 5. Инициализация Коллекторов и Трейнера
             training_collector = ts.data.Collector[CollectStats](
                 self.algo, training_envs, **training_collector_kwargs
             )
@@ -270,6 +268,7 @@ class controller():
             )
 
             def save_best_fn(policy):
+                """Сохраняет лучшую политику на диск и в W&B при улучшении метрики."""
                 if self.save_loc:
                     dir_name = os.path.dirname(self.save_loc)
                     if dir_name:
@@ -286,7 +285,7 @@ class controller():
                 return None
 
             def periodic_train_hook(epoch, env_step):
-                # Periodic checkpoint save (every 30 min)
+                """Периодически сохраняет полный чекпоинт алгоритма (раз в 30 минут)."""
                 current_time = time.time()
                 
                 if current_time - self.last_periodic_save >= SAVE_INTERVAL_SECONDS:
@@ -321,10 +320,13 @@ class controller():
             self.algorithm = algorithm_class(objective_func=objective_func, **(algorithm.get("params")))
 
     def train(self):
+        """Запускает обучение RL-алгоритма (только ``mode="RL"``).
+
+        По завершении сохраняет финальный чекпоинт в ``final_policy.pth``.
+        """
         if self.mode == "RL":
             result = self.algo.run_training(self.trainer_initialized)
             
-            # Сохранение финальной модели (полный чекпоинт: сети + оптимизаторы)
             if self.save_loc:
                 final_path = self.save_loc.replace("best_policy.pth", "final_policy.pth")
                 os.makedirs(os.path.dirname(final_path), exist_ok=True)
@@ -336,16 +338,18 @@ class controller():
             print(f"Finished training in {result.timing.total_time:.2f} seconds")
 
     def inference(self):
+        """Выполняет инференс: сбор траектории RL или ``main_loop`` baseline.
+
+        Заполняет ``history`` (и ``rewards`` для RL).
+
+        Returns:
+            tuple: лучшая пара (конфигурация, метрика) по направлению оптимизации backend.
+        """
         if self.mode == "RL":
-            # During inference, the caller (run_n_experiments) explicitly sets the active backend
-            # via set_active_backend() before each inference call. That call automatically locks
-            # the backend to prevent next_backend() from switching during env.reset().
-            # After inference, we unlock for subsequent training.
             collector = ts.data.Collector[CollectStats](self.algo, self.env, exploration_noise=False)
             collector.reset_buffer()
             result = collector.collect(**self.inference_kwargs)
 
-            # Unlock backend for subsequent training (if it was locked)
             if isinstance(self.backend, SequentialBackend):
                 self.backend.unlock()
             
@@ -370,8 +374,18 @@ class controller():
         return min(self.history, key=lambda x: x[-1]) if not self.backend.maximize else max(self.history, key=lambda x: x[-1])
     
     def return_history(self):
+        """Возвращает историю последнего инференса.
+
+        Returns:
+            list: список пар (конфигурация, метрика).
+        """
         return self.history
 
     def return_rewards(self):
+        """Возвращает пошаговые награды RL (для baseline — пустой список).
+
+        Returns:
+            list[float]: награды за шаги эпизода.
+        """
         return getattr(self, 'rewards', [])
     

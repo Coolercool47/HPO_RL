@@ -1,20 +1,3 @@
-"""
-Compare DQN and Recurrent DQN inference vs grid search and random search on the same
-benchmarks as in run_experiment.ipynb (2D classics; extend via ``FUNCTION_ORDER``).
-
-Budget: 200 function evaluations for RL rollouts and random search; grid search uses
-14x14 = 196 points (padded to 200 on the plot for alignment).
-
-Usage:
-    python compare_rl_vs_baselines.py
-
-Checkpoints (`--ckpt-recurrent`, `--ckpt-dqn`; use forward slashes on Windows).
-Training saves `algo.state_dict()` — `config_*` hyperparameters must match the run
-that produced the checkpoint (especially net hidden sizes / optimizer for recurrent DQN).
-
-Set WANDB_MODE=disabled to avoid W&B uploads (default for this script).
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -25,7 +8,6 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
-# Before imports that may init W&B
 os.environ.setdefault("WANDB_MODE", "disabled")
 
 import matplotlib.pyplot as plt
@@ -41,15 +23,11 @@ from hpo_rl.controller.controller import controller
 from hpo_rl.nets.gradient_monitor import GradientMonitoredNet
 from hpo_rl.nets.masked_recurrent_net import MaskedRecurrentNet
 
-# ── Experiment constants (plan) ─────────────────────────────────────────
 BUDGET = 200
 N_SEEDS = 3
-GRID_PER_AXIS = 14  # 14*14 = 196 evaluations
+GRID_PER_AXIS = 14  
 
-# Order matters for ``SequentialBackend`` indices: keep the first blocks aligned with how
-# ``final_policy.pth`` was trained whenever you reuse old checkpoints (append new benchmarks).
 FUNCTION_ORDER = [
-    # N-D functions (work in 2D)
     "rastrigin",
     "rosenbrock",
     "schwefel",
@@ -59,7 +37,6 @@ FUNCTION_ORDER = [
     "levy",
     "michalewicz",
     "styblinski_tang",
-    # 2D-only functions
     "booth",
     "beale",
     "goldstein_price",
@@ -77,35 +54,31 @@ FUNCTION_ORDER = [
     "langermann",
 ]
 
-# noise_std ≈ 10 % of each function's typical value range.
-# Large enough to be significant, small enough not to bury the landscape signal.
 NOISE_STD_MAP: dict[str, float] = {
-    # N-D functions
-    "sphere":           5.0,    # range [0, ~50]
-    "rosenbrock":       20.0,   # range [0, ~400]  (2D, bounds [-1,1])
-    "rastrigin":        8.0,    # range [0, ~80]
-    "ackley":           2.0,    # range [0, ~22]
-    "griewank":         10.0,   # range [0, ~100]
-    "schwefel":         150.0,  # range [0, ~1677]
-    "levy":             8.0,    # range [0, ~100]
-    "michalewicz":      0.1,    # range [-2, 0]
-    "styblinski_tang":  10.0,   # range [-78, ~250]
-    # 2D-only functions
-    "booth":            30.0,   # range [0, ~1200]
-    "beale":            5.0,    # typical near-optimum values
-    "goldstein_price":  50.0,   # range [3, ~1e4]
-    "bukin_n6":         20.0,   # range [0, ~500]
-    "cross_in_tray":    0.05,   # range [-2.06, 0]
-    "drop_wave":        0.05,   # range [-1, 0.5]
-    "eggholder":        50.0,   # range [-960, ~1000]
-    "holder_table":     1.0,    # range [-19, 0]
-    "schaffer_n2":      0.05,   # range [0, 1]
-    "schaffer_n4":      0.05,   # range [0, 1]
-    "shubert":          15.0,   # range [-186, ~200]
-    "dejong_n5":        10.0,   # range [~1, ~500]
-    "easom":            0.05,   # range [-1, 0]
-    "levy_n13":         15.0,   # range [0, ~300]
-    "langermann":       0.1,    # range [-1.5, ~1]
+    "sphere":           5.0,    
+    "rosenbrock":       20.0,  
+    "rastrigin":        8.0,    
+    "ackley":           2.0,   
+    "griewank":         10.0,  
+    "schwefel":         150.0,  
+    "levy":             8.0,    
+    "michalewicz":      0.1,  
+    "styblinski_tang":  10.0,   
+    "booth":            30.0,   
+    "beale":            5.0,    
+    "goldstein_price":  50.0,  
+    "bukin_n6":         20.0,   
+    "cross_in_tray":    0.05,   
+    "drop_wave":        0.05,  
+    "eggholder":        50.0, 
+    "holder_table":     1.0,    
+    "schaffer_n2":      0.05,  
+    "schaffer_n4":      0.05,  
+    "shubert":          15.0,   
+    "dejong_n5":        10.0,   
+    "easom":            0.05,  
+    "levy_n13":         15.0,  
+    "langermann":       0.1,   
 }
 
 BACKENDS_LIST = [
@@ -136,7 +109,6 @@ def _seed_all(seed: int) -> None:
 
 
 def config_recurrent_dqn(load_checkpoint: str | None, backends_list: list | None = None) -> dict:
-    """Match recurrent DQN block in run_experiment.ipynb."""
     cfg = {
         "full_args": {
             "algorithm": {
@@ -199,7 +171,6 @@ def config_recurrent_dqn(load_checkpoint: str | None, backends_list: list | None
 
 
 def config_dqn(load_checkpoint: str | None, backends_list: list | None = None) -> dict:
-    """Match DQN block in run_experiment.ipynb (sequential backends from ``FUNCTION_ORDER``)."""
     cfg = {
         "full_args": {
             "algorithm": {
@@ -222,7 +193,7 @@ def config_dqn(load_checkpoint: str | None, backends_list: list | None = None) -
             "net": {
                 "net": GradientMonitoredNet,
                 "hidden_sizes": [256, 256, 256],
-                "grad_log_interval": 200_000,  # quiet during comparison
+                "grad_log_interval": 200_000, 
                 "grad_verbose": False,
             },
             "trainer": {
@@ -284,7 +255,6 @@ def run_rl_episode(
     seed: int,
     budget: int,
 ) -> np.ndarray:
-    """One inference rollout on a locked Sequential child; returns best-so-far curve, len=budget."""
     _seed_all(seed)
     cfg = deepcopy(raw_config)
     parsed = check(cfg)
@@ -304,7 +274,6 @@ def run_rl_episode(
     history = ctrl.return_history()
     if ctrl.backend.maximize:
         scores = [float(t[1]) for t in history]
-        # Stored metrics follow backend; for benchmark we minimize — convert if needed
         best_curve = _scores_to_best_curve(scores, maximize=True)
     else:
         scores = [float(t[1]) for t in history]
@@ -314,7 +283,6 @@ def run_rl_episode(
 
 
 def run_grid_search(function_name: str, budget: int = BUDGET, noise_std: float = 0.0) -> np.ndarray:
-    """Full 2D grid on native bounds; best-so-far curve, padded to `budget`."""
     backend = OptimizationBenchmarkBackend(
         function_name=function_name, dimensions=2, noise_std=noise_std,
     )
@@ -357,9 +325,6 @@ def _plot_results(
     budget: int,
     n_seeds: int,
 ) -> None:
-    """
-    curves[method][function_name] = list of seed curves (or single for grid), each length ``budget``.
-    """
     evals = np.arange(1, budget + 1)
     n_fn = len(FUNCTION_ORDER)
     cols = min(4, max(1, n_fn))
@@ -420,7 +385,6 @@ def _plot_per_function(
     budget: int,
     n_seeds: int,
 ) -> None:
-    """Saves one PNG per benchmark function into *out_dir*."""
     os.makedirs(out_dir, exist_ok=True)
     evals = np.arange(1, budget + 1)
     methods_styles = [
@@ -462,7 +426,6 @@ def _print_table(
     final_vals: dict[str, dict[str, list[float]]],
     out_stream=sys.stdout,
 ) -> None:
-    """final_vals[method][func] -> list of final best values per seed (single elem for grid)."""
     hdr = (
         f"{'Function':<16} | {'DQN':>22} | {'Recurrent DQN':>22} | "
         f"{'Grid':>12} | {'Random':>22}"
@@ -495,7 +458,6 @@ def _print_table(
 
 
 def main():
-    # Avoid UnicodeEncodeError on Windows when dependencies print non-ASCII hints.
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             try:
@@ -565,7 +527,6 @@ def main():
             "Random": {fn: [] for fn in FUNCTION_ORDER},
         }
 
-        # ── RL ────────────────────────────────────────────────────────────
         for seed in base_seeds:
             for fi, fname in enumerate(FUNCTION_ORDER):
                 print(f"[DQN] seed={seed} function={fname} ...")
@@ -586,14 +547,12 @@ def main():
                 curves["Recurrent_DQN"][fname].append(y_r)
                 finals["Recurrent_DQN"][fname].append(float(y_r[-1]))
 
-        # ── Grid (deterministic) ──────────────────────────────────────────
         for fname in FUNCTION_ORDER:
             fn_noise = noise_map.get(fname, 0.0)
             g = run_grid_search(fname, budget, noise_std=fn_noise)
             curves["Grid"][fname].append(g)
             finals["Grid"][fname].append(float(g[-1]))
 
-        # ── Random search ─────────────────────────────────────────────────
         for seed in base_seeds:
             for fname in FUNCTION_ORDER:
                 fn_noise = noise_map.get(fname, 0.0)

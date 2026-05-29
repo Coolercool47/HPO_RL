@@ -98,12 +98,12 @@ config_HMM = {
         "algorithm": {
             "name": "HMM_MCMC",
             "budget": 200,
-            "n_init": 5,           # было 5 — 20 Sobol-точек даёт достаточное покрытие 10D
+            "n_init": 5,          
             "n_chains": 1,
-            "orchestrate_every": 1000, # было 1000 (> budget) — оркестратор не срабатывал никогда
+            "orchestrate_every": 1000,
             "T_mcmc": 0.01,
             "sigma_fraction": 0.0055,
-            "wide_sigma_fraction": 0.5, # было 0.5 — чуть менее агрессивный EXPLORE
+            "wide_sigma_fraction": 0.5, 
             "temperature": 0.3,
             "hmm_window": 4,
             "hmm_obs_epsilon": 1e-8,

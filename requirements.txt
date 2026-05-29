@@ -1,31 +1,13 @@
-# Core Libraries
 numpy>=1.24.0
+scipy>=1.10.0
 torch>=2.0.0
-torchvision>=0.15.0  # Для работы с данными (datasets, transforms) 
-
-# Reinforcement Learning
-gymnasium>=1.0.0  # Современная замена gym (gym устарел)
 tianshou>=2.0.0
-sklearn
-
-# Configuration
+gymnasium>=1.0.0
 pyyaml>=6.0.0
-
-# Scientific Computing
-scipy>=1.10.0  # Используется в TPE и BOHB для статистических функций
-optuna>=3.0.0  # HPO сравнения (TPE / Hyperband / BOHB-style)
-
-# Data Processing
-pandas>=2.0.0  # Используется в plot.py для работы с данными
-
-# Visualization
-matplotlib>=3.7.0  # Для построения графиков (plot.py)
-
-# Utilities
-tqdm>=4.65.0  # Прогресс-бары 
-wandb>=0.25.0
-wandb
-
-# Testing
-pytest>=7.4.0
-mypy>=1.5.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+wandb>=0.16.0
+tensorboard>=2.13.0
+tqdm>=4.65.0
+torchvision>=0.15.0
+optuna>=3.0.0

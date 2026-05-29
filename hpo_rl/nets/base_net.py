@@ -7,6 +7,17 @@ from tianshou.utils.torch_utils import torch_device
 
 
 class BaseNet(ModuleWithVectorOutput):
+    """Базовый MLP: опционально concat действия, маска логитов, без головы — эмбеддинг.
+
+    Args:
+        state_shape: форма состояния.
+        action_shape: 0 или форма действий (0 — только backbone).
+        hidden_sizes: размеры слоёв.
+        device: устройство.
+        concat: конкатенировать one-hot действия к состоянию.
+        norm_layer: фабрика нормализации (например LayerNorm).
+    """
+
     def __init__(
         self,
         state_shape,
@@ -17,6 +28,17 @@ class BaseNet(ModuleWithVectorOutput):
         norm_layer=None,
         **kwargs,
     ):
+        """Инициализирует BaseNet.
+
+        Args:
+            state_shape: форма состояния.
+            action_shape: форма действий или 0.
+            hidden_sizes: размеры слоёв.
+            device: устройство.
+            concat: добавлять действие к входу.
+            norm_layer: слой нормализации после Linear.
+            **kwargs: зарезервировано.
+        """
         _action_prod = int(np.prod(action_shape)) if action_shape is not None else 0
 
         if _action_prod == 0:

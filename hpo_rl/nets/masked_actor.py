@@ -3,7 +3,22 @@ from tianshou.utils.net.discrete import DiscreteActor
 from tianshou.data import Batch
 
 class MaskedDiscreteActor(DiscreteActor):
+    """Дискретный актор с action masking поверх preprocess_net.
+
+    Args:
+        preprocess_net: сеть признаков (может учитывать mask в obs).
+        action_shape: форма действий.
+        hidden_sizes: дополнительные слои головы (если нужны).
+    """
+
     def __init__(self, preprocess_net, action_shape, hidden_sizes=()):
+        """Инициализирует MaskedDiscreteActor.
+
+        Args:
+            preprocess_net: сеть признаков (backbone).
+            action_shape: форма действий.
+            hidden_sizes: скрытые слои головы.
+        """
         super().__init__(
             preprocess_net=preprocess_net,
             action_shape=action_shape,

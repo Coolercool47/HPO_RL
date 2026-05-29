@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 
 df = pd.read_csv(r"C:\Users\Administrator\Downloads\csv (7).csv")
 
-# Auto-detect epoch and loss columns (case-insensitive)
 cols = {c.lower(): c for c in df.columns}
 epoch_col = next((cols[k] for k in cols if "epoch" in k or "step" in k), df.columns[1])
 loss_col  = next((cols[k] for k in cols if "loss" in k), df.columns[2])

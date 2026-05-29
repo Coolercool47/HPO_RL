@@ -1,25 +1,22 @@
 HPO_RL documentation
 ====================
 
-Core classes and functions
+Документация пакета HPO_RL
 ''''''''''''''''''''''''''
+
 .. toctree::
    :maxdepth: 2
 
-   core
+   baselines
 
    backends
 
-   baselines
-
    controller
-
-   data_processing
 
    environments
 
-   models
+   alg
 
-   trainers
+   nets
 
    experiments

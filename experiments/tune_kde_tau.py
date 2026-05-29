@@ -1,5 +1,3 @@
-"""Grid-search kde_tau для Archive-KDE в HMM_MCMC на Schwefel 10D."""
-
 import json
 import numpy as np
 from pathlib import Path
@@ -13,7 +11,6 @@ DIMENSIONS = 10
 
 
 def run_single(kde_tau: float, seed: int) -> float:
-    """Запускает один прогон HMM_MCMC и возвращает лучший loss."""
     np.random.seed(seed)
 
     backend = OptimizationBenchmarkBackend(

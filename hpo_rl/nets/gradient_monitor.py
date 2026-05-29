@@ -1,69 +1,8 @@
-"""
-Gradient monitoring wrappers for neural networks.
+"""Мониторинг градиентов: mixin с хуками и лог после clip_grad_norm_.
 
-Provides mixin and ready-to-use Net classes that track gradient statistics
-(min, max, mean norm per layer) using backward hooks.  The hooks are
-registered lazily on the first forward pass and are designed to avoid
-memory leaks:
-
-* Gradients are `.detach()`-ed and reduced to scalars immediately —
-  no full gradient tensors are kept alive.
-* Hook handles are stored so they can be removed via `remove_hooks()`.
-
-Naming convention for logs:
-    Each net is labelled as ``<ClassName>/<role>#<id>``, where *role*
-    is either the explicit ``grad_monitor_name`` you pass in, or
-    auto-detected from constructor arguments:
-
-      * ``concat=True``  → "critic"
-      * ``action_shape > 0, concat=False`` → "actor"  (or "q_net" for value-based)
-      * ``action_shape == 0`` → "preprocess"
-
-    Target (lagged) networks created by tianshou via ``deepcopy`` are
-    detected automatically: ``__deepcopy__`` disables hooks on the copy,
-    so they never produce gradient logs.
-
-Usage in config:
-    "net": {
-        "net": GradientMonitoredNet,       # or GradientMonitoredBaseNet
-        "hidden_sizes": [256, 256],
-        "grad_log_interval": 500,          # log every N backward steps
-        "grad_verbose": True,              # print to stdout
-        "grad_monitor_name": "actor",      # optional explicit label
-    }
-
-Post-clipping monitoring (OptimizerStepMonitor):
-    ``register_post_accumulate_grad_hook`` fires AFTER ``loss.backward()``
-    but BEFORE ``clip_grad_norm_`` — so the mixin sees raw (pre-clipping)
-    gradients.  To also see post-clipping stats, wrap the tianshou
-    algorithm's optimizer with ``OptimizerStepMonitor``::
-
-        monitor = OptimizerStepMonitor(
-            algorithm,                       # tianshou PPO / DQN / SAC …
-            nets=[net_actor, net_critic],     # GradientMonitorMixin instances
-            log_interval=200,
-            verbose=True,
-        )
-        # … train as usual …
-        monitor.remove()                    # cleanup when done
-
-    The monitor patches ``algorithm.optim.step`` so that right after
-    ``clip_grad_norm_`` (but before ``optim.step()``) it snapshots each
-    net's ``.grad`` values and logs them with a ``[post-clip]`` tag.
-
-Log format (each line per parameter):
-    [GradMonitor] <NetName> | step <N>
-      <param_name>                 | norm: avg=... max=... | val: min=... max=... | mean_abs=...
-
-    norm avg/max  — L2-norm of the gradient tensor, averaged / max over the
-                    last ``grad_log_interval`` backward steps.
-    val min/max   — element-wise minimum / maximum gradient value (shows
-                    sign and magnitude of the most extreme individual
-                    gradient element over the interval).
-    mean_abs      — mean of |grad| elements, averaged over the interval.
-                    A quick proxy for "how large are gradients on average".
-    [EXPLODING]   — printed when max_norm > 100.
-    [VANISHING]   — printed when mean_abs < 1e-7.
+``GradientMonitorMixin`` — статистики по слоям до clipping (post-accumulate hook).
+``OptimizerStepMonitor`` — снимок ``.grad`` после ``clip_grad_norm_``.
+Имена логов: ``<Class>/<role>#<id>``; target-сети из ``deepcopy`` без хуков.
 """
 
 import copy
@@ -76,23 +15,24 @@ from tianshou.utils.torch_utils import torch_device
 
 
 class GradientMonitorMixin:
-    """Mixin that adds gradient monitoring to any nn.Module.
+    """Миксин мониторинга градиентов для любого ``nn.Module``.
 
-    Call ``_init_grad_monitor(...)`` at the END of your ``__init__``.
+        Вызывайте ``_init_grad_monitor(...)`` в конце ``__init__``.
 
-    Uses ``register_post_accumulate_grad_hook`` on each parameter to capture
-    gradients at the exact moment they are computed.  When all tracked
-    parameters have reported their gradient for the current backward pass,
-    stats are aggregated and (if interval is reached) logged.
+        Использует ``register_post_accumulate_grad_hook`` на каждом параметре.
+        После backward собирает скалярную статистику (без хранения полных тензоров).
 
-    No full gradient tensors are kept — only scalar statistics.
+        Args:
+            grad_log_interval: период вывода лога (шаги backward)
+            grad_verbose: печать в stdout
+            grad_monitor_name: явная метка роли в логах
     """
 
     _instance_counter: int = 0
 
     @classmethod
     def reset_instance_counter(cls):
-        """Reset the instance counter (useful between experiments)."""
+        """Сбрасывает счётчик экземпляров (между экспериментами)."""
         cls._instance_counter = 0
 
     def _init_grad_monitor(
@@ -127,7 +67,7 @@ class GradientMonitorMixin:
         self._register_grad_hooks()
 
     def _auto_detect_role(self) -> str:
-        """Guess the role of this network from its constructor attributes."""
+        """Определяет роль сети по атрибутам конструктора."""
         if getattr(self, "_concat", False):
             return "critic"
         if getattr(self, "_has_output_head", False):
@@ -135,7 +75,7 @@ class GradientMonitorMixin:
         return "preprocess"
 
     def _register_grad_hooks(self):
-        """Register per-parameter gradient hooks."""
+        """Регистрирует post-accumulate hook на обучаемых параметрах."""
         for name, param in self.named_parameters():
             if param.requires_grad:
                 self._tracked_param_names.append(name)
@@ -147,7 +87,7 @@ class GradientMonitorMixin:
         self._num_tracked = len(self._tracked_param_names)
 
     def _make_param_hook(self, param_name: str):
-        """Create a closure for per-parameter gradient hook."""
+        """Создаёт замыкание hook для одного параметра."""
         def hook(param):
             g = param.grad.detach()
             self._current_step_stats[param_name] = {
@@ -164,7 +104,7 @@ class GradientMonitorMixin:
         return hook
 
     def _on_backward_complete(self):
-        """Called when all parameters have received their gradients."""
+        """Вызывается, когда все параметры получили градиенты за шаг backward."""
         self._grad_step += 1
 
 
@@ -181,7 +121,7 @@ class GradientMonitorMixin:
             self._log_grad_stats()
 
     def _log_grad_stats(self):
-        """Aggregate and print gradient statistics over the last interval."""
+        """Агрегирует и выводит статистику градиентов за последний интервал."""
         if not self._grad_norms:
             return
 
@@ -221,13 +161,10 @@ class GradientMonitorMixin:
 
 
     def __deepcopy__(self, memo):
-        """Create a copy WITHOUT gradient hooks.
+        """Создаёт копию без gradient hooks.
 
-        tianshou creates target (lagged) networks via ``deepcopy``.
-        Target nets are not trained — they receive weight updates via
-        Polyak averaging — so gradient hooks are useless and wasteful.
-        This override produces a clean copy with no hooks and no
-        monitoring overhead.
+        tianshou создаёт target-сети через ``deepcopy``; для них хуки не нужны
+        (обновление через Polyak averaging). Копия без мониторинга и хуков.
         """
 
 
@@ -253,7 +190,7 @@ class GradientMonitorMixin:
 
 
     def remove_hooks(self):
-        """Remove all registered hooks to avoid memory leaks."""
+        """Удаляет все зарегистрированные hooks (предотвращает утечки памяти)."""
         for h in self._hook_handles:
             h.remove()
         self._hook_handles.clear()
@@ -262,10 +199,14 @@ class GradientMonitorMixin:
 
 
 def _snapshot_net_grads(net: nn.Module) -> dict:
-    """Capture current .grad stats for every trainable parameter in *net*.
+    """Снимает статистику ``.grad`` для всех обучаемых параметров сети.
 
-    Returns ``{param_name: {norm, min, max, mean_abs}}``.
-    Parameters without a gradient are silently skipped.
+    Args:
+        net: сеть PyTorch
+
+    Returns:
+        словарь ``{имя_параметра: {norm, min, max, mean_abs}}``;
+        параметры без градиента пропускаются
     """
     stats: dict = {}
     for name, param in net.named_parameters():
@@ -281,35 +222,13 @@ def _snapshot_net_grads(net: nn.Module) -> dict:
 
 
 class OptimizerStepMonitor:
-    """Monitor gradients *after* ``clip_grad_norm_`` inside tianshou's
-    ``Algorithm.Optimizer.step``.
+    """Логирует градиенты после ``clip_grad_norm_`` (патч ``algorithm.optim.step``).
 
-    How it works
-    ------------
-    tianshou wraps the raw ``torch.optim.Optimizer`` in
-    ``Algorithm.Optimizer`` whose ``step()`` does::
-
-        zero_grad  →  loss.backward  →  clip_grad_norm_  →  optim.step
-
-    ``register_post_accumulate_grad_hook`` fires right after
-    ``loss.backward()`` — i.e. **before** clipping.  This class
-    monkey-patches ``algorithm.optim.step`` to insert a snapshot of
-    each tracked net's ``.grad`` **between** ``clip_grad_norm_`` and
-    ``optim.step()`` so that logged values reflect the actual clipped
-    gradients that drive weight updates.
-
-    Parameters
-    ----------
-    algorithm : tianshou Algorithm
-        The algorithm whose ``optim`` will be patched.
-    nets : list[nn.Module]
-        Networks whose parameters should be snapshotted after clipping.
-        Each net should be a ``GradientMonitorMixin`` instance (for its
-        ``_gm_name``), but plain ``nn.Module`` also works.
-    log_interval : int
-        Print / accumulate stats every N optimizer steps.
-    verbose : bool
-        Whether to print to stdout.
+    Args:
+        algorithm: алгоритм tianshou (PPO, DQN, …).
+        nets: сети для снимка ``.grad`` (желательно ``GradientMonitorMixin``).
+        log_interval: период вывода в шагах оптимизатора.
+        verbose: печать в stdout.
     """
 
     def __init__(
@@ -408,20 +327,23 @@ class OptimizerStepMonitor:
 
 
     def remove(self):
-        """Restore the original ``optimizer.step`` method."""
+        """Восстанавливает оригинальный ``optimizer.step``."""
         self._optim_wrapper.step = self._original_step
         self._accum.clear()
 
 
 class GradientMonitoredNet(GradientMonitorMixin, ModuleWithVectorOutput):
-    """MaskedNet + gradient monitoring.
+    """MaskedNet с мониторингом градиентов.
 
-    Accepts the same (state_shape, action_shape, hidden_sizes, device) as
-    MaskedNet, plus ``grad_log_interval``, ``grad_verbose`` and optional
-    ``grad_monitor_name`` for explicit labelling in logs.
-
-    For SAC twin-critic, also accepts ``concat=True`` which prepends
-    action_shape to the input dim (like tianshou's Net).
+        Args:
+            state_shape: форма состояния
+            action_shape: форма действий
+            hidden_sizes: размеры скрытых слоёв
+            device: устройство
+            grad_log_interval: период лога
+            grad_verbose: печать в stdout
+            grad_monitor_name: метка в логах
+            concat: для twin-critic SAC — конкатенация action к входу
     """
 
     def __init__(
@@ -502,13 +424,17 @@ class GradientMonitoredNet(GradientMonitorMixin, ModuleWithVectorOutput):
 
 
 class GradientMonitoredBaseNet(GradientMonitorMixin, ModuleWithVectorOutput):
-    """BaseNet + gradient monitoring.
+    """BaseNet с мониторингом градиентов.
 
-    Accepts the same (state_shape, action_shape, hidden_sizes, device) as
-    BaseNet, plus ``grad_log_interval``, ``grad_verbose`` and optional
-    ``grad_monitor_name``.
-
-    For SAC twin-critic, also accepts ``concat=True``.
+        Args:
+            state_shape: форма состояния
+            action_shape: форма действий
+            hidden_sizes: размеры скрытых слоёв
+            device: устройство
+            grad_log_interval: период лога
+            grad_verbose: печать в stdout
+            grad_monitor_name: метка в логах
+            concat: для twin-critic SAC
     """
 
     def __init__(
@@ -558,9 +484,19 @@ class GradientMonitoredBaseNet(GradientMonitorMixin, ModuleWithVectorOutput):
 
 
 class GradientMonitoredRecurrentBaseNet(GradientMonitorMixin, ModuleWithVectorOutput):
-    """RecurrentBaseNet + gradient monitoring.
+    """RecurrentBaseNet с мониторингом градиентов.
 
-    Drop-in replacement for RecurrentBaseNet with gradient stats logging.
+        Drop-in замена :class:`~hpo_rl.nets.recurrent_net.RecurrentBaseNet`.
+
+        Args:
+            state_shape: форма состояния
+            action_shape: форма действий (совместимость API)
+            hidden_layer_size: размер GRU
+            num_layers: число слоёв GRU
+            device: устройство
+            grad_log_interval: период лога
+            grad_verbose: печать в stdout
+            grad_monitor_name: метка в логах
     """
 
     def __init__(
@@ -646,9 +582,18 @@ class GradientMonitoredRecurrentBaseNet(GradientMonitorMixin, ModuleWithVectorOu
 
 
 class GradientMonitoredRecurrentNet(GradientMonitorMixin, ModuleWithVectorOutput):
-    """MaskedRecurrentNet + gradient monitoring.
+    """MaskedRecurrentNet с мониторингом градиентов.
 
-    Drop-in replacement for MaskedRecurrentNet with gradient stats logging.
+        Drop-in замена :class:`~hpo_rl.nets.masked_recurrent_net.MaskedRecurrentNet`.
+
+        Args:
+            state_shape: форма состояния
+            action_shape: форма действий
+            hidden_sizes: размеры скрытых слоёв
+            rnn_layers: число слоёв GRU
+            grad_log_interval: период лога
+            grad_verbose: печать в stdout
+            grad_monitor_name: метка в логах
     """
 
     def __init__(

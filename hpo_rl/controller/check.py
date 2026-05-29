@@ -1,3 +1,9 @@
+"""Валидация конфигурации эксперимента и сборка параметров контроллера.
+
+Модуль содержит реестры алгоритмов, бэкендов, сред и функций-бенчмарков,
+а также функцию :func:`check` для преобразования YAML/dict в аргументы
+:class:`controller`.
+"""
 import yaml
 import os
 import numpy as np
@@ -123,46 +129,19 @@ BACKENDS = {
 ENVS = {
     "new_cycle_move_pipeline": CyclicPipelineEnvNew,
     "instant_continuous_pipeline": InstantContinuousPipelineEnv,
-    "gp_belief_pipeline": GPBeliefContinuousPipelineEnv,
 }
 
 def check(config):
-    """Функция проверки конфигурации и задачи классов для последующей передачи в :class:`controller`.
+    """Проверяет конфигурацию и собирает словарь для :class:`controller`.
 
-    Args: 
-        config: Необработанная конфигурация
+    Args:
+        config: необработанная конфигурация эксперимента (dict из YAML).
 
-    Поддерживаемые алгоритмы:
-        - Обучение с подкреплением:
-            - A2C
-            - DQN
-            - PPO
-            - SAC
-            - TD3
-            - TRPO
-            - MaskablePPO
-            - RecurrentPPO
-        - Классические
-            - TPE
-            - BOHB
-            - Hyperband 
-            - SimpleGA
-            - CMA_ES
-    
-    Поддерживаемые `backend`:
-        - function
-        - real
-        - objective
-
-    Поддерживемые среды:
-        - cycle_move_pipeline
-
-    Встренные модели для подбора гиперпараметров:
-        - simle_cnn
-    
     Returns:
-        Конфигурацию для :class:`controller`
-    
+        dict: параметры инициализации ``controller`` (mode, backend, algorithm, env и др.).
+
+    Raises:
+        ValueError: неизвестный алгоритм, backend, среда или функция-бенчмарк.
     """
 
     algorithm_name = config["full_args"]["algorithm"]["name"]
@@ -255,10 +234,8 @@ def check(config):
 
         save = os.path.join(f"log/{algorithm_name}/{timestamp}", "best_policy.pth")
 
-        # Путь для загрузки чекпоинта (опционально)
         load = config["full_args"].get("load_checkpoint", None)
 
-        # --- ICM ---
         icm_raw = config["full_args"].get("icm")
         if icm_raw is not None:
             if "feature_net" not in icm_raw:
@@ -338,7 +315,7 @@ def check(config):
     elif backend_name == "sequential":
         backend_config = config["backend"]
         seq_mode = backend_config.get("mode", "random")
-        backend_list = backend_config["backends"]  # список описаний бэкендов
+        backend_list = backend_config["backends"] 
         
         child_backends = []
         all_hp_spaces = []
@@ -381,8 +358,6 @@ def check(config):
         
         backend_class = SequentialBackend
         
-        # hp_space: объединение по всем дочерним бэкендам
-        # Берём ключи из первого, расширяем диапазоны по всем
         merged_hp_space = {}
         for hp_space in all_hp_spaces:
             for key, val in hp_space.items():
@@ -398,7 +373,6 @@ def check(config):
                     if "max" in val and "max" in existing:
                         existing["max"] = max(existing["max"], val["max"])
                     if "values" in val and "values" in existing:
-                        # Для tuple (min, max)
                         if isinstance(val["values"], tuple) and isinstance(existing["values"], tuple):
                             existing["values"] = (
                                 min(existing["values"][0], val["values"][0]),

@@ -40,6 +40,7 @@ autodoc_mock_imports = [
     "gymnasium",
     "stable_baselines3",
     "sb3_contrib",
+    "tianshou",
 ]
 
 autodoc_member_order = "bysource"

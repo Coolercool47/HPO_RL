@@ -1,15 +1,6 @@
-"""Feature-net обёртка для ICM (Intrinsic Curiosity Module).
+"""Адаптер feature_net для ICM при Dict-наблюдениях ``Batch(obs, mask)``."""
 
-Модуль содержит :class:`ICMFeatureNet` — адаптер между средами
-с Dict observation space (``Batch(obs=..., mask=...)``) и
-``IntrinsicCuriosityModule`` из tianshou, который ожидает
-``feature_net(obs) -> Tensor``.
-
-Обёртка:
-- извлекает ``obs`` из ``Batch``/``dict`` (игнорирует ``mask``),
-- вызывает внутреннюю сеть,
-- если сеть возвращает кортеж ``(logits, state)`` — берёт только ``logits``.
-"""
+from __future__ import annotations
 
 import torch
 import torch.nn as nn
@@ -17,15 +8,19 @@ from tianshou.data import Batch
 
 
 class ICMFeatureNet(nn.Module):
-    """Адаптер feature_net для ICM, совместимый с Dict observation space.
+    """Адаптер feature_net для ICM при Dict-наблюдениях.
 
-    Args:
-        net: любая сеть (``nn.Module``).  Может принимать ``(obs)`` или
-             ``(obs, state, info)`` и возвращать ``Tensor`` или
-             ``(Tensor, state)``.
+        Args:
+            net: внутренняя ``nn.Module``; принимает ``(obs)`` или
+                 ``(obs, state, info)``, возвращает ``Tensor`` или ``(Tensor, state)``
     """
 
     def __init__(self, net: nn.Module) -> None:
+        """Инициализирует ICMFeatureNet.
+
+        Args:
+            net: внутренняя сеть признаков.
+        """
         super().__init__()
         self.net = net
 

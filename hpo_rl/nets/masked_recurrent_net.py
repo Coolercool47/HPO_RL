@@ -7,6 +7,15 @@ from tianshou.data import Batch
 from tianshou.utils.net.common import ModuleWithVectorOutput
 
 class MaskedRecurrentNet(ModuleWithVectorOutput):
+    """GRU + MLP с маскированием логитов; отдаёт скрытое состояние RNN.
+
+    Args:
+        state_shape: форма наблюдения.
+        action_shape: форма действий.
+        hidden_sizes: [rnn_dim, ...] — первый элемент — hidden GRU.
+        rnn_layers: число слоёв GRU.
+    """
+
     def __init__(
         self, 
         state_shape: tuple, 
@@ -14,6 +23,14 @@ class MaskedRecurrentNet(ModuleWithVectorOutput):
         hidden_sizes: list =[128, 128], 
         rnn_layers: int = 1
     ):
+        """Инициализирует MaskedRecurrentNet.
+
+        Args:
+            state_shape: форма наблюдения.
+            action_shape: форма действий.
+            hidden_sizes: размеры GRU и MLP.
+            rnn_layers: число слоёв GRU.
+        """
         out_dim = int(np.prod(action_shape))
         super().__init__(output_dim=out_dim)
         
@@ -21,7 +38,6 @@ class MaskedRecurrentNet(ModuleWithVectorOutput):
         self.rnn_layers = rnn_layers
         self.hidden_dim = hidden_sizes[0]
         
-        # rnn_layers = 10 (из вашего конфига)
         self.rnn = nn.GRU(
             input_size=input_dim, 
             hidden_size=self.hidden_dim, 
@@ -63,9 +79,8 @@ class MaskedRecurrentNet(ModuleWithVectorOutput):
         if not is_sequence:
             x = x.unsqueeze(1)
 
-        # --- ОБРАБОТКА STATE (ПРИЕМ ИЗ TIANSHOU) ---
         if is_sequence:
-            state = None  # В режиме обучения игнорируем старые state
+            state = None  
         else:
             if state is not None:
                 if isinstance(state, (dict, Batch)):
@@ -73,16 +88,11 @@ class MaskedRecurrentNet(ModuleWithVectorOutput):
                 if not isinstance(state, torch.Tensor):
                     state = torch.as_tensor(state, dtype=torch.float32, device=device)
                 
-                # Tianshou хранит (batch_size, num_layers, hidden_size).
-                # GRU ожидает (num_layers, batch_size, hidden_size). Возвращаем обратно:
                 if state.dim() == 3:
                     state = state.transpose(0, 1).contiguous()
                 elif state.dim() == 2:
-                    # Если вдруг пришел двумерный тензор, добавляем num_layers = 1
                     state = state.unsqueeze(0).contiguous()
 
-        # rnn_out: (batch_size, seq_len, hidden_size)
-        # hidden_out: (num_layers, batch_size, hidden_size) - !!!
         rnn_out, hidden_out = self.rnn(x, state)
         
         last_out = rnn_out[:, -1, :] 
@@ -96,10 +106,6 @@ class MaskedRecurrentNet(ModuleWithVectorOutput):
             min_value = torch.finfo(logits.dtype).min
             logits = logits.masked_fill(~mask, min_value)
 
-        # --- ОБРАБОТКА STATE (ОТДАЧА В TIANSHOU) ---
-        # Чтобы Tianshou Collector не падал с shape mismatch[10, 1, 128],
-        # мы обязаны поставить batch_size на нулевое место: 
-        # (num_layers, batch_size, hidden_size) -> (batch_size, num_layers, hidden_size)
         hidden_to_return = hidden_out.transpose(0, 1).detach()
         
 

@@ -42,7 +42,7 @@ class BOHB:
                 "x1": {type: categorical, values: ["a", "b"]}
             }
 
-            bohb = BOHB(R=9, nu=3, objective_function=objective_function, dict_to_optimize=dict_config, min_points_in_model=5, num_samples=64)
+            bohb = BOHB(R=9, nu=3, objective_func=objective_function, dict_to_optimize=dict_config)
             best_config = bohb.main_loop()
             
         """

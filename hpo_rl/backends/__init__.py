@@ -6,8 +6,8 @@
 - :class:`EvaluationBackend` — абстрактный базовый класс
 - :class:`OptimizationBenchmarkBackend` — тестовые функции оптимизации
 - :class:`DummyBackend` — простой бэкенд для отладки
-- :class:`RealTrainingBackend` — реальное обучение моделей
 - :class:`ObjectiveBackend` — обучение моделей через целевую функцию
+- :class:`SequentialBackend` — переключение между несколькими бэкендами
 
 Пример::
 

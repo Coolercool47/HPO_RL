@@ -13,6 +13,12 @@ class BaseHPOEnv(gym.Env, ABC):
     metadata = {"render_modes": []}
 
     def __init__(self, hp_space: Dict[str, Any], backend: EvaluationBackend):
+        """Инициализирует базовую HPO-среду.
+
+        Args:
+            hp_space: конфигурация пространства гиперпараметров.
+            backend: бэкенд оценки метрики.
+        """
         super().__init__()
 
         if not isinstance(backend, EvaluationBackend):
@@ -60,21 +66,49 @@ class BaseHPOEnv(gym.Env, ABC):
 
     @abstractmethod
     def reset(self, *, seed: Optional[int] = None, options: Optional[Dict] = None):
+        """Сбрасывает среду и возвращает начальное наблюдение.
+
+        Args:
+            seed: seed генератора случайных чисел.
+            options: дополнительные опции Gymnasium.
+
+        Returns:
+            tuple: (observation, info).
+        """
         super().reset(seed=seed)
 
     @abstractmethod
     def step(self, action):
+        """Выполняет один шаг среды.
+
+        Args:
+            action: действие агента.
+
+        Returns:
+            tuple: (observation, reward, terminated, truncated, info).
+        """
         raise NotImplementedError
 
     @abstractmethod
     def _get_obs(self) -> Dict[str, np.ndarray]:
+        """Формирует текущее наблюдение.
+
+        Returns:
+            наблюдение для агента (ndarray или dict с ключом ``obs``).
+        """
         raise NotImplementedError
 
     @abstractmethod
     def _get_info(self) -> Dict[str, Any]:
+        """Формирует служебную информацию шага.
+
+        Returns:
+            dict: текущая и лучшая конфигурация, метрики.
+        """
         raise NotImplementedError
 
     def render(self):
+        """Заглушка render для Gymnasium (визуализация не реализована)."""
         pass
 
     def close(self):
