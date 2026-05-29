@@ -18,6 +18,7 @@ import argparse
 import csv
 import json
 import sys
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
@@ -31,16 +32,17 @@ from torchvision import datasets, transforms
 from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 
 # ── Defaults ──────────────────────────────────────────────────────────
-N_TRIALS = 500
+N_TRIALS = 1
 N_SEEDS = 3
 TRAIN_SUBSET = 10_000
 VAL_SUBSET = 2_000
 EPOCHS_PER_TRIAL = 5
 RNG_BASE = 42
 
-RESULTS_CSV = "compare_hmm_mcmc_cifar_history.csv"
-RESULTS_TXT = "compare_hmm_mcmc_cifar_results.txt"
-PLOT_FILE = "compare_hmm_mcmc_cifar_convergence.png"
+OUT_DIR = Path(__file__).parent.parent / "logs" / "compare_hmm_mcmc_vs_tpe"
+RESULTS_CSV = str(OUT_DIR / "compare_hmm_mcmc_cifar_history.csv")
+RESULTS_TXT = str(OUT_DIR / "compare_hmm_mcmc_cifar_results.txt")
+PLOT_FILE = str(OUT_DIR / "compare_hmm_mcmc_cifar_convergence.png")
 
 # HMM_MCMC hyperparameters (aligned with test_hmm_vs_optuna.py style)
 HMM_PARAMS = dict(
@@ -571,6 +573,8 @@ def write_csv(
 
 
 def main() -> None:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--trials", type=int, default=N_TRIALS)
     parser.add_argument("--seeds", type=int, default=N_SEEDS)

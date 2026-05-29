@@ -58,9 +58,7 @@ class ChunkedRNNPPO(PPO):
                     f"seq_len={self.seq_len} so each collect yields an integer number of chunks."
                 )
 
-    # ------------------------------------------------------------------
     #  Утилиты для reshape / маски сброса
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _reshape_to_chunks(x: Any, num_chunks: int, seq_len: int) -> Any:
@@ -220,9 +218,7 @@ class ChunkedRNNPPO(PPO):
             lp = lp.sum(dim=-1)
         return lp
 
-    # ------------------------------------------------------------------
     #  Переопределение _preprocess_batch (tianshou 2.0.0 API)
-    # ------------------------------------------------------------------
 
     def _preprocess_batch(
         self,
@@ -277,10 +273,6 @@ class ChunkedRNNPPO(PPO):
         batch.logp_old = torch.cat(logp_old, dim=0)
 
         return cast(LogpOldProtocol, batch)
-
-    # ------------------------------------------------------------------
-    #  Переопределение _update_with_batch
-    # ------------------------------------------------------------------
 
     def _update_with_batch(
         self,

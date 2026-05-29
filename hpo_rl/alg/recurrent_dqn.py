@@ -2,8 +2,6 @@ from tianshou.algorithm.modelfree.dqn import DQN
 from tianshou.data import Batch, ReplayBuffer, to_torch_as
 from tianshou.data.types import RolloutBatchProtocol, BatchWithReturnsProtocol
 from tianshou.algorithm.modelfree.reinforce import SimpleLossTrainingStats
-from tianshou.algorithm.algorithm_base import Algorithm
-import tianshou.algorithm.optim as opt
 import torch
 import numpy as np
 from typing import cast
@@ -22,46 +20,77 @@ class ChunkedRNNDQN(DQN):
     3. Прогоняет всю последовательность через RNN, но loss считает только 
        по последнему шагу (burn-in strategy)
     
-    ИСПРАВЛЕННЫЕ БАГИ по сравнению с оригинальным DQN:
-    - Gradient clipping через max_grad_norm (критично для BPTT через RNN)
-    - _target_q вычисляет Q-targets с seq_len последовательным контекстом,
-      а не по одному шагу с нулевым hidden state (несоответствие train/target)
-    
     Это аналог подхода R2D2 (Recurrent Experience Replay in Distributed RL).
     
     Args:
         seq_len: длина последовательности для RNN (включая целевой шаг).
             Первые (seq_len - 1) шагов используются как "burn-in" для прогрева
             hidden state, loss считается только по последнему шагу.
-        max_grad_norm: максимальная L2-норма градиентов (gradient clipping).
-            Критично для стабильного обучения RNN через BPTT. По умолчанию 10.0.
         **kwargs: все параметры стандартного DQN.
     """
     
-    def __init__(self, seq_len: int = 10, max_grad_norm: float = 10.0, *args, **kwargs):
-        # Must be set BEFORE super().__init__() because _create_policy_optimizer
-        # is called during parent __init__ and reads this attribute.
-        self._rnn_max_grad_norm = max_grad_norm
+    def __init__(self, seq_len: int = 10, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.seq_len = seq_len
 
-    def _create_policy_optimizer(self, optim_factory: opt.OptimizerFactory) -> Algorithm.Optimizer:
-        """Override to enable gradient clipping — критично для стабильного BPTT через RNN."""
-        return self._create_optimizer(self.policy, optim_factory, max_grad_norm=self._rnn_max_grad_norm)
-
-    def _build_seq_obs_batch(self, buffer: ReplayBuffer, end_indices: np.ndarray) -> Batch:
-        """Строит батч с 3D obs [batch, seq_len, obs_dim] для последовательностей,
-        заканчивающихся на end_indices. Mask обрезается до 2D последнего шага.
+    def _build_sequences_from_buffer(
+        self, buffer: ReplayBuffer, indices: np.ndarray
+    ) -> np.ndarray:
+        """Для каждого индекса строим последовательность из seq_len шагов назад.
+        
+        Использует buffer.prev() для навигации назад по эпизоду.
+        Если эпизод короче seq_len, prev() упрётся в начало эпизода и 
+        будет возвращать тот же индекс — это корректное поведение для RNN.
+        
+        Returns:
+            seq_indices: массив формы (len(indices), seq_len) — индексы в буфере.
         """
-        batch_size = len(end_indices)
+        batch_size = len(indices)
+        # seq_indices[i, -1] = indices[i] (целевой шаг)
+        # seq_indices[i, -2] = prev(indices[i]) и т.д.
         seq_indices = np.zeros((batch_size, self.seq_len), dtype=np.int64)
-        seq_indices[:, -1] = end_indices
+        seq_indices[:, -1] = indices
+        
         for t in range(self.seq_len - 2, -1, -1):
             seq_indices[:, t] = buffer.prev(seq_indices[:, t + 1])
+        
+        return seq_indices
 
+    def _preprocess_batch(
+        self,
+        batch: RolloutBatchProtocol,
+        buffer: ReplayBuffer,
+        indices: np.ndarray,
+    ) -> BatchWithReturnsProtocol:
+        """Вычисляем n-step returns стандартным способом, затем строим последовательности.
+        
+        1. compute_nstep_return — считает таргеты Q-learning (как в обычном DQN)
+        2. Из буфера извлекаем последовательности длиной seq_len для каждого индекса
+        3. Упаковываем obs в 3D формат [batch, seq_len, obs_dim] для RNN
+        """
+        # Шаг 1: стандартный расчёт n-step return для целевых индексов
+        batch = self.compute_nstep_return(
+            batch=batch,
+            buffer=buffer,
+            indices=indices,
+            target_q_fn=self._target_q,
+            gamma=self.gamma,
+            n_step=self.n_step,
+        )
+        
+        # Шаг 2: строим последовательности из буфера
+        seq_indices = self._build_sequences_from_buffer(buffer, indices)
+        # seq_indices: (batch_size, seq_len)
+        
+        # Шаг 3: извлекаем наблюдения для всей последовательности
+        # buffer[seq_indices.flatten()] даст нам все нужные obs
         seq_batch = buffer[seq_indices.flatten()]
-
+        
+        # Извлекаем obs и перестраиваем в 3D
+        batch_size = len(indices)
+        
         def reshape_obs(obs):
+            """Рекурсивно перестраиваем obs в формат [batch, seq_len, ...]."""
             if isinstance(obs, (dict, Batch)):
                 new_obs = Batch()
                 for k, v in obs.items():
@@ -72,71 +101,24 @@ class ChunkedRNNDQN(DQN):
             elif isinstance(obs, np.ndarray):
                 return obs.reshape(batch_size, self.seq_len, *obs.shape[1:])
             return obs
-
+        
         seq_obs = reshape_obs(seq_batch.obs)
-        # Обрезаем mask до 2D (только последний шаг): нужно для compute_q_value
-        if isinstance(seq_obs, (dict, Batch)) and "mask" in seq_obs:
-            mask_seq = seq_obs["mask"]
+        
+        # Заменяем obs в батче на последовательность для RNN
+        # obs.obs будет 3D [batch, seq_len, obs_dim] — для GRU
+        batch.obs = seq_obs
+        
+        # ВАЖНО: mask должна быть 2D [batch, action_dim] (только последний шаг),
+        # потому что DiscreteQLearningPolicy.compute_q_value() работает с 2D mask.
+        # MaskedRecurrentNet внутри сам берёт mask[:, -1, :] из 3D, но policy-level
+        # masking в compute_q_value получает mask напрямую из batch.obs.mask.
+        # Поэтому оставляем mask только для целевого (последнего) шага.
+        if isinstance(batch.obs, (dict, Batch)) and "mask" in batch.obs:
+            mask_seq = batch.obs["mask"]
             if isinstance(mask_seq, np.ndarray) and mask_seq.ndim == 3:
-                seq_obs["mask"] = mask_seq[:, -1, :]
+                batch.obs["mask"] = mask_seq[:, -1, :]
             elif isinstance(mask_seq, torch.Tensor) and mask_seq.dim() == 3:
-                seq_obs["mask"] = mask_seq[:, -1, :]
-        return seq_obs
-
-    def _target_q(self, buffer: ReplayBuffer, indices: np.ndarray) -> torch.Tensor:
-        """Вычисляем target Q-values с полным последовательным контекстом.
-
-        ИСПРАВЛЕНИЕ: Оригинальный DQN._target_q использует одиночный obs_next
-        (2D, нулевой hidden state). Для RNN это порождает системное несоответствие:
-        - Текущая Q-сеть обучается с seq_len шагами контекста
-        - TD-таргеты вычисляются без контекста (hidden = zeros)
-        → Сеть не может научиться использовать скрытое состояние, агент не обучается.
-
-        Решение: строим последовательности длиной seq_len, заканчивающиеся на
-        buffer.next(indices) — таким образом таргеты вычисляются с тем же
-        контекстом, что и предсказания.
-        """
-        # buffer.next(i) = i для терминальных шагов (эпизод закончился),
-        # что корректно — value_mask обнулит Q для терминальных состояний.
-        next_indices = buffer.next(indices)
-        seq_obs = self._build_seq_obs_batch(buffer, next_indices)
-
-        obs_next_batch = Batch(obs=seq_obs, info=[None] * len(indices))
-
-        result = self.policy(obs_next_batch)
-        if self.use_target_network:
-            target_q = self.policy(obs_next_batch, model=self.model_old).logits
-        else:
-            target_q = result.logits
-        if self.is_double:
-            return target_q[np.arange(len(result.act)), result.act]
-        return target_q.max(dim=1)[0]
-
-    def _preprocess_batch(
-        self,
-        batch: RolloutBatchProtocol,
-        buffer: ReplayBuffer,
-        indices: np.ndarray,
-    ) -> BatchWithReturnsProtocol:
-        """Вычисляем n-step returns (с контекстным _target_q), затем строим последовательности.
-        
-        1. compute_nstep_return — считает таргеты Q-learning с RNN-контекстом
-        2. Из буфера извлекаем последовательности длиной seq_len для каждого индекса
-        3. Упаковываем obs в 3D формат [batch, seq_len, obs_dim] для RNN
-        """
-        # Шаг 1: расчёт n-step return (теперь _target_q использует seq-контекст)
-        batch = self.compute_nstep_return(
-            batch=batch,
-            buffer=buffer,
-            indices=indices,
-            target_q_fn=self._target_q,
-            gamma=self.gamma,
-            n_step=self.n_step,
-        )
-        
-        # Шаг 2+3: строим последовательности obs [batch, seq_len, obs_dim].
-        # Последний элемент последовательности — это целевой шаг (indices).
-        batch.obs = self._build_seq_obs_batch(buffer, indices)
+                batch.obs["mask"] = mask_seq[:, -1, :]
         
         return batch
 

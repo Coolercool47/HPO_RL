@@ -26,8 +26,8 @@ class RainbowNetWrapper(nn.Module):
         self.num_atoms = num_atoms
 
     def forward(self, obs, state=None, info={}):
-        # 1. Get flat logits from the standard Net [Batch, Action * Atoms]
+
         logits, hidden = self.model(obs, state=state, info=info)
-        # 2. Reshape to [Batch, Action, Atoms] -> [64, 7, 51]
+
         logits = logits.view(-1, self.action_num, self.num_atoms)
         return logits, hidden

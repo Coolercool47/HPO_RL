@@ -64,7 +64,7 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
         if not isinstance(h_0, torch.Tensor):
             h_0 = torch.as_tensor(h_0, dtype=torch.float32, device=x_device)
 
-        # Chunked BPTT: teacher-forcing style h at first step of window
+
         if len(h_0.shape) == 4:
             h_0 = h_0[:, 0, :, :]
 
@@ -104,7 +104,7 @@ class RecurrentBaseNet(ModuleWithVectorOutput):
             if episode_reset.dim() == 1 and x.size(1) == 1:
                 episode_reset = episode_reset.unsqueeze(1)
             elif episode_reset.dim() == 1:
-                # Broadcast e.g. reset over batch of same length
+
                 if episode_reset.shape[0] == x.size(1):
                     episode_reset = episode_reset.unsqueeze(0).expand(x.size(0), -1)
 

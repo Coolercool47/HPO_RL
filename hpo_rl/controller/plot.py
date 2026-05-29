@@ -10,30 +10,30 @@ import re
 
 class plot_and_save():
     """Класс для создания таблиц и изображений.
-    
+
     Args:
         history: история сгенерированных гиперпараметров
-        best_result: лучший результат 
+        best_result: лучший результат
         save_path: папка для сохранения таблиц и изображений
         backend: выбранный `backend`
 
     Attributes:
         history: история сгенерированных гиперпараметров
-        best_result: лучший результат 
+        best_result: лучший результат
         save_path: папка для сохранения таблиц и изображений
         backend: выбранный `backend`
-    
+
     """
     def __init__(self, history, best_result, save_path, backend, experiment_number=0):
         """Инициализация plot_and_save
 
         Args:
             history: история сгенерированных гиперпараметров
-            best_result: лучший результат 
+            best_result: лучший результат
             save_path: папка для сохранения таблиц и изображений
             backend: выбранный `backend`
             experiment_number: номер экперимента
-        
+
         """
         self.best_result = best_result
         self.save_path = save_path
@@ -43,14 +43,14 @@ class plot_and_save():
 
     def plot_3d(self, suffix=""):
         """Функция, создающая изображение функции на плоскости и в трехмерии.
-        
+
         Args:
             suffix: дополнительный суффикс для имени файла (например, имя функции).
         """
         x0_vals = np.array([t[0]["x0"] for t in self.history])
         x1_vals = np.array([t[0]["x1"] for t in self.history])
         metrics = np.array([t[-1] for t in self.history])
-        
+
         n_points = len(x0_vals)
         colors = np.linspace(0, 1, n_points)
 
@@ -59,7 +59,7 @@ class plot_and_save():
             'truncated_plasma', original_plasma(np.linspace(0, 0.85, 256))
         )
 
-        # bounds is now List[Tuple[float, float]], per-dimension
+
         bounds = self.backend.bounds
         grid_x0 = np.linspace(bounds[0][0], bounds[0][1], 100)
         grid_x1 = np.linspace(bounds[1][0], bounds[1][1], 100) if len(bounds) > 1 else grid_x0
@@ -81,7 +81,7 @@ class plot_and_save():
         ax1.add_collection(lc)
 
         ax1.scatter(x0_vals, x1_vals, c=colors, cmap=truncated_plasma, s=25, edgecolors='none', alpha=0.8, zorder=4)
-        
+
         ax1.scatter(x0_vals[0], x1_vals[0], c='green', s=100, marker='o', label='Start', zorder=5, edgecolors='white')
         ax1.scatter(x0_vals[-1], x1_vals[-1], c='red', s=120, marker='*', label='End', zorder=5, edgecolors='white')
 
@@ -120,38 +120,38 @@ class plot_and_save():
 
     def plot_trajectory(self, suffix=""):
         """Функция, создающая изображение с историей наград
-        
+
         Args:
             suffix: дополнительный суффикс для имени файла.
         """
         is_maximize = self.backend.maximize
         history_scores = [d[-1] for d in self.history]
         iterations = range(1, len(history_scores) + 1)
-        
+
         if not is_maximize:
             best_so_far = np.minimum.accumulate(history_scores)
             label_best = 'Best Score (Min)'
         else:
             best_so_far = np.maximum.accumulate(history_scores)
             label_best = 'Best Score (Max)'
-        
+
         plt.figure(figsize=(10, 6))
 
-        plt.plot(iterations, history_scores, marker='o', markersize=4, linestyle='-', color='blue', 
+        plt.plot(iterations, history_scores, marker='o', markersize=4, linestyle='-', color='blue',
                 alpha=0.3, label='Iteration Score $f(x)$')
 
         plt.plot(iterations, best_so_far, color='red', linewidth=2, label=label_best)
 
         plt.title(f"Optimization History ({'Minimization' if not is_maximize else 'Maximization'})", fontsize=14)
         plt.xlabel("Iteration", fontsize=12)
-        plt.ylabel("Objective function", fontsize=12) 
+        plt.ylabel("Objective function", fontsize=12)
 
-        plt.yscale('linear') 
+        plt.yscale('linear')
 
         plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
 
         y_formatter = ScalarFormatter(useOffset=False)
-        y_formatter.set_scientific(False) 
+        y_formatter.set_scientific(False)
         plt.gca().yaxis.set_major_formatter(y_formatter)
 
         plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -159,7 +159,7 @@ class plot_and_save():
         plt.legend(frameon=True, loc='upper right')
         plt.tight_layout()
 
-        # Сохранение
+
         file_label = f"trajectory_{self.experiment_number}{suffix}"
         temp_path = self.save_path / f"{file_label}.png"
         plt.savefig(temp_path, dpi=150, bbox_inches='tight')
@@ -167,7 +167,7 @@ class plot_and_save():
         plt.savefig(temp_path_pgf, dpi=150, bbox_inches='tight')
         print(f"Saved: {temp_path}, {temp_path_pgf}")
         plt.close()
-    
+
     def plot_reward(self, rewards, suffix=""):
         """Строит график per-step reward и кумулятивного reward.
 
@@ -184,9 +184,9 @@ class plot_and_save():
 
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
-        # --- Per-step reward ---
+
         ax1.plot(steps, rewards, linewidth=1.0, color='steelblue', alpha=0.7, label='Per-step reward')
-        # Скользящее среднее для наглядности
+
         if len(rewards) >= 10:
             window = max(5, len(rewards) // 20)
             kernel = np.ones(window) / window
@@ -200,7 +200,7 @@ class plot_and_save():
         ax1.legend(loc='upper right', frameon=True)
         ax1.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
 
-        # --- Cumulative reward ---
+
         ax2.plot(steps, cumulative, linewidth=2.0, color='darkorange', label='Cumulative reward')
         ax2.fill_between(steps, 0, cumulative, alpha=0.15, color='orange')
         ax2.axhline(0, color='gray', linewidth=0.5, linestyle='--')
@@ -223,7 +223,7 @@ class plot_and_save():
 
     def save_history(self, as_latex=True, suffix=""):
         """Функция, сохраняющая историю в виде таблицы и Latex кода
-        
+
         Args:
             as_latex: если True — сохраняет .tex, иначе .csv
             suffix: дополнительный суффикс для имени файла.
@@ -236,7 +236,7 @@ class plot_and_save():
             data.append(row)
 
         df = pd.DataFrame(data).set_index("Iteration")
-        
+
         if not as_latex:
             out_path = self.save_path / f"history_{self.experiment_number}{suffix}.csv"
             df.to_csv(out_path)
@@ -247,8 +247,8 @@ class plot_and_save():
         min_idx = df[obj_col].idxmin()
         max_idx = df[obj_col].idxmax()
 
-        df_latex = df.copy().astype(object) 
-        
+        df_latex = df.copy().astype(object)
+
         for idx in df_latex.index:
             val = df.loc[idx, obj_col]
             formatted_val = f"{val:.5g}"
@@ -259,8 +259,8 @@ class plot_and_save():
             else:
                 df_latex.loc[idx, obj_col] = formatted_val
 
-        col_format = 'r' * (len(df.columns)) + 'l' 
-        
+        col_format = 'r' * (len(df.columns)) + 'l'
+
         latex_table = df_latex.to_latex(
             index=True,
             longtable=True,
@@ -270,13 +270,11 @@ class plot_and_save():
             label="tab:opt_history"
         )
 
-        
+
         latex_table = re.sub(r'\\multicolumn\{\d+\}\{r\}\{Continued on next page\} \\\\', '', latex_table)
-        
-        # По желанию: если вы хотите, чтобы шапка повторялась на каждой странице (стандарт longtable),
-        # Pandas уже это сделал через \endhead. 
-        # Если вам нужно подправить конкретно разделители, делаем это точечно:
-        latex_table = latex_table.replace(r'\bottomrule', r'\midrule') # Чтобы в конце промежуточных страниц была линия
+
+
+        latex_table = latex_table.replace(r'\bottomrule', r'\midrule')
         latex_table = latex_table.replace(r'\endlastfoot', r'\bottomrule' + '\n' + r'\endlastfoot')
 
         out_path = self.save_path / f"history_table_{self.experiment_number}{suffix}.tex"

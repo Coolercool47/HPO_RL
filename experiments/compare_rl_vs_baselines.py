@@ -49,6 +49,7 @@ GRID_PER_AXIS = 14  # 14*14 = 196 evaluations
 # Order matters for ``SequentialBackend`` indices: keep the first blocks aligned with how
 # ``final_policy.pth`` was trained whenever you reuse old checkpoints (append new benchmarks).
 FUNCTION_ORDER = [
+    # N-D functions (work in 2D)
     "rastrigin",
     "rosenbrock",
     "schwefel",
@@ -57,15 +58,71 @@ FUNCTION_ORDER = [
     "griewank",
     "levy",
     "michalewicz",
+    "styblinski_tang",
+    # 2D-only functions
+    "booth",
+    "beale",
+    "goldstein_price",
+    "bukin_n6",
+    "cross_in_tray",
+    "drop_wave",
+    "eggholder",
+    "holder_table",
+    "schaffer_n2",
+    "schaffer_n4",
+    "shubert",
+    "dejong_n5",
+    "easom",
+    "levy_n13",
+    "langermann",
 ]
 
+# noise_std ≈ 10 % of each function's typical value range.
+# Large enough to be significant, small enough not to bury the landscape signal.
+NOISE_STD_MAP: dict[str, float] = {
+    # N-D functions
+    "sphere":           5.0,    # range [0, ~50]
+    "rosenbrock":       20.0,   # range [0, ~400]  (2D, bounds [-1,1])
+    "rastrigin":        8.0,    # range [0, ~80]
+    "ackley":           2.0,    # range [0, ~22]
+    "griewank":         10.0,   # range [0, ~100]
+    "schwefel":         150.0,  # range [0, ~1677]
+    "levy":             8.0,    # range [0, ~100]
+    "michalewicz":      0.1,    # range [-2, 0]
+    "styblinski_tang":  10.0,   # range [-78, ~250]
+    # 2D-only functions
+    "booth":            30.0,   # range [0, ~1200]
+    "beale":            5.0,    # typical near-optimum values
+    "goldstein_price":  50.0,   # range [3, ~1e4]
+    "bukin_n6":         20.0,   # range [0, ~500]
+    "cross_in_tray":    0.05,   # range [-2.06, 0]
+    "drop_wave":        0.05,   # range [-1, 0.5]
+    "eggholder":        50.0,   # range [-960, ~1000]
+    "holder_table":     1.0,    # range [-19, 0]
+    "schaffer_n2":      0.05,   # range [0, 1]
+    "schaffer_n4":      0.05,   # range [0, 1]
+    "shubert":          15.0,   # range [-186, ~200]
+    "dejong_n5":        10.0,   # range [~1, ~500]
+    "easom":            0.05,   # range [-1, 0]
+    "levy_n13":         15.0,   # range [0, ~300]
+    "langermann":       0.1,    # range [-1.5, ~1]
+}
+
 BACKENDS_LIST = [
-    {"name": "function", "function": fn, "dimensions": 2} for fn in FUNCTION_ORDER
+    {"name": "function", "function": fn, "dimensions": 2,
+     "noise_std": NOISE_STD_MAP[fn]}
+    for fn in FUNCTION_ORDER
+]
+
+BACKENDS_LIST_CLEAN = [
+    {"name": "function", "function": fn, "dimensions": 2, "noise_std": 0.0}
+    for fn in FUNCTION_ORDER
 ]
 
 DEFAULT_CKPT_RECURRENT = "log/recurrent_dqn/20260509-235607/final_policy.pth"
 DEFAULT_CKPT_DQN = "log/dqn/20260509-233450/final_policy.pth"
 
+OUT_DIR = Path(__file__).parent.parent / "logs" / "compare_rl_vs_baselines"
 RESULTS_TXT = "compare_rl_vs_baselines_results.txt"
 PLOT_FILE = "compare_rl_vs_baselines_convergence.png"
 
@@ -78,7 +135,7 @@ def _seed_all(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-def config_recurrent_dqn(load_checkpoint: str | None) -> dict:
+def config_recurrent_dqn(load_checkpoint: str | None, backends_list: list | None = None) -> dict:
     """Match recurrent DQN block in run_experiment.ipynb."""
     cfg = {
         "full_args": {
@@ -133,7 +190,7 @@ def config_recurrent_dqn(load_checkpoint: str | None) -> dict:
         "backend": {
             "name": "sequential",
             "mode": "shuffle",
-            "backends": deepcopy(BACKENDS_LIST),
+            "backends": deepcopy(backends_list if backends_list is not None else BACKENDS_LIST),
         },
     }
     if load_checkpoint:
@@ -141,7 +198,7 @@ def config_recurrent_dqn(load_checkpoint: str | None) -> dict:
     return cfg
 
 
-def config_dqn(load_checkpoint: str | None) -> dict:
+def config_dqn(load_checkpoint: str | None, backends_list: list | None = None) -> dict:
     """Match DQN block in run_experiment.ipynb (sequential backends from ``FUNCTION_ORDER``)."""
     cfg = {
         "full_args": {
@@ -197,7 +254,7 @@ def config_dqn(load_checkpoint: str | None) -> dict:
         "backend": {
             "name": "sequential",
             "mode": "shuffle",
-            "backends": deepcopy(BACKENDS_LIST),
+            "backends": deepcopy(backends_list if backends_list is not None else BACKENDS_LIST),
         },
     }
     if load_checkpoint:
@@ -256,10 +313,10 @@ def run_rl_episode(
     return _pad_curve(best_curve, budget)
 
 
-def run_grid_search(function_name: str, budget: int = BUDGET) -> np.ndarray:
+def run_grid_search(function_name: str, budget: int = BUDGET, noise_std: float = 0.0) -> np.ndarray:
     """Full 2D grid on native bounds; best-so-far curve, padded to `budget`."""
     backend = OptimizationBenchmarkBackend(
-        function_name=function_name, dimensions=2, noise_std=0.0
+        function_name=function_name, dimensions=2, noise_std=noise_std,
     )
     lo0, hi0 = backend.bounds[0]
     lo1, hi1 = backend.bounds[1]
@@ -275,9 +332,9 @@ def run_grid_search(function_name: str, budget: int = BUDGET) -> np.ndarray:
     return _pad_curve(best, budget)
 
 
-def run_random_search(function_name: str, seed: int, budget: int = BUDGET) -> np.ndarray:
+def run_random_search(function_name: str, seed: int, budget: int = BUDGET, noise_std: float = 0.0) -> np.ndarray:
     backend = OptimizationBenchmarkBackend(
-        function_name=function_name, dimensions=2, noise_std=0.0
+        function_name=function_name, dimensions=2, noise_std=noise_std,
     )
     rng = np.random.default_rng(seed)
     lo0, hi0 = backend.bounds[0]
@@ -356,6 +413,51 @@ def _plot_results(
     print(f"Saved plot: {outfile}")
 
 
+def _plot_per_function(
+    curves: dict[str, dict[str, list[np.ndarray]]],
+    out_dir: str,
+    *,
+    budget: int,
+    n_seeds: int,
+) -> None:
+    """Saves one PNG per benchmark function into *out_dir*."""
+    os.makedirs(out_dir, exist_ok=True)
+    evals = np.arange(1, budget + 1)
+    methods_styles = [
+        ("DQN",          "C0", "-"),
+        ("Recurrent_DQN","C1", "-"),
+        ("Grid",         "C2", "--"),
+        ("Random",       "C3", "-"),
+    ]
+
+    for fname in FUNCTION_ORDER:
+        fig, ax = plt.subplots(figsize=(7, 4.5))
+        for label, color, linestyle in methods_styles:
+            stack_key = label
+            runs = curves.get(stack_key, {}).get(fname, [])
+            if not runs:
+                continue
+            stack = np.vstack(runs)
+            if not np.isfinite(stack).any():
+                continue
+            mean = np.nanmean(stack, axis=0)
+            std  = np.nanstd(stack, axis=0)
+            disp = "Recurrent DQN" if stack_key == "Recurrent_DQN" else stack_key
+            ax.plot(evals, mean, label=disp, color=color, linestyle=linestyle, linewidth=2)
+            if len(runs) > 1:
+                ax.fill_between(evals, mean - std, mean + std, color=color, alpha=0.15)
+        ax.set_title(f"{fname}  (budget={budget})")
+        ax.set_xlabel("Evaluation")
+        ax.set_ylabel("Best objective so far")
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=9, loc="upper right")
+        fig.tight_layout()
+        out_path = os.path.join(out_dir, f"{fname}.png")
+        fig.savefig(out_path, dpi=150)
+        plt.close(fig)
+        print(f"  Saved: {out_path}")
+
+
 def _print_table(
     final_vals: dict[str, dict[str, list[float]]],
     out_stream=sys.stdout,
@@ -401,6 +503,8 @@ def main():
             except Exception:
                 pass
 
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--ckpt-dqn",
@@ -430,75 +534,96 @@ def main():
     budget = args.budget
     n_seeds = args.seeds
 
-    dqn_cfg = config_dqn(Path(args.ckpt_dqn).as_posix())
-    rdqn_cfg = config_recurrent_dqn(Path(args.ckpt_recurrent).as_posix())
-
-    curves: dict[str, dict[str, list[np.ndarray]]] = {
-        "DQN": {fn: [] for fn in FUNCTION_ORDER},
-        "Recurrent_DQN": {fn: [] for fn in FUNCTION_ORDER},
-        "Grid": {fn: [] for fn in FUNCTION_ORDER},
-        "Random": {fn: [] for fn in FUNCTION_ORDER},
-    }
-    finals: dict[str, dict[str, list[float]]] = {
-        "DQN": {fn: [] for fn in FUNCTION_ORDER},
-        "Recurrent_DQN": {fn: [] for fn in FUNCTION_ORDER},
-        "Grid": {fn: [] for fn in FUNCTION_ORDER},
-        "Random": {fn: [] for fn in FUNCTION_ORDER},
-    }
+    dqn_ckpt  = Path(args.ckpt_dqn).as_posix()
+    rdqn_ckpt = Path(args.ckpt_recurrent).as_posix()
 
     base_seeds = [42 + k for k in range(n_seeds)]
 
-    # ── RL ────────────────────────────────────────────────────────────
-    for seed in base_seeds:
-        for fi, fname in enumerate(FUNCTION_ORDER):
-            print(f"[DQN] seed={seed} function={fname} ...")
-            try:
-                y = run_rl_episode(dqn_cfg, fi, seed, budget)
-            except Exception as e:
-                print(f"  ERROR DQN {fname} seed {seed}: {e}", file=sys.stderr)
-                y = np.full(budget, np.nan)
-            curves["DQN"][fname].append(y)
-            finals["DQN"][fname].append(float(y[-1]))
+    variants = [
+        ("clean", BACKENDS_LIST_CLEAN, {}),
+        ("noisy", BACKENDS_LIST,       NOISE_STD_MAP),
+    ]
 
-            print(f"[Recurrent DQN] seed={seed} function={fname} ...")
-            try:
-                y_r = run_rl_episode(rdqn_cfg, fi, seed, budget)
-            except Exception as e:
-                print(f"  ERROR Recurrent DQN {fname} seed {seed}: {e}", file=sys.stderr)
-                y_r = np.full(budget, np.nan)
-            curves["Recurrent_DQN"][fname].append(y_r)
-            finals["Recurrent_DQN"][fname].append(float(y_r[-1]))
+    for variant_name, bl, noise_map in variants:
+        print(f"\n{'='*60}")
+        print(f"  Variant: {variant_name.upper()}")
+        print(f"{'='*60}\n")
 
-    # ── Grid (deterministic) ──────────────────────────────────────────
-    for fname in FUNCTION_ORDER:
-        g = run_grid_search(fname, budget)
-        curves["Grid"][fname].append(g)
-        finals["Grid"][fname].append(float(g[-1]))
+        dqn_cfg  = config_dqn(dqn_ckpt, bl)
+        rdqn_cfg = config_recurrent_dqn(rdqn_ckpt, bl)
 
-    # ── Random search ─────────────────────────────────────────────────
-    for seed in base_seeds:
+        curves: dict[str, dict[str, list[np.ndarray]]] = {
+            "DQN": {fn: [] for fn in FUNCTION_ORDER},
+            "Recurrent_DQN": {fn: [] for fn in FUNCTION_ORDER},
+            "Grid": {fn: [] for fn in FUNCTION_ORDER},
+            "Random": {fn: [] for fn in FUNCTION_ORDER},
+        }
+        finals: dict[str, dict[str, list[float]]] = {
+            "DQN": {fn: [] for fn in FUNCTION_ORDER},
+            "Recurrent_DQN": {fn: [] for fn in FUNCTION_ORDER},
+            "Grid": {fn: [] for fn in FUNCTION_ORDER},
+            "Random": {fn: [] for fn in FUNCTION_ORDER},
+        }
+
+        # ── RL ────────────────────────────────────────────────────────────
+        for seed in base_seeds:
+            for fi, fname in enumerate(FUNCTION_ORDER):
+                print(f"[DQN] seed={seed} function={fname} ...")
+                try:
+                    y = run_rl_episode(dqn_cfg, fi, seed, budget)
+                except Exception as e:
+                    print(f"  ERROR DQN {fname} seed {seed}: {e}", file=sys.stderr)
+                    y = np.full(budget, np.nan)
+                curves["DQN"][fname].append(y)
+                finals["DQN"][fname].append(float(y[-1]))
+
+                print(f"[Recurrent DQN] seed={seed} function={fname} ...")
+                try:
+                    y_r = run_rl_episode(rdqn_cfg, fi, seed, budget)
+                except Exception as e:
+                    print(f"  ERROR Recurrent DQN {fname} seed {seed}: {e}", file=sys.stderr)
+                    y_r = np.full(budget, np.nan)
+                curves["Recurrent_DQN"][fname].append(y_r)
+                finals["Recurrent_DQN"][fname].append(float(y_r[-1]))
+
+        # ── Grid (deterministic) ──────────────────────────────────────────
         for fname in FUNCTION_ORDER:
-            r = run_random_search(fname, seed, budget)
-            curves["Random"][fname].append(r)
-            finals["Random"][fname].append(float(r[-1]))
+            fn_noise = noise_map.get(fname, 0.0)
+            g = run_grid_search(fname, budget, noise_std=fn_noise)
+            curves["Grid"][fname].append(g)
+            finals["Grid"][fname].append(float(g[-1]))
 
-    _plot_results(curves, PLOT_FILE, budget=budget, n_seeds=n_seeds)
+        # ── Random search ─────────────────────────────────────────────────
+        for seed in base_seeds:
+            for fname in FUNCTION_ORDER:
+                fn_noise = noise_map.get(fname, 0.0)
+                r = run_random_search(fname, seed, budget, noise_std=fn_noise)
+                curves["Random"][fname].append(r)
+                finals["Random"][fname].append(float(r[-1]))
 
-    print()
-    _print_table(finals)
-    summary = {
-        "budget": budget,
-        "n_seeds": n_seeds,
-        "checkpoints": {"dqn": args.ckpt_dqn, "recurrent_dqn": args.ckpt_recurrent},
-        "final_best_per_method": {
-            m: {fn: finals[m][fn] for fn in FUNCTION_ORDER} for m in finals
-        },
-    }
-    with open(RESULTS_TXT, "w", encoding="utf-8") as f:
-        f.write(json.dumps(summary, indent=2))
-        f.write("\n\n")
-        _print_table(finals, out_stream=f)
-    print(f"\nWrote table + JSON summary to {RESULTS_TXT}")
+        plot_file   = str(OUT_DIR / PLOT_FILE.replace(".png", f"_{variant_name}.png"))
+        plot_dir    = str(OUT_DIR / f"plots_per_function/{variant_name}")
+        results_txt = str(OUT_DIR / RESULTS_TXT.replace(".txt", f"_{variant_name}.txt"))
+
+        _plot_results(curves, plot_file, budget=budget, n_seeds=n_seeds)
+        _plot_per_function(curves, plot_dir, budget=budget, n_seeds=n_seeds)
+
+        print()
+        _print_table(finals)
+        summary = {
+            "variant": variant_name,
+            "budget": budget,
+            "n_seeds": n_seeds,
+            "checkpoints": {"dqn": args.ckpt_dqn, "recurrent_dqn": args.ckpt_recurrent},
+            "final_best_per_method": {
+                m: {fn: finals[m][fn] for fn in FUNCTION_ORDER} for m in finals
+            },
+        }
+        with open(results_txt, "w", encoding="utf-8") as f:
+            f.write(json.dumps(summary, indent=2))
+            f.write("\n\n")
+            _print_table(finals, out_stream=f)
+        print(f"\nWrote table + JSON summary to {results_txt}")
 
 
 if __name__ == "__main__":

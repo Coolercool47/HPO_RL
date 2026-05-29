@@ -97,7 +97,7 @@ config_HMM = {
     "full_args": {
         "algorithm": {
             "name": "HMM_MCMC",
-            "budget": 800,
+            "budget": 200,
             "n_init": 5,           # было 5 — 20 Sobol-точек даёт достаточное покрытие 10D
             "n_chains": 1,
             "orchestrate_every": 1000, # было 1000 (> budget) — оркестратор не срабатывал никогда
@@ -116,7 +116,7 @@ config_HMM = {
         }
     },
     "backend": {
-        "name": "function", "function": "schwefel", "dimensions": 10, "noise_std": 0
+        "name": "function", "function": "schwefel", "dimensions": 2, "noise_std": 0
     }
 }
 

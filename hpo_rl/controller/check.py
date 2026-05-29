@@ -49,7 +49,6 @@ from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 
 from hpo_rl.environments.new_cycle_move_pipeline import CyclicPipelineEnvNew
 from hpo_rl.environments.instant_continuous_pipeline_env import InstantContinuousPipelineEnv
-from hpo_rl.environments.gp_belief_env import GPBeliefContinuousPipelineEnv
 
 
 functions = {
@@ -240,7 +239,6 @@ def check(config):
         for key, value in config["full_args"]["policy"].items():
                 if key != "class":
                     policy_params[key] = value
-        eps_schedule = policy_params.pop("eps_schedule", None)  # handled separately by controller
         if config["full_args"]["net"].get("actor"):
             policy_params["actor"] = config["full_args"]["net"]["actor"]
         
@@ -464,8 +462,7 @@ def check(config):
             "alg_name": algorithm_name,
             "net_params": net_params,
             "save": save,
-            "load": load,
-            "eps_schedule": eps_schedule,
+            "load": load
             }
         
     elif mode == "baseline":

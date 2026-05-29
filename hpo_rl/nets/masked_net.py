@@ -6,50 +6,49 @@ from tianshou.utils.net.common import ModuleWithVectorOutput
 
 class MaskedNet(ModuleWithVectorOutput):
     def __init__(self, state_shape, action_shape, hidden_sizes=[128, 128], device='cpu'):
-        # 1. Сначала вычисляем размерность выхода
+
         out_dim = int(np.prod(action_shape))
-        
-        # 2. Передаем её в конструктор базового класса (ЭТО РЕШАЕТ ОШИБКУ)
+
+
         super().__init__(output_dim=out_dim)
-        
+
         self.device = device
         input_dim = int(np.prod(state_shape))
-        
-        # 3. Строим сеть
+
+
         layers = []
         curr_dim = input_dim
         for hidden_dim in hidden_sizes:
             layers.append(nn.Linear(curr_dim, hidden_dim))
             layers.append(nn.ReLU(inplace=True))
             curr_dim = hidden_dim
-        
-        # Используем out_dim для последнего слоя
+
+
         layers.append(nn.Linear(curr_dim, out_dim))
         self.model = nn.Sequential(*layers)
 
-    # Метод get_output_dim() писать не нужно, он уже реализован в ModuleWithVectorOutput
 
     def forward(self, obs, state=None, info=None):
         mask = None
         x = obs
 
-        # Безопасное извлечение obs и mask
+
         if isinstance(obs, (dict, Batch)):
             if "mask" in obs:
                 mask = obs["mask"]
             if "obs" in obs:
                 x = obs["obs"]
-        
+
         if not isinstance(x, torch.Tensor):
             x = torch.as_tensor(x, dtype=torch.float32, device=self.device)
-        
+
         logits = self.model(x)
 
         if mask is not None:
             if not isinstance(mask, torch.Tensor):
                 mask = torch.as_tensor(mask, dtype=torch.bool, device=logits.device)
-            
-            # Накладываем маску на логиты (-inf для запрещенных действий)
+
+
             min_value = torch.finfo(logits.dtype).min
             logits = logits.masked_fill(~mask, min_value)
 

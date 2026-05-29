@@ -75,10 +75,6 @@ from tianshou.utils.net.common import ModuleWithVectorOutput
 from tianshou.utils.torch_utils import torch_device
 
 
-# ---------------------------------------------------------------------------
-#  Mixin — core gradient monitoring logic
-# ---------------------------------------------------------------------------
-
 class GradientMonitorMixin:
     """Mixin that adds gradient monitoring to any nn.Module.
 
@@ -92,7 +88,7 @@ class GradientMonitorMixin:
     No full gradient tensors are kept — only scalar statistics.
     """
 
-    _instance_counter: int = 0  # class-level counter for naming
+    _instance_counter: int = 0
 
     @classmethod
     def reset_instance_counter(cls):
@@ -108,7 +104,7 @@ class GradientMonitorMixin:
         GradientMonitorMixin._instance_counter += 1
         self._gm_id = GradientMonitorMixin._instance_counter
 
-        # Build human-readable name
+
         role = grad_monitor_name or self._auto_detect_role()
         cls_name = type(self).__name__
         self._gm_name = f"{cls_name}/{role}#{self._gm_id}"
@@ -117,14 +113,14 @@ class GradientMonitorMixin:
         self._grad_verbose = grad_verbose
         self._grad_monitor_name = grad_monitor_name
 
-        # bookkeeping
+
         self._grad_step = 0
         self._hook_handles: list = []
 
-        # per-interval accumulator:  param_name -> list of {norm, min, max, mean_abs}
+
         self._grad_norms: dict = {}
 
-        # per-step accumulator: tracks which params reported in current step
+
         self._current_step_stats: dict = {}
         self._tracked_param_names: list = []
 
@@ -161,7 +157,7 @@ class GradientMonitorMixin:
                 "mean_abs": g.abs().mean().item(),
             }
 
-            # Check if all tracked params have reported
+
             if len(self._current_step_stats) >= self._num_tracked:
                 self._on_backward_complete()
 
@@ -171,16 +167,16 @@ class GradientMonitorMixin:
         """Called when all parameters have received their gradients."""
         self._grad_step += 1
 
-        # Move current step stats into interval accumulator
+
         for name, stats in self._current_step_stats.items():
             if name not in self._grad_norms:
                 self._grad_norms[name] = []
             self._grad_norms[name].append(stats)
 
-        # Reset per-step accumulator
+
         self._current_step_stats = {}
 
-        # Log at interval
+
         if self._grad_step % self._grad_log_interval == 0:
             self._log_grad_stats()
 
@@ -203,7 +199,7 @@ class GradientMonitorMixin:
             max_grad = np.max(maxs)
             avg_mean = np.mean(means)
 
-            # Warn about potential issues  (no emoji — ASCII only)
+
             flag = ""
             if max_norm > 100:
                 flag = " [EXPLODING]"
@@ -220,10 +216,9 @@ class GradientMonitorMixin:
         if self._grad_verbose:
             print("\n".join(lines))
 
-        # Reset accumulator
+
         self._grad_norms.clear()
 
-    # ---- deepcopy support -------------------------------------------------
 
     def __deepcopy__(self, memo):
         """Create a copy WITHOUT gradient hooks.
@@ -234,8 +229,8 @@ class GradientMonitorMixin:
         This override produces a clean copy with no hooks and no
         monitoring overhead.
         """
-        # 1. Shallow-copy the instance, then deep-copy everything except
-        #    hook handles and accumulators.
+
+
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -243,12 +238,12 @@ class GradientMonitorMixin:
         for k, v in self.__dict__.items():
             if k in ("_hook_handles", "_grad_norms", "_current_step_stats",
                       "_tracked_param_names"):
-                # Empty copies — no hooks on the target net
+
                 setattr(result, k, [] if isinstance(v, list) else {})
             else:
                 setattr(result, k, copy.deepcopy(v, memo))
 
-        # 2. Override monitoring attributes to mark this as a passive copy
+
         result._gm_name = f"{self._gm_name}:target(no-hooks)"
         result._hook_handles = []
         result._num_tracked = 0
@@ -256,7 +251,6 @@ class GradientMonitorMixin:
         result._grad_verbose = False
         return result
 
-    # ---- cleanup ----------------------------------------------------------
 
     def remove_hooks(self):
         """Remove all registered hooks to avoid memory leaks."""
@@ -266,10 +260,6 @@ class GradientMonitorMixin:
         self._grad_norms.clear()
         self._current_step_stats.clear()
 
-
-# ---------------------------------------------------------------------------
-#  OptimizerStepMonitor — post-clipping gradient monitoring
-# ---------------------------------------------------------------------------
 
 def _snapshot_net_grads(net: nn.Module) -> dict:
     """Capture current .grad stats for every trainable parameter in *net*.
@@ -333,38 +323,37 @@ class OptimizerStepMonitor:
         self.log_interval = log_interval
         self.verbose = verbose
 
-        # bookkeeping
+
         self._step = 0
-        # net_idx -> param_name -> list[{norm, min, max, mean_abs}]
+
         self._accum: dict[int, dict[str, list]] = {i: {} for i in range(len(nets))}
 
-        # ---- monkey-patch algorithm.optim.step ---------------------------
-        self._optim_wrapper = algorithm.optim  # Algorithm.Optimizer instance
+
+        self._optim_wrapper = algorithm.optim
         self._original_step = self._optim_wrapper.step
 
-        monitor = self  # closure reference
+        monitor = self
 
         def patched_step(loss, retain_graph=None, create_graph=False):
-            # 1. zero_grad + backward
+
             monitor._optim_wrapper._optim.zero_grad()
             loss.backward(retain_graph=retain_graph, create_graph=create_graph)
 
-            # 2. clip_grad_norm_ (same logic as original)
+
             if monitor._optim_wrapper._max_grad_norm is not None:
                 nn.utils.clip_grad_norm_(
                     monitor._optim_wrapper._module.parameters(),
                     max_norm=monitor._optim_wrapper._max_grad_norm,
                 )
 
-            # 3. >>> snapshot post-clipping gradients <<<
+
             monitor._on_post_clip()
 
-            # 4. actual optimizer step
+
             monitor._optim_wrapper._optim.step()
 
         self._optim_wrapper.step = patched_step
 
-    # ---- internal --------------------------------------------------------
 
     def _on_post_clip(self):
         self._step += 1
@@ -414,20 +403,15 @@ class OptimizerStepMonitor:
             if self.verbose:
                 print("\n".join(lines))
 
-            # Reset this net's accumulator
+
             self._accum[idx] = {}
 
-    # ---- cleanup ---------------------------------------------------------
 
     def remove(self):
         """Restore the original ``optimizer.step`` method."""
         self._optim_wrapper.step = self._original_step
         self._accum.clear()
 
-
-# ---------------------------------------------------------------------------
-#  GradientMonitoredNet  — drop-in replacement for MaskedNet
-# ---------------------------------------------------------------------------
 
 class GradientMonitoredNet(GradientMonitorMixin, ModuleWithVectorOutput):
     """MaskedNet + gradient monitoring.
@@ -451,11 +435,11 @@ class GradientMonitoredNet(GradientMonitorMixin, ModuleWithVectorOutput):
         grad_monitor_name: str | None = None,
         concat: bool = False,
         norm_layer=None,
-        **kwargs,  # absorb extra keys silently
+        **kwargs,
     ):
-        # Determine output dimensionality
+
         _action_prod = int(np.prod(action_shape)) if action_shape is not None else 0
-        
+
         if _action_prod == 0:
             out_dim = hidden_sizes[-1]
             self._has_output_head = False
@@ -463,7 +447,7 @@ class GradientMonitoredNet(GradientMonitorMixin, ModuleWithVectorOutput):
             out_dim = _action_prod
             self._has_output_head = True
 
-        # For preprocess nets (no action head), output_dim = hidden_sizes[-1]
+
         effective_out_dim = hidden_sizes[-1] if not self._has_output_head else out_dim
         super().__init__(output_dim=effective_out_dim)
 
@@ -488,7 +472,7 @@ class GradientMonitoredNet(GradientMonitorMixin, ModuleWithVectorOutput):
 
         self.model = nn.Sequential(*layers)
 
-        # Initialize gradient monitoring (must be last)
+
         self._init_grad_monitor(grad_log_interval, grad_verbose, grad_monitor_name)
 
     def forward(self, obs, state=None, info=None):
@@ -516,10 +500,6 @@ class GradientMonitoredNet(GradientMonitorMixin, ModuleWithVectorOutput):
 
         return logits, state
 
-
-# ---------------------------------------------------------------------------
-#  GradientMonitoredBaseNet — drop-in replacement for BaseNet
-# ---------------------------------------------------------------------------
 
 class GradientMonitoredBaseNet(GradientMonitorMixin, ModuleWithVectorOutput):
     """BaseNet + gradient monitoring.
@@ -565,7 +545,7 @@ class GradientMonitoredBaseNet(GradientMonitorMixin, ModuleWithVectorOutput):
 
         self.model = nn.Sequential(*layers)
 
-        # Initialize gradient monitoring (must be last)
+
         self._init_grad_monitor(grad_log_interval, grad_verbose, grad_monitor_name)
 
     def forward(self, obs, state=None, info=None):
@@ -576,10 +556,6 @@ class GradientMonitoredBaseNet(GradientMonitorMixin, ModuleWithVectorOutput):
         x = x.flatten(1)
         return self.model(x), state
 
-
-# ---------------------------------------------------------------------------
-#  Recurrent variants
-# ---------------------------------------------------------------------------
 
 class GradientMonitoredRecurrentBaseNet(GradientMonitorMixin, ModuleWithVectorOutput):
     """RecurrentBaseNet + gradient monitoring.
@@ -617,7 +593,7 @@ class GradientMonitoredRecurrentBaseNet(GradientMonitorMixin, ModuleWithVectorOu
             batch_first=True,
         )
 
-        # Initialize gradient monitoring (must be last)
+
         self._init_grad_monitor(grad_log_interval, grad_verbose, grad_monitor_name)
 
     def forward(self, obs, state=None, info=None):
@@ -711,7 +687,7 @@ class GradientMonitoredRecurrentNet(GradientMonitorMixin, ModuleWithVectorOutput
         layers.append(nn.Linear(curr_dim, out_dim))
         self.mlp = nn.Sequential(*layers)
 
-        # Initialize gradient monitoring (must be last)
+
         self._init_grad_monitor(grad_log_interval, grad_verbose, grad_monitor_name)
 
     def forward(self, obs, state=None, info=None):
