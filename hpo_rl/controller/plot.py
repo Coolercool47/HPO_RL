@@ -4,7 +4,7 @@
 3D-ландшафта, наград и экспорт истории в CSV/LaTeX.
 """
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator, ScalarFormatter
+from matplotlib.ticker import FuncFormatter, MaxNLocator, ScalarFormatter
 import matplotlib.colors as mcolors
 from matplotlib.collections import LineCollection
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
@@ -12,6 +12,47 @@ import numpy as np
 from datetime import datetime
 import pandas as pd
 import re
+
+# Default font sizes for publication-ready figures
+_TITLE_FONTSIZE = 18
+_LABEL_FONTSIZE = 15
+_TICK_FONTSIZE = 13
+_LEGEND_FONTSIZE = 13
+_CLABEL_FONTSIZE = 11
+
+# Larger fonts for 2D Trajectory / 3D View panels in plot_3d
+_TRAJ3D_TITLE_FONTSIZE = 24
+_TRAJ3D_LABEL_FONTSIZE = 20
+_TRAJ3D_TICK_FONTSIZE = 18
+_TRAJ3D_LEGEND_FONTSIZE = 18
+
+# 3D View panel: slightly smaller labels, tick numbers on 3D axes only
+_VIEW3D_TITLE_FONTSIZE = 20
+_VIEW3D_LABEL_FONTSIZE = 16
+_VIEW3D_TICK_FONTSIZE = 13
+
+
+def _format_sci_tick(val, _pos):
+    """Формат делений оси: 160000 -> 1.6e5; малые значения — без e-нотации."""
+    if abs(val) < 1e-15:
+        return '0'
+    av = abs(val)
+    if av >= 1e4 or (av < 1e-2 and av > 0):
+        exp = int(np.floor(np.log10(av)))
+        mant = val / (10 ** exp)
+        if abs(mant - round(mant)) < 0.05:
+            m = int(round(mant))
+            sign = '-' if m < 0 else ''
+            m = abs(m)
+            return f'{sign}{m}e{exp}' if m != 1 else f'{sign}1e{exp}'
+        s = f'{mant:.1f}e{exp}'
+        return s.replace('.0e', 'e')
+    if av >= 100:
+        return f'{val:.0f}'
+    if av >= 10:
+        return f'{val:.0f}'
+    return f'{val:g}'
+
 
 class plot_and_save():
     """Класс для создания таблиц и изображений.
@@ -81,11 +122,13 @@ class plot_and_save():
             for j in range(X0.shape[1]):
                 Z[i, j] = self.backend.evaluate({"x0": X0[i, j], "x1": X1[i, j]})
 
-        fig, (ax1, _) = plt.subplots(1, 2, figsize=(16, 7))
+        fig = plt.figure(figsize=(16, 7))
+        # Без tight: фиксированные отступы, ~10% справа под подписи оси Z
+        ax1 = fig.add_axes([0.07, 0.12, 0.42, 0.76])
+        ax2 = fig.add_axes([0.50, 0.12, 0.38, 0.76], projection='3d')
 
         ax1.contourf(X0, X1, Z, levels=20, cmap='viridis', alpha=0.15)
-        contour = ax1.contour(X0, X1, Z, levels=20, cmap='viridis', alpha=0.3)
-        ax1.clabel(contour, inline=True, fontsize=8)
+        ax1.contour(X0, X1, Z, levels=20, cmap='viridis', alpha=0.3)
 
         points = np.array([x0_vals, x1_vals]).T.reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
@@ -100,11 +143,15 @@ class plot_and_save():
         best_idx = np.argmax(metrics) if self.backend.maximize else np.argmin(metrics)
         ax1.scatter(x0_vals[best_idx], x1_vals[best_idx], c='cyan', s=150, marker='X', label='Best', zorder=6, edgecolors='black')
 
-        ax1.set_title('2D Trajectory')
+        ax1.set_title('2D Trajectory', fontsize=_TRAJ3D_TITLE_FONTSIZE)
+        ax1.set_xlabel('x0', fontsize=_TRAJ3D_LABEL_FONTSIZE)
+        ax1.set_ylabel('x1', fontsize=_TRAJ3D_LABEL_FONTSIZE)
+        ax1.tick_params(axis='both', labelsize=_TRAJ3D_TICK_FONTSIZE)
+        ax1.set_xlim(bounds[0][0], bounds[0][1])
+        ax1.set_ylim(bounds[1][0], bounds[1][1])
         ax1.set_aspect('equal')
-        ax1.legend()
+        ax1.legend(fontsize=_TRAJ3D_LEGEND_FONTSIZE)
 
-        ax2 = fig.add_subplot(122, projection='3d')
         ax2.plot_surface(X0, X1, Z, cmap='viridis', alpha=0.3, linewidth=0, antialiased=True)
 
         points3d = np.array([x0_vals, x1_vals, metrics]).T.reshape(-1, 1, 3)
@@ -118,14 +165,25 @@ class plot_and_save():
         ax2.scatter(x0_vals[-1], x1_vals[-1], metrics[-1], c='red', s=130, marker='*', edgecolors='white')
         ax2.scatter(x0_vals[best_idx], x1_vals[best_idx], metrics[best_idx], c='cyan', s=150, marker='X', edgecolors='black')
 
-        ax2.set_title('3D View')
+        ax2.set_title('3D View', fontsize=_VIEW3D_TITLE_FONTSIZE)
+        ax2.set_xlim(bounds[0][0], bounds[0][1])
+        ax2.set_ylim(bounds[1][0], bounds[1][1])
+        ax2.set_xlabel('x0', fontsize=_VIEW3D_LABEL_FONTSIZE, labelpad=6)
+        ax2.set_ylabel('x1', fontsize=_VIEW3D_LABEL_FONTSIZE, labelpad=6)
+        ax2.set_zlabel('Objective', fontsize=_VIEW3D_LABEL_FONTSIZE, labelpad=10)
+        ax2.zaxis.set_major_locator(MaxNLocator(nbins=5, integer=False))
+        ax2.zaxis.set_major_formatter(FuncFormatter(_format_sci_tick))
+        ax2.zaxis.get_offset_text().set_visible(False)
+        ax2.tick_params(axis='x', labelsize=_VIEW3D_TICK_FONTSIZE, pad=1)
+        ax2.tick_params(axis='y', labelsize=_VIEW3D_TICK_FONTSIZE, pad=1)
+        ax2.tick_params(axis='z', labelsize=_VIEW3D_TICK_FONTSIZE, pad=1)
+        ax2.zaxis.set_rotate_label(True)
 
-        plt.tight_layout()
         file_label = f"3d_{self.experiment_number}{suffix}"
         temp_path = self.save_path / f"{file_label}.png"
-        plt.savefig(temp_path, dpi=150, bbox_inches='tight')
+        plt.savefig(temp_path, dpi=150)
         temp_path_pgf = self.save_path / f"{file_label}.pgf"
-        plt.savefig(temp_path_pgf, dpi=150, bbox_inches='tight')
+        plt.savefig(temp_path_pgf, dpi=150)
         print(f"Saved: {temp_path}, {temp_path_pgf}")
         plt.close()
 
@@ -154,9 +212,12 @@ class plot_and_save():
 
         plt.plot(iterations, best_so_far, color='red', linewidth=2, label=label_best)
 
-        plt.title(f"Optimization History ({'Minimization' if not is_maximize else 'Maximization'})", fontsize=14)
-        plt.xlabel("Iteration", fontsize=12)
-        plt.ylabel("Objective function", fontsize=12)
+        plt.title(
+            f"Optimization History ({'Minimization' if not is_maximize else 'Maximization'})",
+            fontsize=_TITLE_FONTSIZE,
+        )
+        plt.xlabel("Iteration", fontsize=_LABEL_FONTSIZE)
+        plt.ylabel("Objective function", fontsize=_LABEL_FONTSIZE)
 
         plt.yscale('linear')
 
@@ -167,8 +228,9 @@ class plot_and_save():
         plt.gca().yaxis.set_major_formatter(y_formatter)
 
         plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.gca().tick_params(axis='both', labelsize=_TICK_FONTSIZE)
 
-        plt.legend(frameon=True, loc='upper right')
+        plt.legend(frameon=True, loc='upper right', fontsize=_LEGEND_FONTSIZE)
         plt.tight_layout()
 
 
@@ -207,19 +269,21 @@ class plot_and_save():
             ax1.plot(steps[offset:offset + len(smoothed)], smoothed,
                      linewidth=2.0, color='darkblue', label=f'Moving avg (w={window})')
         ax1.axhline(0, color='gray', linewidth=0.5, linestyle='--')
-        ax1.set_ylabel('Reward', fontsize=12)
-        ax1.set_title('Per-step Reward', fontsize=14)
-        ax1.legend(loc='upper right', frameon=True)
+        ax1.set_ylabel('Reward', fontsize=_LABEL_FONTSIZE)
+        ax1.set_title('Per-step Reward', fontsize=_TITLE_FONTSIZE)
+        ax1.tick_params(axis='both', labelsize=_TICK_FONTSIZE)
+        ax1.legend(loc='upper right', frameon=True, fontsize=_LEGEND_FONTSIZE)
         ax1.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
 
 
         ax2.plot(steps, cumulative, linewidth=2.0, color='darkorange', label='Cumulative reward')
         ax2.fill_between(steps, 0, cumulative, alpha=0.15, color='orange')
         ax2.axhline(0, color='gray', linewidth=0.5, linestyle='--')
-        ax2.set_xlabel('Step', fontsize=12)
-        ax2.set_ylabel('Cumulative Reward', fontsize=12)
-        ax2.set_title('Cumulative Reward', fontsize=14)
-        ax2.legend(loc='upper left', frameon=True)
+        ax2.set_xlabel('Step', fontsize=_LABEL_FONTSIZE)
+        ax2.set_ylabel('Cumulative Reward', fontsize=_LABEL_FONTSIZE)
+        ax2.set_title('Cumulative Reward', fontsize=_TITLE_FONTSIZE)
+        ax2.tick_params(axis='both', labelsize=_TICK_FONTSIZE)
+        ax2.legend(loc='upper left', frameon=True, fontsize=_LEGEND_FONTSIZE)
         ax2.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
         ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 

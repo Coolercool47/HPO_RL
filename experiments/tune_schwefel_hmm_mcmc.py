@@ -42,6 +42,12 @@ FIXED_PARAMS: dict = dict(
 OUTPUT_FILE = "tune_schwefel_results.txt"
 PLOTS_DIR   = Path("tune_schwefel_plots")
 
+_FS_LABEL  = 16
+_FS_TITLE  = 18
+_FS_TICK   = 14
+_FS_ANNOT  = 13
+_FS_LEGEND = 11
+
 def make_search_space(dims: int) -> dict:
     return {
         f"x{i}": {"values": [-500.0, 500.0], "type": "float"}
@@ -150,22 +156,39 @@ def main() -> None:
     ax.axhline(0.0, color="gray", linestyle="--", linewidth=0.8, alpha=0.5,
                label="Global optimum = 0")
 
-    ax.set_xlabel("Evaluation", fontsize=12)
-    ax.set_ylabel("Best-so-far $f(x)$", fontsize=12)
-    ax.set_title(f"HMM-MCMC-FMP Grid Search — Schwefel {DIMENSIONS}D", fontsize=14)
-    ax.legend(fontsize=6, loc="upper right", ncol=2, framealpha=0.8)
+    ax.set_xlabel("Evaluation", fontsize=_FS_LABEL)
+    ax.set_ylabel("Best-so-far $f(x)$", fontsize=_FS_LABEL)
+    ax.set_title(f"HMM-MCMC-FMP Grid Search — Schwefel {DIMENSIONS}D", fontsize=_FS_TITLE)
+    ax.tick_params(axis="both", labelsize=_FS_TICK)
     ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.6)
     plt.tight_layout()
 
     conv_path = PLOTS_DIR / "convergence_all.png"
     plt.savefig(conv_path, dpi=150, bbox_inches="tight")
+
+    handles, labels = ax.get_legend_handles_labels()
+    fig_leg, ax_leg = plt.subplots(figsize=(12, max(4, 0.22 * len(labels))))
+    ax_leg.axis("off")
+    ax_leg.legend(
+        handles, labels,
+        fontsize=_FS_LEGEND, ncol=2, frameon=True, framealpha=0.9,
+        loc="center",
+    )
+    leg_path = PLOTS_DIR / "convergence_all_legend.png"
+    fig_leg.savefig(leg_path, dpi=150, bbox_inches="tight")
+    plt.close(fig_leg)
     plt.close()
     print(f"\nConvergence comparison plot: {conv_path}")
+    print(f"Convergence legend:         {leg_path}")
 
     top5 = results[:5]
     bar_labels = [
-        f"T={c['T_mcmc']}\nσ={c['sigma_fraction']}\nK={c['n_chains']}\nσw={c['wide_sigma_fraction']}"
-        for c, _, _ in top5
+        (
+            f"#{rank}\n"
+            f"T={c['T_mcmc']}\nσ={c['sigma_fraction']}\n"
+            f"K={c['n_chains']}\nσw={c['wide_sigma_fraction']}"
+        )
+        for rank, (c, _, _) in enumerate(top5, start=1)
     ]
     bar_values = [loss for _, loss, _ in top5]
     bar_colors = ["gold"] + ["steelblue"] * (len(top5) - 1)
@@ -177,10 +200,11 @@ def main() -> None:
             bar.get_x() + bar.get_width() / 2.0,
             bar.get_height() * 1.01,
             f"{val:.2f}",
-            ha="center", va="bottom", fontsize=9,
+            ha="center", va="bottom", fontsize=_FS_ANNOT,
         )
-    ax2.set_ylabel("Best $f(x)$", fontsize=12)
-    ax2.set_title("Top-5 Configs — Schwefel", fontsize=13)
+    ax2.set_ylabel("Best $f(x)$", fontsize=_FS_LABEL)
+    ax2.set_title("Top-5 Configs — Schwefel (best → 5th)", fontsize=_FS_TITLE)
+    ax2.tick_params(axis="both", labelsize=_FS_TICK)
     ax2.grid(axis="y", linestyle="--", alpha=0.6)
     plt.tight_layout()
 
@@ -188,6 +212,8 @@ def main() -> None:
     plt.savefig(bar_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Top-5 bar chart: {bar_path}")
+    for rank, (cfg, loss, _) in enumerate(top5, start=1):
+        print(f"  #{rank}  loss={loss:.4f}  {cfg_tag(cfg)}")
 
     T_vals     = sorted(set(c["T_mcmc"]              for c, _, _ in results))
     sf_vals    = sorted(set(c["sigma_fraction"]      for c, _, _ in results))
@@ -204,17 +230,21 @@ def main() -> None:
     fig3, ax3 = plt.subplots(figsize=(7, 5))
     im = ax3.imshow(heat_data, aspect="auto", cmap="plasma_r", origin="lower")
     ax3.set_xticks(range(len(T_vals)))
-    ax3.set_xticklabels([str(v) for v in T_vals])
+    ax3.set_xticklabels([str(v) for v in T_vals], fontsize=_FS_TICK)
     ax3.set_yticks(range(len(sf_vals)))
-    ax3.set_yticklabels([str(v) for v in sf_vals])
-    ax3.set_xlabel("T_mcmc", fontsize=12)
-    ax3.set_ylabel("sigma_fraction", fontsize=12)
-    ax3.set_title("Best f(x) heatmap (min over n_chains, wide_σ)", fontsize=12)
+    ax3.set_yticklabels([str(v) for v in sf_vals], fontsize=_FS_TICK)
+    ax3.set_xlabel("T_mcmc", fontsize=_FS_LABEL)
+    ax3.set_ylabel("sigma_fraction", fontsize=_FS_LABEL)
+    ax3.set_title("Best f(x) heatmap (min over n_chains, wide_σ)", fontsize=_FS_TITLE)
     for row in range(len(sf_vals)):
         for col in range(len(T_vals)):
-            ax3.text(col, row, f"{heat_data[row, col]:.1f}",
-                     ha="center", va="center", fontsize=9, color="white")
-    plt.colorbar(im, ax=ax3, label="Best f(x)")
+            ax3.text(
+                col, row, f"{heat_data[row, col]:.1f}",
+                ha="center", va="center", fontsize=_FS_ANNOT, color="black",
+            )
+    cbar = plt.colorbar(im, ax=ax3, label="Best f(x)")
+    cbar.ax.tick_params(labelsize=_FS_TICK)
+    cbar.set_label("Best f(x)", fontsize=_FS_LABEL)
     plt.tight_layout()
 
     heat_path = PLOTS_DIR / "heatmap_T_sigma.png"
