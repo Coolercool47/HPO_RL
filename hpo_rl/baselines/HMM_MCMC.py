@@ -21,6 +21,23 @@ def _logsumexp(a):
         return -np.inf
     return float(a_max + np.log(np.sum(np.exp(arr - a_max))))
 
+
+def decode_config(cfg: dict, dict_to_optimize: dict) -> dict:
+    """Декодирует внутренние log10-координаты в реальные значения гиперпараметров."""
+    out = dict(cfg)
+    for name, info in dict_to_optimize.items():
+        if info.get("type") == "float" and info.get("log"):
+            out[name] = float(10.0 ** float(cfg[name]))
+    return out
+
+
+def _float_param_bounds(info: dict) -> tuple[float, float, float, float, bool]:
+    """Возвращает (lo, hi, real_lo, real_hi, is_log) для float-параметра."""
+    real_lo, real_hi = float(info["values"][0]), float(info["values"][1])
+    if info.get("log"):
+        return float(np.log10(real_lo)), float(np.log10(real_hi)), real_lo, real_hi, True
+    return real_lo, real_hi, real_lo, real_hi, False
+
 _LOG_SQRT_2PI = 0.5 * np.log(2.0 * np.pi)
 _SQRT2 = math.sqrt(2.0)
 
@@ -120,7 +137,7 @@ class SobolInitializer:
             values = info["values"]
 
             if p_type == "float":
-                lo, hi = values[0], values[1]
+                lo, hi, _, _, _ = _float_param_bounds(info)
                 config[name] = lo + (hi - lo) * u[j]
             elif p_type == "int":
                 lo, hi = int(values[0]), int(values[1])
@@ -298,8 +315,12 @@ class FactorizedProposalGenerator:
 
             rec: dict = {"name": name, "type": p_type, "values": values}
             if p_type == "float":
-                rec["lo"] = float(values[0])
-                rec["hi"] = float(values[1])
+                lo, hi, real_lo, real_hi, is_log = _float_param_bounds(info)
+                rec["log"] = is_log
+                rec["real_lo"] = real_lo
+                rec["real_hi"] = real_hi
+                rec["lo"] = lo
+                rec["hi"] = hi
                 rec["range"] = rec["hi"] - rec["lo"]
                 rec["sigma"] = self.sigma_fraction * rec["range"]
                 rec["sigma_wide"] = self.wide_sigma_fraction * rec["range"]
@@ -1002,9 +1023,15 @@ class HMM_MCMC:
             p_cat_step: вероятность категориального шага
             kde_tau: τ для Archive-KDE
         """
-        self.objective_func = objective_func
-        self.budget = budget
         self.dict_to_optimize = dict_to_optimize
+        self._log_param_names = {
+            name
+            for name, info in dict_to_optimize.items()
+            if info.get("type") == "float" and info.get("log")
+        }
+        self._raw_objective_func = objective_func
+        self.objective_func = self._wrap_objective(objective_func)
+        self.budget = budget
         self.n_init = n_init
         self.n_chains = n_chains
         self.orchestrate_every = orchestrate_every
@@ -1029,6 +1056,23 @@ class HMM_MCMC:
         self._sobol_init: SobolInitializer | None = None
         self._orchestrator: GlobalOrchestrator | None = None
         self.history_table: list[dict] = []
+
+    def decode_config(self, cfg: dict) -> dict:
+        """Декодирует внутренний конфиг (log10 θ) в пользовательские значения."""
+        return decode_config(cfg, self.dict_to_optimize)
+
+    def _wrap_objective(self, objective_func):
+        if not self._log_param_names:
+            return objective_func
+
+        def wrapped(cfg: dict) -> float:
+            return objective_func(self.decode_config(cfg))
+
+        return wrapped
+
+    def _decode_best(self, result: tuple[dict, float]) -> tuple[dict, float]:
+        cfg, loss = result
+        return self.decode_config(cfg), loss
 
     def reset(self):
         """Сброс для повторного запуска (run_n_experiments)."""
@@ -1089,7 +1133,7 @@ class HMM_MCMC:
 
         if len(self.data) >= self.budget:
             pbar.close()
-            return min(self.data, key=lambda x: x[1])
+            return self._decode_best(min(self.data, key=lambda x: x[1]))
 
         losses = [score for _, score in init_scores]
         scale_factor = self._compute_scale(losses)
@@ -1197,4 +1241,4 @@ class HMM_MCMC:
         except ImportError:
             pass
 
-        return min(self.data, key=lambda x: x[1])
+        return self._decode_best(min(self.data, key=lambda x: x[1]))

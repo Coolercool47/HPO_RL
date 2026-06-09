@@ -48,8 +48,8 @@ HMM_PARAMS = dict(
 )
 
 HMM_SPACE = {
-    "learning_rate": {"values": [1e-5, 1e-1], "type": "float", "log": False},
-    "weight_decay": {"values": [1e-6, 1e-2], "type": "float", "log": False},
+    "learning_rate": {"values": [1e-5, 1e-1], "type": "float", "log": True},
+    "weight_decay": {"values": [1e-6, 1e-2], "type": "float", "log": True},
     "dropout": {"values": [0.0, 0.7], "type": "float", "log": False},
     "batch_size": {"values": [32, 64, 128, 256], "type": "categorical"},
     "optimizer": {"values": ["adam", "sgd", "adamw"], "type": "categorical"},

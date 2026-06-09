@@ -27,6 +27,7 @@ from hpo_rl.baselines.HMM_MCMC import (
     _logsumexp,
     _tn_rvs,
     _tn_logpdf,
+    decode_config,
 )
 
 
@@ -615,7 +616,7 @@ class HMM_MCMC_TEST(HMM_MCMC):
 
         if len(self.data) >= self.budget:
             pbar.close()
-            return min(self.data, key=lambda x: x[1])
+            return self._decode_best(min(self.data, key=lambda x: x[1]))
 
         losses = [score for _, score in init_scores]
         scale_factor = self._compute_scale(losses)
@@ -720,7 +721,7 @@ class HMM_MCMC_TEST(HMM_MCMC):
             except ImportError:
                 pass
 
-        return min(self.data, key=lambda x: x[1])
+        return self._decode_best(min(self.data, key=lambda x: x[1]))
 
 
 # ---------------------------------------------------------------------------
@@ -795,6 +796,39 @@ def _self_check_baum_welch() -> None:
     print("[self-check] Baum-Welch: OK (rows sum to 1, EXPLOIT anchored)")
 
 
+def _self_check_log_scale() -> None:
+    """Проверка log10-координат: Sobol log-uniform + decode round-trip."""
+    space = {
+        "lr": {"type": "float", "values": [1e-5, 1e-1], "log": True},
+        "wd": {"type": "float", "values": [1e-6, 1e-2], "log": True},
+        "dropout": {"type": "float", "values": [0.0, 0.7], "log": False},
+    }
+    sobol = SobolInitializer(space)
+    samples = sobol.generate(500, seed=0)
+    lrs = [decode_config(c, space)["lr"] for c in samples]
+    expected_med = float(np.sqrt(1e-5 * 1e-1))
+    med = float(np.median(lrs))
+    assert 2e-4 < med < 5e-3, (
+        f"log-uniform lr median={med:.2e}, expected ~{expected_med:.2e}"
+    )
+
+    internal = samples[0]
+    decoded = decode_config(internal, space)
+    assert decoded["lr"] == float(10.0 ** internal["lr"])
+    assert decoded["wd"] == float(10.0 ** internal["wd"])
+    assert decoded["dropout"] == internal["dropout"]
+
+    gen = FactorizedProposalGenerator(space)
+    pi_lr = gen._param_info[0]
+    assert pi_lr["log"] is True
+    assert abs(pi_lr["lo"] - np.log10(1e-5)) < 1e-12
+    center = 0.5 * (pi_lr["lo"] + pi_lr["hi"])
+    x_to = center + 0.01 * pi_lr["range"]
+    log_q = gen._log_q_continuous(center, x_to, pi_lr, HMMState.EXPLOIT)
+    assert np.isfinite(log_q), f"log_q not finite: {log_q}"
+    print("[self-check] log-scale: OK (log-uniform Sobol, decode, finite log_q)")
+
+
 def _self_check_schwefel_run() -> None:
     """Короткий прогон на Schwefel 2D."""
     from hpo_rl.backends.function import OptimizationBenchmarkBackend
@@ -838,6 +872,7 @@ if __name__ == "__main__":
     print("=" * 60)
     _self_check_spline_density()
     _self_check_mixture_density()
+    _self_check_log_scale()
     _self_check_baum_welch()
     _self_check_schwefel_run()
     print("=" * 60)
