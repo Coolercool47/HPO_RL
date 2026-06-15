@@ -35,12 +35,19 @@ extensions = [
 autosummary_generate = True
 
 autodoc_mock_imports = [
+    "matplotlib",
+    "mpl_toolkits",
+    "pandas",
+    "scipy",
     "torch",
     "torchvision",
     "gymnasium",
     "stable_baselines3",
     "sb3_contrib",
     "tianshou",
+    "tqdm",
+    "wandb",
+    "yaml",
 ]
 
 autodoc_member_order = "bysource"
