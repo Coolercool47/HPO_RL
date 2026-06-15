@@ -33,9 +33,6 @@ from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.baselines.HMM_MCMC import HMM_MCMC
 from hpo_rl.baselines.HMM_MCMC_TEST import HMM_MCMC_TEST
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 DIMENSIONS = 10
 BUDGET = 300
@@ -118,10 +115,6 @@ _FS_TICK = 14
 _FS_ANNOT = 13
 _FS_LEGEND = 11
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def make_search_space(lo: float, hi: float, dims: int) -> dict:
     return {

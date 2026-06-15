@@ -1,16 +1,3 @@
-"""Ablation study: why HMM_MCMC_TEST regresses vs plain HMM_MCMC on smooth benchmarks.
-
-Experiments:
-  A) Component ablation (BW / spline / both / neither vs plain HMM_MCMC)
-  B) Spline resolution sweep (spline_knots)
-  C) BW direction: state usage, step-size histograms, final A matrix
-
-Run from repo root::
-
-    python experiments/ablation_hmm_mcmc_test.py
-    python experiments/ablation_hmm_mcmc_test.py --smoke
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -32,9 +19,6 @@ from hpo_rl.backends.function import OptimizationBenchmarkBackend
 from hpo_rl.baselines.HMM_MCMC import HMM_MCMC, HMMState, MCMCChain
 from hpo_rl.baselines.HMM_MCMC_TEST import BaumWelchHMMController, HMM_MCMC_TEST
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
 
 DIMENSIONS = 10
 BUDGET = 300
@@ -94,13 +78,7 @@ ABLATION_VARIANTS: dict[str, dict] = {
 OUTPUT_DIR = Path(__file__).resolve().parent / "ablation_hmm_mcmc_test_plots"
 RESULTS_FILE = OUTPUT_DIR / "ablation_results.txt"
 
-# Global step log for experiment C (monkey-patch)
 _STEP_LOG: list[dict] = []
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def make_space(lo: float, hi: float, dims: int) -> dict:
     return {
@@ -236,12 +214,10 @@ def _patch_mcmc_step(space: dict) -> None:
 
 
 def _unpatch_mcmc_step() -> None:
-    MCMCChain.step = MCMCChain.__wrapped_step__  # type: ignore
+    MCMCChain.step = MCMCChain.__wrapped_step__  
 
-
-# Store original step for unpatch
 if not hasattr(MCMCChain, "__wrapped_step__"):
-    MCMCChain.__wrapped_step__ = MCMCChain.step  # type: ignore
+    MCMCChain.__wrapped_step__ = MCMCChain.step  
 
 
 def run_instrumented_test(
@@ -274,14 +250,11 @@ def run_instrumented_test(
         state_fracs = state_fractions(alg.history_table)
         A_final = alg._chains[0].hmm.A.copy() if alg._chains else np.eye(3) * np.nan
     finally:
-        MCMCChain.step = MCMCChain.__wrapped_step__  # type: ignore
+        MCMCChain.step = MCMCChain.__wrapped_step__  
 
     return float(best_loss), step_log, A_final, state_fracs
 
 
-# ---------------------------------------------------------------------------
-# Experiment A: component ablation
-# ---------------------------------------------------------------------------
 
 def experiment_a(
     func_name: str,
@@ -345,10 +318,6 @@ def _plot_ablation_curves(
     print(f"    Saved: {out_path}")
 
 
-# ---------------------------------------------------------------------------
-# Experiment B: spline_knots sweep
-# ---------------------------------------------------------------------------
-
 def experiment_b(
     func_name: str,
     lo: float,
@@ -410,10 +379,6 @@ def _plot_knots_sweep(
     print(f"    Saved: {out_path}")
 
 
-# ---------------------------------------------------------------------------
-# Experiment C: BW direction + step sizes
-# ---------------------------------------------------------------------------
-
 def experiment_c(
     func_name: str,
     lo: float,
@@ -448,7 +413,6 @@ def experiment_c(
         no_bw_As.append(A_nobw)
         print(f"    seed={seed}: BW loss={loss_bw:.4f}, noBW loss={loss_nobw:.4f}")
 
-        # Gaussian baseline step sizes (plain HMM, one seed instrumentation)
         _patch_mcmc_step(space)
         try:
             np.random.seed(seed)
@@ -467,7 +431,7 @@ def experiment_c(
                     sys.stdout, sys.stderr = saved_out, saved_err
             gauss_step_logs.extend(list(_STEP_LOG))
         finally:
-            MCMCChain.step = MCMCChain.__wrapped_step__  # type: ignore
+            MCMCChain.step = MCMCChain.__wrapped_step__  
 
     mean_bw_state = {
         s: float(np.mean([d[s] for d in bw_states])) for s in STATE_NAMES
@@ -548,10 +512,6 @@ def _plot_step_histograms(
     print(f"    Saved: {out_path}")
 
 
-# ---------------------------------------------------------------------------
-# Results writer + hypothesis evaluation
-# ---------------------------------------------------------------------------
-
 def evaluate_hypotheses(
     exp_a_all: dict,
     exp_b_all: dict,
@@ -560,7 +520,6 @@ def evaluate_hypotheses(
     """Return verdict strings for H1, H2, H3."""
     verdicts: dict[str, str] = {}
 
-    # H1: higher knots -> lower loss on smooth functions
     smooth = ["sphere", "griewank", "ackley"]
     h1_votes = 0
     for fn in smooth:
@@ -575,7 +534,6 @@ def evaluate_hypotheses(
         f"INCONCLUSIVE ({h1_votes}/{len(smooth)} smooth functions improve)"
     )
 
-    # H2: BW-only worse than neither; BW lowers EXPLOIT fraction
     h2_bw_worse = 0
     h2_exploit_lower = 0
     for fn in FUNCTIONS:
@@ -597,7 +555,6 @@ def evaluate_hypotheses(
         f"EXPLOIT lower: {h2_exploit_lower}/{len(FUNCTIONS)})"
     )
 
-    # H3: full TEST has largest delta vs plain
     h3_full_worst = 0
     for fn in smooth:
         if fn not in exp_a_all:
@@ -669,10 +626,6 @@ def write_results(
     for h, v in verdicts.items():
         fh.write(f"  {h}: {v}\n")
 
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

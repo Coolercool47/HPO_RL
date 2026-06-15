@@ -1,15 +1,3 @@
-"""Compare HMM_MCMC_TEST vs Optuna TPE vs BOHB on a real CIFAR-100 CNN objective.
-
-Uses the same training pipeline as compare_hmm_mcmc_vs_tpe.py and HMM_MCMC_TEST
-hyperparameters from test_hmm_mcmc_test_vs_optuna.py (post-fix defaults).
-
-Run from repo root::
-
-    python experiments/compare_hmm_mcmc_test_vs_tpe.py
-    python experiments/compare_hmm_mcmc_test_vs_tpe.py --smoke
-    python experiments/compare_hmm_mcmc_test_vs_tpe.py --trials 20 --seeds 3
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -32,7 +20,6 @@ if str(EXPERIMENTS) not in sys.path:
 
 from hpo_rl.baselines.HMM_MCMC_TEST import HMM_MCMC_TEST
 
-# Reuse CIFAR-100 objective stack from compare_hmm_mcmc_vs_tpe.py
 from compare_hmm_mcmc_vs_tpe import (
     HMM_SPACE,
     EPOCHS_PER_TRIAL,

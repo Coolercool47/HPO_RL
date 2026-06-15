@@ -35,7 +35,6 @@ OUT_DIR = ROOT / "logs" / "plot_2d_sac_ppo_cmaes_sga"
 
 ALL_2D_FUNCTIONS: list[str] = list(get_args(OptimizationBenchmarkBackend.FUNCTIONS))
 
-# RL checkpoints were trained on FUNCTION_ORDER; index must match that list.
 BACKENDS_LIST_RL = [
     {"name": "function", "function": fn, "dimensions": 2, "noise_std": 0.0}
     for fn in FUNCTION_ORDER
@@ -117,7 +116,6 @@ def run_baseline_history(
 
     raw = {"backend": backend_cfg, "full_args": {"algorithm": full_args_alg}}
     parsed = check(raw)
-    # check() uses symmetric bounds from its registry; use per-dimension backend bounds.
     benchmark = OptimizationBenchmarkBackend(
         function_name=function_name, dimensions=2, noise_std=0.0,
     )

@@ -1,14 +1,3 @@
-"""Compare transition matrices A: HMM_MCMC vs HMM_MCMC_TEST on weak benchmarks.
-
-Runs on 3 functions where TEST underperformed plain HMM_MCMC
-(griewank, sphere, ackley). Logs and saves transition matrices to
-experiments/hmm_transition_matrix_logs/.
-
-Run from repo root::
-
-    python experiments/compare_hmm_transition_matrices.py
-"""
-
 from __future__ import annotations
 
 import json
@@ -31,16 +20,11 @@ from hpo_rl.baselines.HMM_MCMC_TEST import (
     HMM_MCMC_TEST,
 )
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-
 N_SEEDS = 3
 BUDGET = 300
 DIMENSIONS = 10
 SEEDS = [42, 43, 44]
 
-# Three functions with largest TEST vs HMM regression (tune + benchmark results)
 FUNCTIONS: dict[str, tuple[float, float]] = {
     "griewank": (-600.0, 600.0),
     "sphere": (-5.0, 5.0),
@@ -88,10 +72,6 @@ OUTPUT_DIR = Path(__file__).resolve().parent / "hmm_transition_matrix_logs"
 RESULTS_FILE = OUTPUT_DIR / "transition_matrix_comparison.txt"
 
 
-# ---------------------------------------------------------------------------
-# Logging HMM controllers
-# ---------------------------------------------------------------------------
-
 class LoggingBaumWelchHMMController(BaumWelchHMMController):
     """Baum-Welch controller that records A after each refit."""
 
@@ -133,10 +113,6 @@ class LoggingHMM_MCMC_TEST(HMM_MCMC_TEST):
             bw_max_len=self.bw_max_len,
         )
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def make_space(lo: float, hi: float, dims: int) -> dict:
     return {

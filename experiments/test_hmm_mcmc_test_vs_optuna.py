@@ -51,8 +51,6 @@ HMM_PARAMS = dict(
     anneal_T=True,
 )
 
-# Post-fix defaults (HMM_MCMC_TEST regression fix) + tune_hmm_mcmc_test_results.txt
-# smooth-family base: spline_min_archive=50, bw_prior_strength=25, spline_floor=0.02
 HMM_TEST_PARAMS = dict(
     **HMM_PARAMS,
     use_baum_welch=True,
@@ -70,7 +68,6 @@ HMM_TEST_PARAMS = dict(
     spline_mix_scale=1.0,
 )
 
-# Per-function overrides from tune_hmm_mcmc_test_results.txt (10D, budget=300).
 HMM_TEST_TUNED_OVERRIDES: dict[str, dict] = {
     "schwefel": {"spline_min_archive": 10, "bw_prior_strength": 5.0},
     "ackley": {"spline_min_archive": 50, "bw_prior_strength": 5.0},
