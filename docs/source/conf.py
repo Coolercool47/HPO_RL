@@ -13,8 +13,8 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 project = 'HPO_RL'
-copyright = '2025, TO_BE_CHANGED'
-author = 'TO_BE_CHANGED'
+copyright = '2026, Петерс Е. А., Матков Н. К., Тимошин Э. К.'
+author = 'Петерс Е. А., Матков Н. К., Тимошин Э. К. (рук. Парфенов Д. В.)'
 release = '0.1'
 
 # -- General configuration ---------------------------------------------------

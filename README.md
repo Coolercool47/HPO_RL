@@ -51,11 +51,9 @@
 
 RL-алгоритмы реализованы поверх [Tianshou](https://tianshou.org/) и делятся на on-policy и off-policy.
 
-**On-policy:** A2C, NPG, PPO, RecurrentPPO, REINFORCE, TRPO.
+**On-policy:** PPO, RecurrentPPO.
 
-**Off-policy:** BDQN, C51, DDPG, DiscreteSAC, DQN, RecurrentDQN, FQF, IQN, QRDQN, Rainbow, REDQ, SAC, TD3.
-
-Дополнительно поддерживается **ICM (Intrinsic Curiosity Module)** — обёртка для исследования среды при обучении RL-агента.
+**Off-policy:** DQN, RecurrentDQN, SAC.
 
 #### Среды для RL-алгоритмов
 
@@ -325,4 +323,4 @@ def objective_function(config, dict_config):
 
 ## Подробная документация
 
-Документация API генерируется через Sphinx и находится в каталоге `docs/`. Исходные `.rst`-файлы — в `docs/source/`, собранная HTML-версия — в `docs/build/`.
+Документация доступна по ссылке https://coolercool47.github.io/HPO_RL/. 
