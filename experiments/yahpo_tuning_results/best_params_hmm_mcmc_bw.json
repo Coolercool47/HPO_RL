@@ -1,0 +1,22 @@
+{
+  "use_baum_welch": true,
+  "bw_n_em_iters": 3,
+  "bw_max_len": 64,
+  "show_progress": false,
+  "verbose_history": false,
+  "n_init": 20,
+  "T_mcmc": 0.0016086669377078566,
+  "sigma_fraction": 0.062183422672436005,
+  "wide_sigma_fraction": 0.3263313528241434,
+  "temperature": 0.876740360410472,
+  "hmm_window": 11,
+  "clone_noise": 0.08616043023317019,
+  "p_cat_step": 0.016646598215811007,
+  "kde_tau": 0.09490029292706521,
+  "burnin_fraction": 0.28659616462718257,
+  "anneal_T": true,
+  "bw_prior_strength": 28.388198860713842,
+  "bw_refit_every": 3,
+  "bw_min_obs": 9,
+  "bw_exploit_prior_scale": 4.782830237335335
+}

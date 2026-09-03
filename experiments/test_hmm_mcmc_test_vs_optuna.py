@@ -236,8 +236,11 @@ def run_optuna_tpe(backend, space: dict, seed: int) -> tuple[float, np.ndarray, 
             elif info["type"] == "categorical":
                 config[name] = trial.suggest_categorical(name, info["values"])
             elif info["type"] == "int":
-                lo, hi = info["values"][0], info["values"][-1]
-                config[name] = trial.suggest_int(name, lo, hi)
+                lo, hi = int(info["values"][0]), int(info["values"][-1])
+                if info.get("log"):
+                    config[name] = trial.suggest_int(name, lo, hi, log=True)
+                else:
+                    config[name] = trial.suggest_int(name, lo, hi)
         return backend.evaluate(config)
 
     sampler = optuna.samplers.TPESampler(seed=seed, n_startup_trials=32)

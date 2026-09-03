@@ -1,0 +1,136 @@
+BW / DREAM / TPE benchmark comparison
+budget=500, dims=10, seeds=5, smoke=False
+
+========================================================================
+CONTINUOUS 10D (noise_std=0)
+========================================================================
+
+>>> sphere ...
+    HMM_MCMC_BW       0.20 ± 0.13  (min=0.0704)
+    HMM_MCMC_DREAM    1.89 ± 0.33  (min=1.3652)
+    Optuna TPE        3.86 ± 2.40  (min=1.4377)
+
+>>> rosenbrock ...
+    HMM_MCMC_BW       8.49 ± 0.27  (min=8.1869)
+    HMM_MCMC_DREAM    16.17 ± 2.61  (min=12.4794)
+    Optuna TPE        14.83 ± 2.90  (min=9.2545)
+
+>>> rastrigin ...
+    HMM_MCMC_BW       28.89 ± 8.91  (min=21.6633)
+    HMM_MCMC_DREAM    59.78 ± 11.67  (min=46.0059)
+    Optuna TPE        57.58 ± 6.17  (min=46.4277)
+
+>>> ackley ...
+    HMM_MCMC_BW       6.34 ± 0.65  (min=5.1190)
+    HMM_MCMC_DREAM    8.33 ± 1.83  (min=5.3839)
+    Optuna TPE        11.79 ± 1.43  (min=9.7848)
+
+>>> griewank ...
+    HMM_MCMC_BW       1.63 ± 0.36  (min=1.2225)
+    HMM_MCMC_DREAM    8.87 ± 2.63  (min=5.4629)
+    Optuna TPE        13.73 ± 6.42  (min=8.1561)
+
+>>> schwefel ...
+    HMM_MCMC_BW       547.32 ± 148.39  (min=386.9752)
+    HMM_MCMC_DREAM    1159.64 ± 176.96  (min=873.1083)
+    Optuna TPE        1449.38 ± 325.42  (min=1131.5024)
+
+>>> levy ...
+    HMM_MCMC_BW       4.66 ± 2.04  (min=2.5387)
+    HMM_MCMC_DREAM    4.00 ± 2.29  (min=2.0356)
+    Optuna TPE        4.61 ± 1.80  (min=2.2830)
+
+>>> michalewicz ...
+    HMM_MCMC_BW       -7.37 ± 0.49  (min=-8.0780)
+    HMM_MCMC_DREAM    -5.09 ± 0.31  (min=-5.6973)
+    Optuna TPE        -5.39 ± 0.59  (min=-6.1778)
+
+>>> styblinski_tang ...
+    HMM_MCMC_BW       -341.36 ± 13.93  (min=-369.1955)
+    HMM_MCMC_DREAM    -356.44 ± 12.73  (min=-373.8802)
+    Optuna TPE        -345.35 ± 15.09  (min=-364.6524)
+
+========================================================================
+NOISY CONTINUOUS
+========================================================================
+
+>>> sphere (noise_std=0.5) ...
+    HMM_MCMC_BW       0.66 ± 1.08  (min=-0.2802)
+    HMM_MCMC_DREAM    1.44 ± 0.31  (min=1.1654)
+    Optuna TPE        4.23 ± 1.63  (min=2.6987)
+
+>>> rastrigin (noise_std=8.0) ...
+    HMM_MCMC_BW       36.96 ± 5.91  (min=28.8380)
+    HMM_MCMC_DREAM    54.71 ± 5.34  (min=44.2125)
+    Optuna TPE        48.43 ± 11.50  (min=36.9060)
+
+>>> ackley (noise_std=2.0) ...
+    HMM_MCMC_BW       14.63 ± 1.07  (min=12.9116)
+    HMM_MCMC_DREAM    14.63 ± 0.72  (min=13.7312)
+    Optuna TPE        11.74 ± 2.98  (min=7.4329)
+
+>>> schwefel (noise_std=300.0) ...
+    HMM_MCMC_BW       637.38 ± 360.51  (min=154.1904)
+    HMM_MCMC_DREAM    1021.92 ± 289.37  (min=621.8566)
+    Optuna TPE        1187.07 ± 141.09  (min=957.8117)
+
+>>> levy (noise_std=1.5) ...
+    HMM_MCMC_BW       1.96 ± 1.49  (min=0.0504)
+    HMM_MCMC_DREAM    0.87 ± 0.82  (min=-0.3365)
+    Optuna TPE        2.26 ± 1.42  (min=0.2803)
+
+========================================================================
+CATEGORICAL + 10D CONTINUOUS
+========================================================================
+
+>>> sphere + dummy categorical ...
+    HMM_MCMC_BW       0.24 ± 0.15  (min=0.0635)
+    HMM_MCMC_DREAM    1.62 ± 0.53  (min=1.0332)
+    Optuna TPE        4.50 ± 0.74  (min=3.1538)
+
+>>> rastrigin + dummy categorical ...
+    HMM_MCMC_BW       29.87 ± 5.67  (min=23.0616)
+    HMM_MCMC_DREAM    59.89 ± 9.86  (min=42.6776)
+    Optuna TPE        49.74 ± 8.89  (min=42.8048)
+
+>>> ackley + dummy categorical ...
+    HMM_MCMC_BW       7.16 ± 1.38  (min=5.2050)
+    HMM_MCMC_DREAM    7.66 ± 1.42  (min=5.3415)
+    Optuna TPE        11.11 ± 1.13  (min=9.1681)
+
+>>> schwefel + dummy categorical ...
+    HMM_MCMC_BW       751.88 ± 133.17  (min=602.0537)
+    HMM_MCMC_DREAM    1181.35 ± 272.91  (min=755.7558)
+    Optuna TPE        1471.12 ± 294.01  (min=1136.6825)
+
+>>> levy + dummy categorical ...
+    HMM_MCMC_BW       3.36 ± 1.80  (min=1.0417)
+    HMM_MCMC_DREAM    3.53 ± 1.85  (min=1.4737)
+    Optuna TPE        3.61 ± 2.12  (min=1.3477)
+
+========================================================================
+SUMMARY
+========================================================================
+---------------------------------------------------------------------------------------------------------------------------------
+Benchmark                            |         f* |        BW mean±std |     DREAM mean±std |       TPE mean±std |         Winner
+---------------------------------------------------------------------------------------------------------------------------------
+continuous sphere                    |     0.0000 |     0.20±  0.13 |     1.89±  0.33 |     3.86±  2.40 |    HMM_MCMC_BW
+continuous rosenbrock                |     0.0000 |     8.49±  0.27 |    16.17±  2.61 |    14.83±  2.90 |    HMM_MCMC_BW
+continuous rastrigin                 |     0.0000 |    28.89±  8.91 |    59.78± 11.67 |    57.58±  6.17 |    HMM_MCMC_BW
+continuous ackley                    |     0.0000 |     6.34±  0.65 |     8.33±  1.83 |    11.79±  1.43 |    HMM_MCMC_BW
+continuous griewank                  |     0.0000 |     1.63±  0.36 |     8.87±  2.63 |    13.73±  6.42 |    HMM_MCMC_BW
+continuous schwefel                  |     0.0000 |   547.32±148.39 |  1159.64±176.96 |  1449.38±325.42 |    HMM_MCMC_BW
+continuous levy                      |     0.0000 |     4.66±  2.04 |     4.00±  2.29 |     4.61±  1.80 | HMM_MCMC_DREAM
+continuous michalewicz               |     0.0000 |    -7.37±  0.49 |    -5.09±  0.31 |    -5.39±  0.59 |    HMM_MCMC_BW
+continuous styblinski_tang           |  -391.6617 |  -341.36± 13.93 |  -356.44± 12.73 |  -345.35± 15.09 | HMM_MCMC_DREAM
+noisy_noise0.5 sphere                |     0.0000 |     0.66±  1.08 |     1.44±  0.31 |     4.23±  1.63 |    HMM_MCMC_BW
+noisy_noise8 rastrigin               |     0.0000 |    36.96±  5.91 |    54.71±  5.34 |    48.43± 11.50 |    HMM_MCMC_BW
+noisy_noise2 ackley                  |     0.0000 |    14.63±  1.07 |    14.63±  0.72 |    11.74±  2.98 |     Optuna TPE
+noisy_noise300 schwefel              |     0.0000 |   637.38±360.51 |  1021.92±289.37 |  1187.07±141.09 |    HMM_MCMC_BW
+noisy_noise1.5 levy                  |     0.0000 |     1.96±  1.49 |     0.87±  0.82 |     2.26±  1.42 | HMM_MCMC_DREAM
+categorical_cat sphere               |     0.0000 |     0.24±  0.15 |     1.62±  0.53 |     4.50±  0.74 |    HMM_MCMC_BW
+categorical_cat rastrigin            |     0.0000 |    29.87±  5.67 |    59.89±  9.86 |    49.74±  8.89 |    HMM_MCMC_BW
+categorical_cat ackley               |     0.0000 |     7.16±  1.38 |     7.66±  1.42 |    11.11±  1.13 |    HMM_MCMC_BW
+categorical_cat schwefel             |     0.0000 |   751.88±133.17 |  1181.35±272.91 |  1471.12±294.01 |    HMM_MCMC_BW
+categorical_cat levy                 |     0.0000 |     3.36±  1.80 |     3.53±  1.85 |     3.61±  2.12 |    HMM_MCMC_BW
+---------------------------------------------------------------------------------------------------------------------------------

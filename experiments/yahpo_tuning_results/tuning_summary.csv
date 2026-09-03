@@ -1,0 +1,3 @@
+algorithm,variant,meta_best,val_mean,val_std,val_best
+HMM_MCMC_RAM,tuned,96.697090,94.363814,6.728558,99.624489
+HMM_MCMC_RAM,default,,94.773738,6.760667,99.710037

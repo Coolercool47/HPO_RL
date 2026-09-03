@@ -1,0 +1,19 @@
+{
+  "n_chains": 1,
+  "orchestrate_every": 1000,
+  "T_min": null,
+  "hmm_obs_epsilon": 1e-08,
+  "hmm_lambda_noise": 0.01,
+  "rejection_streak": 10,
+  "n_init": 45,
+  "T_mcmc": 0.0022576321592057387,
+  "sigma_fraction": 0.020867498293632582,
+  "wide_sigma_fraction": 0.6081261727578362,
+  "temperature": 0.17199672475722283,
+  "hmm_window": 9,
+  "clone_noise": 0.02304533168564795,
+  "p_cat_step": 0.02821169266637974,
+  "kde_tau": 0.17349912768566955,
+  "burnin_fraction": 0.04509713890237865,
+  "anneal_T": true
+}

@@ -259,15 +259,21 @@ class SplineProposalGenerator(FactorizedProposalGenerator):
         a, b = (lo - x_from) / sigma, (hi - x_from) / sigma
         return _tn_logpdf(x_to, a, b, loc=x_from, scale=sigma)
 
-    def _local_integer_candidates(self, x_j: int, pi: dict) -> list[int]:
-        lo, hi = pi["lo"], pi["hi"]
+    def _local_integer_candidates(self, x_j, pi: dict) -> list:
+        if pi.get("log"):
+            real = int(np.clip(round(10.0 ** float(x_j)), pi["real_lo"], pi["real_hi"]))
+            lo, hi = pi["real_lo"], pi["real_hi"]
+            cands = [v for v in [real - 1, real, real + 1] if lo <= v <= hi]
+            return [float(np.log10(max(v, 1))) for v in cands]
+        lo, hi = int(pi["lo"]), int(pi["hi"])
+        x_j = int(x_j)
         return [v for v in [x_j - 1, x_j, x_j + 1] if lo <= v <= hi]
 
-    def _sample_local_integer(self, x_j: int, pi: dict) -> int:
+    def _sample_local_integer(self, x_j, pi: dict):
         candidates = self._local_integer_candidates(x_j, pi)
-        return int(np.random.choice(candidates))
+        return np.random.choice(candidates)
 
-    def _log_local_integer(self, x_from: int, x_to: int, pi: dict) -> float:
+    def _log_local_integer(self, x_from, x_to, pi: dict) -> float:
         candidates = self._local_integer_candidates(x_from, pi)
         if x_to in candidates:
             return float(-np.log(len(candidates)))
@@ -439,7 +445,9 @@ class SplineProposalGenerator(FactorizedProposalGenerator):
             np.log(1.0 - w_s + 1e-300) + log_g,
         ])))
 
-    def _sample_integer(self, x_j: int, pi: dict, state: HMMState) -> int:
+    def _sample_integer(self, x_j, pi: dict, state: HMMState):
+        if pi.get("log"):
+            return self._sample_continuous(float(x_j), pi, state)
         if not self._spline_ready():
             return super()._sample_integer(x_j, pi, state)
         w_s = self._mix_weight(state)
@@ -449,9 +457,11 @@ class SplineProposalGenerator(FactorizedProposalGenerator):
         u = np.random.rand()
         x_knots, F = self._cdf_knots(pi, state, float(x_j))
         val = self._invert_cdf(u, x_knots, F)
-        return int(np.clip(round(val), lo, hi))
+        return int(np.clip(round(val), int(lo), int(hi)))
 
-    def _log_q_integer(self, x_from: int, x_to: int, pi: dict, state: HMMState) -> float:
+    def _log_q_integer(self, x_from, x_to, pi: dict, state: HMMState) -> float:
+        if pi.get("log"):
+            return self._log_q_continuous(float(x_from), float(x_to), pi, state)
         if not self._spline_ready():
             return super()._log_q_integer(x_from, x_to, pi, state)
         w_s = self._mix_weight(state)
@@ -495,6 +505,7 @@ class HMM_MCMC_TEST(HMM_MCMC):
         wide_sigma_fraction: float = 0.40,
         p_cat_step: float = 0.30,
         kde_tau: float = 0.05,
+        rejection_streak: int = 10,
         use_baum_welch: bool = True,
         bw_refit_every: int = 5,
         bw_min_obs: int = 12,
@@ -532,6 +543,7 @@ class HMM_MCMC_TEST(HMM_MCMC):
             wide_sigma_fraction=wide_sigma_fraction,
             p_cat_step=p_cat_step,
             kde_tau=kde_tau,
+            rejection_streak=rejection_streak,
         )
         self.use_baum_welch = use_baum_welch
         self.bw_refit_every = bw_refit_every
@@ -826,7 +838,111 @@ def _self_check_log_scale() -> None:
     x_to = center + 0.01 * pi_lr["range"]
     log_q = gen._log_q_continuous(center, x_to, pi_lr, HMMState.EXPLOIT)
     assert np.isfinite(log_q), f"log_q not finite: {log_q}"
-    print("[self-check] log-scale: OK (log-uniform Sobol, decode, finite log_q)")
+
+    orch = GlobalOrchestrator(
+        chains=[],
+        proposal_gen=FactorizedProposalGenerator(space),
+        sobol_init=SobolInitializer(space),
+        dict_to_optimize=space,
+        objective_func=lambda x: 0.0,
+        clone_noise=0.05,
+    )
+    center_lr = 1e-3
+    config = {"lr": float(np.log10(center_lr)), "wd": -4.0, "dropout": 0.3}
+    noisy_lrs = [
+        decode_config(orch._add_noise(config), space)["lr"] for _ in range(300)
+    ]
+    med_noisy = float(np.median(noisy_lrs))
+    assert med_noisy > 2.0e-4, (
+        f"log-float clone collapsed to lower bound: median={med_noisy:.2e}"
+    )
+    assert abs(med_noisy - center_lr) < center_lr * 0.6, (
+        f"log-float clone median={med_noisy:.2e}, expected ~{center_lr:.2e}"
+    )
+    print("[self-check] log-scale: OK (log-uniform Sobol, decode, finite log_q, clone noise)")
+
+
+def _self_check_log_int_scale() -> None:
+    """Проверка log10-int: Sobol + decode round-trip (как batch_size в lcbench)."""
+    space = {
+        "batch_size": {"type": "int", "values": [16, 512], "log": True},
+        "num_layers": {"type": "int", "values": [1, 5], "log": False},
+    }
+    sobol = SobolInitializer(space)
+    samples = sobol.generate(500, seed=1)
+    decoded = [decode_config(c, space)["batch_size"] for c in samples]
+    med = float(np.median(decoded))
+    expected_med = float(np.sqrt(16 * 512))
+    assert 20 < med < 120, f"log-int median={med:.1f}, expected ~{expected_med:.1f}"
+
+    internal = samples[0]
+    decoded0 = decode_config(internal, space)
+    assert decoded0["batch_size"] == int(
+        np.clip(round(10.0 ** float(internal["batch_size"])), 16, 512)
+    )
+    assert decoded0["num_layers"] == int(round(float(internal["num_layers"])))
+
+    gen = FactorizedProposalGenerator(space)
+    pi_bs = next(pi for pi in gen._param_info if pi["name"] == "batch_size")
+    assert pi_bs["log"] is True
+    center = 0.5 * (pi_bs["lo"] + pi_bs["hi"])
+    x_to = center + 0.01 * pi_bs["range"]
+    log_q = gen._log_q_integer(center, x_to, pi_bs, HMMState.EXPLOIT)
+    assert np.isfinite(log_q), f"log_q not finite: {log_q}"
+
+    orch = GlobalOrchestrator(
+        chains=[],
+        proposal_gen=FactorizedProposalGenerator(space),
+        sobol_init=SobolInitializer(space),
+        dict_to_optimize=space,
+        objective_func=lambda x: 0.0,
+        clone_noise=0.05,
+    )
+    center_bs = 64
+    config = {"batch_size": float(np.log10(center_bs)), "num_layers": 3}
+    noisy_bs = [
+        decode_config(orch._add_noise(config), space)["batch_size"]
+        for _ in range(300)
+    ]
+    med_noisy = float(np.median(noisy_bs))
+    assert med_noisy > 20, (
+        f"log-int clone collapsed to lower bound: median={med_noisy:.1f}"
+    )
+    assert abs(med_noisy - center_bs) <= 32, (
+        f"log-int clone median={med_noisy:.1f}, expected ~{center_bs}"
+    )
+    print("[self-check] log-int scale: OK (log-uniform Sobol, decode, finite log_q, clone noise)")
+
+
+def _self_check_log_int_spline() -> None:
+    """log-int в spline-ветке HMM_MCMC_TEST делегируется continuous-методам."""
+    space = {"batch_size": {"type": "int", "values": [16, 512], "log": True}}
+    gen = SplineProposalGenerator(space, spline_min_archive=3)
+    for bs in [16, 32, 64, 128, 256, 512, 64, 64, 64, 64]:
+        gen.update_category_history(
+            {"batch_size": float(np.log10(bs))},
+            float(bs) / 512.0,
+        )
+    assert gen._spline_ready(), "spline archive not ready"
+
+    pi_bs = gen._param_info[0]
+    center = 0.5 * (pi_bs["lo"] + pi_bs["hi"])
+    x_to = center + 0.01 * pi_bs["range"]
+    state = HMMState.EXPLOIT
+
+    log_q_int = gen._log_q_integer(center, x_to, pi_bs, state)
+    log_q_cont = gen._log_q_continuous(center, x_to, pi_bs, state)
+    assert abs(log_q_int - log_q_cont) < 1e-10, (
+        f"log-int spline log_q mismatch: int={log_q_int}, cont={log_q_cont}"
+    )
+
+    np.random.seed(0)
+    sample = gen._sample_integer(center, pi_bs, state)
+    assert isinstance(sample, float), f"log-int sample should be float, got {type(sample)}"
+    assert pi_bs["lo"] <= sample <= pi_bs["hi"], (
+        f"log-int sample out of bounds: {sample} not in [{pi_bs['lo']}, {pi_bs['hi']}]"
+    )
+    print("[self-check] log-int spline: OK (delegates to continuous methods)")
 
 
 def _self_check_schwefel_run() -> None:
@@ -873,6 +989,8 @@ if __name__ == "__main__":
     _self_check_spline_density()
     _self_check_mixture_density()
     _self_check_log_scale()
+    _self_check_log_int_scale()
+    _self_check_log_int_spline()
     _self_check_baum_welch()
     _self_check_schwefel_run()
     print("=" * 60)

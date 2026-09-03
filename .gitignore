@@ -718,3 +718,5 @@ tmp_data/
 wandb/
 
 .github/instructions/
+
+*.lock
