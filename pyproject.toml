@@ -33,6 +33,17 @@ experiments = [
     "gpytorch>=1.15.1",
     "botorch>=0.17.0",
 ]
+# experiments_new/ (rebuttal experiments): see experiments_new/requirements.txt and setup_env.*
+# yahpo-gym must be installed separately with --no-deps (its pins are outdated).
+rebuttal = [
+    "optuna>=4.0",
+    "cmaes>=0.11",
+    "ConfigSpace>=1.2,<2",
+    "onnxruntime>=1.17",
+    "scikit-learn>=1.4",
+    "scikit-posthocs>=0.9",
+    "joblib>=1.3",
+]
 dev = [
     "pytest>=7.4.0",
     "mypy>=1.5.0",

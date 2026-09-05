@@ -720,3 +720,7 @@ wandb/
 .github/instructions/
 
 *.lock
+# experiments_new scratch outputs
+experiments_new/**/results_smoke/
+experiments_new/**/figures_smoke/
+experiments_new/configs/*_smoke.json

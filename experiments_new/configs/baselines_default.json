@@ -1,0 +1,9 @@
+{
+  "_comment": "Baseline sampler settings. n_startup_trials defaults to the FMP n_init (16) so every method gets the same initial design size. Keys map to Optuna sampler kwargs.",
+  "TPE": {},
+  "GP": {},
+  "CMAES": {},
+  "RS": {},
+  "TPE_HB": {},
+  "SMAC": {}
+}

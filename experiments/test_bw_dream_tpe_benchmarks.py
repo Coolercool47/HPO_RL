@@ -120,6 +120,10 @@ def _styblinski_optimum(dims: int) -> float:
     return round(-39.16617 * dims, 5)
 
 
+def _michalewicz_optimum(dims: int) -> float:
+    return {1: -0.8013, 2: -1.8013, 5: -4.687658, 10: -9.66015}.get(dims, float("nan"))
+
+
 def continuous_suite(dims: int) -> dict[str, BenchmarkSpec]:
     return {
         "sphere": BenchmarkSpec("sphere", (-5.0, 5.0), 0.0),
@@ -129,7 +133,8 @@ def continuous_suite(dims: int) -> dict[str, BenchmarkSpec]:
         "griewank": BenchmarkSpec("griewank", (-600.0, 600.0), 0.0),
         "schwefel": BenchmarkSpec("schwefel", (-500.0, 500.0), 0.0),
         "levy": BenchmarkSpec("levy", (-10.0, 10.0), 0.0),
-        "michalewicz": BenchmarkSpec("michalewicz", (0.0, float(np.pi)), 0.0),
+        # 10-D Michalewicz (m=10) global minimum is -9.66015, not 0 (fixed for the rebuttal)
+        "michalewicz": BenchmarkSpec("michalewicz", (0.0, float(np.pi)), _michalewicz_optimum(dims)),
         "styblinski_tang": BenchmarkSpec(
             "styblinski_tang", (-5.0, 5.0), _styblinski_optimum(dims)
         ),
