@@ -1,0 +1,71 @@
+{
+  "lcbench": {
+    "agg_col": "value",
+    "n_tasks": 10,
+    "friedman_nemenyi": {
+      "n_tasks": 10,
+      "n_methods": 7,
+      "avg_ranks": {
+        "GP": 1.0,
+        "TPE": 2.5,
+        "CMAES": 3.3,
+        "FMP_DREAM": 3.6,
+        "TPE_HB": 5.4,
+        "FMP": 5.8,
+        "RS": 6.4
+      },
+      "friedman_p": 7.505196630082724e-09,
+      "cd": 2.8490046683008434
+    },
+    "wilcoxon_vs_ref": {
+      "CMAES": {
+        "a": "CMAES",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.083984375,
+        "wins_a": 3,
+        "wins_b": 7
+      },
+      "FMP": {
+        "a": "FMP",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 0,
+        "wins_b": 10
+      },
+      "FMP_DREAM": {
+        "a": "FMP_DREAM",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.130859375,
+        "wins_a": 2,
+        "wins_b": 8
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 10,
+        "wins_b": 0
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 0,
+        "wins_b": 10
+      },
+      "TPE_HB": {
+        "a": "TPE_HB",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 0,
+        "wins_b": 10
+      }
+    }
+  }
+}

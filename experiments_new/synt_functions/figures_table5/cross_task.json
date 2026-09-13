@@ -1,0 +1,60 @@
+{
+  "cont": {
+    "agg_col": "nregret",
+    "n_tasks": 2,
+    "friedman_nemenyi": {
+      "n_tasks": 1,
+      "n_methods": 6,
+      "avg_ranks": {
+        "GP": 1.0,
+        "CMAES": 2.0,
+        "TPE": 3.0,
+        "FMP_DREAM": 4.0,
+        "FMP": 5.0,
+        "RS": 6.0
+      }
+    },
+    "wilcoxon_vs_ref": {
+      "CMAES": {
+        "a": "CMAES",
+        "b": "TPE",
+        "n": 1,
+        "p": NaN,
+        "wins_a": 1,
+        "note": "n<5"
+      },
+      "FMP": {
+        "a": "FMP",
+        "b": "TPE",
+        "n": 1,
+        "p": NaN,
+        "wins_a": 0,
+        "note": "n<5"
+      },
+      "FMP_DREAM": {
+        "a": "FMP_DREAM",
+        "b": "TPE",
+        "n": 1,
+        "p": NaN,
+        "wins_a": 0,
+        "note": "n<5"
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 1,
+        "p": NaN,
+        "wins_a": 1,
+        "note": "n<5"
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 2,
+        "p": NaN,
+        "wins_a": 0,
+        "note": "n<5"
+      }
+    }
+  }
+}

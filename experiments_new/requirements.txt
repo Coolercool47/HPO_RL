@@ -17,4 +17,4 @@ torch>=2.2            # Optuna GPSampler (GP-BO baseline); CPU build is enough
 ConfigSpace>=1.2,<2
 onnxruntime>=1.17
 # yahpo-gym==1.0.2  -> installed separately with --no-deps (see setup_env.*)
-# smac>=2.1          -> optional, Linux/WSL only (SMAC baseline)
+smac>=2.1          # -> optional, Linux/WSL only (SMAC baseline)

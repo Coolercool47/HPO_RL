@@ -12,7 +12,7 @@ VPY=".venv/bin/python"
 "$VPY" -m pip install --no-deps yahpo-gym==1.0.2
 "$VPY" -m pip install -e . --no-deps
 # SMAC baseline (Linux only): uncomment to enable
-# "$VPY" -m pip install "smac>=2.1"
+"$VPY" -m pip install "smac>=2.1"
 if [ ! -f yahpo_data/lcbench/encoding.json ]; then
   echo "Cloning YAHPO surrogate data (lcbench only, sparse checkout)..."
   git clone --filter=blob:none --no-checkout https://github.com/slds-lmu/yahpo_data.git yahpo_data

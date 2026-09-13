@@ -1,0 +1,33 @@
+{
+  "cont": {
+    "agg_col": "nregret",
+    "n_tasks": 1,
+    "friedman_nemenyi": {
+      "n_tasks": 1,
+      "n_methods": 3,
+      "avg_ranks": {
+        "GP": 1.0,
+        "TPE": 2.0,
+        "RS": 3.0
+      }
+    },
+    "wilcoxon_vs_ref": {
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 1,
+        "p": NaN,
+        "wins_a": 1,
+        "note": "n<5"
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 1,
+        "p": NaN,
+        "wins_a": 0,
+        "note": "n<5"
+      }
+    }
+  }
+}

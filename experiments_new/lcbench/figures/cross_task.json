@@ -1,0 +1,53 @@
+{
+  "lcbench": {
+    "agg_col": "value",
+    "n_tasks": 10,
+    "friedman_nemenyi": {
+      "n_tasks": 10,
+      "n_methods": 5,
+      "avg_ranks": {
+        "GP": 1.0,
+        "CMAES": 2.3,
+        "TPE": 2.7,
+        "TPE_HB": 4.3,
+        "RS": 4.7
+      },
+      "friedman_p": 2.1366442263962967e-07,
+      "cd": 1.928987299076902
+    },
+    "wilcoxon_vs_ref": {
+      "CMAES": {
+        "a": "CMAES",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.556640625,
+        "wins_a": 7,
+        "wins_b": 3
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 10,
+        "wins_b": 0
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 0,
+        "wins_b": 10
+      },
+      "TPE_HB": {
+        "a": "TPE_HB",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 0,
+        "wins_b": 10
+      }
+    }
+  }
+}
