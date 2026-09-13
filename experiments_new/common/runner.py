@@ -37,6 +37,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from experiments_new.common import methods as M          # noqa: E402
 from experiments_new.common.logging_util import start_log  # noqa: E402
+from experiments_new.common import memlog  # noqa: E402
 from experiments_new.common.seeding import derive_seed, seed_everything  # noqa: E402
 from experiments_new.common.spaces import build_task, spec_key  # noqa: E402
 
@@ -170,12 +171,14 @@ def run_job(job: dict, out_dir: Path | None = None, save: bool = True) -> dict:
         rec["exp"] = job["exp"]
         rec["run_seed_derived"] = run_seed
         rec["wall_time"] = time.perf_counter() - t0
-        rec["worker_rss_gb"] = _rss_gb()
+        wm = memlog.worker_memory()
+        rec["worker_rss_gb"] = wm["rss_gb"]
+        rec["worker_peak_rss_gb"] = wm["peak_rss_gb"]
         if save and out_dir is not None:
             _atomic_json_dump(rec, result_path(out_dir, job))
         out = {"ok": True, "task": job["task_key"], "method": job["method"], "seed": job["seed"],
                "best_value": rec["best_value"], "best_true_value": rec["best_true_value"], "time": rec["wall_time"],
-               "rss_gb": rec["worker_rss_gb"]}
+               "rss_gb": rec["worker_rss_gb"], "peak_rss_gb": rec["worker_peak_rss_gb"]}
     except Exception as e:  # noqa: BLE001
         out = {"ok": False, "task": job["task_key"], "method": job["method"], "seed": job["seed"],
                "error": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc(), "rss_gb": _rss_gb()}
@@ -292,10 +295,20 @@ def run_jobs(jobs: list[dict], out_dir: Path, workers: int = 1, resume: bool = T
         for start in range(0, len(light), max(1, chunk_size)):
             _parallel_run(light[start:start + chunk_size], out_dir, workers, results, counter, len(todo), t0, verbose)
         i = 0
+        batch = 0
         while i < len(heavy):
-            # re-evaluate the budget before every heavy batch: other programs (VS Code, browser)
-            # may have taken memory since the run started
+            # re-evaluate the budget before every heavy batch: other programs (editor, browser)
+            # may have taken memory since the run started; wait while memory is critically low
+            batch += 1
+            d = memlog.snapshot(f"before heavy batch {batch}")
+            waited = 0
+            while d.get("available_gb", 1e9) < heavy_gb * 0.75 and waited < 600:
+                print(f"[mem] available {d['available_gb']:.2f} GB < {0.75 * heavy_gb:.2f} GB: waiting 30s for memory to free up", flush=True)
+                time.sleep(30)
+                waited += 30
+                d = memlog.snapshot("waiting")
             n_heavy = heavy_workers(workers, heavy_gb)
+            print(f"[runner] heavy batch {batch}: {n_heavy} concurrent {sorted({j['method'] for j in heavy[i:i + n_heavy]})} job(s)", flush=True)
             _parallel_run(heavy[i:i + n_heavy], out_dir, n_heavy, results, counter, len(todo), t0, verbose)
             i += n_heavy
     n_err = sum(1 for r in results if not r.get("ok"))
@@ -313,8 +326,10 @@ def _print_progress(i, n, r, t0):
     el = time.perf_counter() - t0
     eta = el / i * (n - i)
     if r.get("ok"):
+        pk = r.get("peak_rss_gb", float("nan"))
         print(f"[{i}/{n}] {r['task']:<28s} {r['method']:<24s} seed={r['seed']:<3d} best={r['best_true_value']:.4g} "
-              f"({r['time']:.1f}s, rss={r.get('rss_gb', float('nan')):.2f}GB)  elapsed={el:.0f}s eta={eta:.0f}s", flush=True)
+              f"({r['time']:.1f}s, rss={r.get('rss_gb', float('nan')):.2f}GB" + (f" peak={pk:.2f}GB" if pk == pk else "") +
+              f")  elapsed={el:.0f}s eta={eta:.0f}s", flush=True)
     else:
         print(f"[{i}/{n}] {r['task']}/{r['method']}/seed{r['seed']} FAILED: {r['error']}", flush=True)
 
@@ -398,6 +413,9 @@ def cli(exp: str, task_specs: list[dict], methods: list[str], seeds: list[int], 
     parser.add_argument("--chunk", type=int, default=200, help="light jobs per worker-pool lifetime (memory recycling)")
     parser.add_argument("--heavy-gb", type=float, default=HEAVY_GB_PER_WORKER,
                         help="RAM budget per concurrent GP/SMAC job; caps their concurrency (default 2.0)")
+    parser.add_argument("--mem-interval", type=float, default=10.0, help="seconds between memory samples (logs/*_memory.csv)")
+    parser.add_argument("--mem-report", type=float, default=120.0, help="seconds between memory summary lines in the log")
+    parser.add_argument("--mem-warn-gb", type=float, default=1.5, help="warn when available memory drops below this")
     parser.add_argument("--max-worker-gb", type=float, default=3.0,
                         help="a worker exceeding this RSS after a job is replaced by a fresh process (0 = off)")
     parser.add_argument("--seeds", type=int, nargs="*", default=None)
@@ -448,16 +466,31 @@ def cli(exp: str, task_specs: list[dict], methods: list[str], seeds: list[int], 
         args.dry_ok = ok
         return args
     out.mkdir(parents=True, exist_ok=True)
+    memlog.environment_report()
+    monitor = memlog.start_memory_monitor(REPO_ROOT / "experiments_new" / exp, interval=args.mem_interval,
+                                          report_every=args.mem_report, warn_gb=args.mem_warn_gb)
+    memlog.snapshot("start")
     with open(out / "_grid.json", "w", encoding="utf-8") as fh:
         json.dump({"exp": exp, "budget": budget, "seeds": seeds, "methods": methods,
                    "tasks": [spec_key(s) for s in task_specs], "fmp_base": fmp_base,
                    "baseline_params": baseline_params, "overrides": overrides}, fh, indent=2)
-    args.results = run_jobs(jobs, out, workers=args.workers, resume=not args.no_resume, chunk_size=args.chunk,
-                            heavy_gb=args.heavy_gb, max_worker_gb=args.max_worker_gb)
+    try:
+        args.results = run_jobs(jobs, out, workers=args.workers, resume=not args.no_resume, chunk_size=args.chunk,
+                                heavy_gb=args.heavy_gb, max_worker_gb=args.max_worker_gb)
+    except BaseException as e:  # noqa: BLE001  log the crash context, then re-raise
+        print(f"[runner] ABORTED: {type(e).__name__}: {e}", flush=True)
+        memlog.snapshot("at abort")
+        memlog.kernel_oom_report()
+        monitor.stop()
+        raise
+    memlog.snapshot("end")
+    monitor.stop()
+    memlog.kernel_oom_report()
     # machine-readable outcome of this invocation (appended, one entry per invocation)
     summ_path = out / "_run_summary.json"
     prev = json.loads(summ_path.read_text(encoding="utf-8")) if summ_path.is_file() else []
     prev.append({"time": time.strftime("%Y-%m-%d %H:%M:%S"), "argv": sys.argv, "n_jobs": len(jobs),
+                 "memory_peaks": monitor.peak, "workers": args.workers, "heavy_gb": args.heavy_gb,
                  "n_run": len(args.results), "n_errors": sum(1 for r in args.results if not r.get("ok")),
                  "errors": [r for r in args.results if not r.get("ok")][:50],
                  "pending_after": len(pending_jobs(jobs, out))})

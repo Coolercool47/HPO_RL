@@ -20,7 +20,17 @@ workers run with `MALLOC_ARENA_MAX=2` and call `malloc_trim` after every job. A 
 whose RSS exceeds `--max-worker-gb` (default 3) after a job is replaced. The progress
 line prints the worker RSS after each job and the final line prints the peak.
 Every script writes a full log to `experiments_new/<exp>/logs/` and every runner
-invocation appends its outcome (errors included) to `results/_run_summary.json`.
+invocation appends its outcome (errors included, memory peaks) to `results/_run_summary.json`.
+
+**Memory diagnostics (for out-of-memory kills).** Every run prints an `[env]` block at
+start (platform, WSL/container detection, cgroup limit, RAM and swap, torch build, the
+eight largest processes on the machine), samples memory every 10 s into
+`logs/<ts>_memory_pid<N>.csv` (system, swap, cgroup, parent, workers, five largest other
+processes such as an editor), prints a `[mem] periodic` line every 2 min and a `[mem]
+WARNING` line when available memory drops below 1.5 GB, snapshots before every GP batch
+and waits while memory is critically low, prints per-job worker RSS and peak RSS, and at
+the end (or on abort) prints the peaks and any kernel OOM-kill messages from `dmesg`.
+If a run dies, the `_memory.csv` shows what held the RAM at that moment.
 
 ## 0. Environment (new machine)
 

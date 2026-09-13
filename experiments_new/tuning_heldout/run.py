@@ -30,6 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 from experiments_new.common.logging_util import start_log  # noqa: E402
+from experiments_new.common import memlog  # noqa: E402
 from experiments_new.common import methods as M  # noqa: E402
 from experiments_new.common.runner import CONFIG_DIR, run_job  # noqa: E402
 from experiments_new.lcbench import config as L  # noqa: E402
@@ -159,6 +160,8 @@ def main():
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     out_dir.mkdir(parents=True, exist_ok=True)
+    memlog.environment_report()
+    monitor = memlog.start_memory_monitor(HERE)
     storage = f"sqlite:///{(out_dir / 'meta_study.db').as_posix()}"
     study = optuna.create_study(direction="maximize", study_name=f"tune_{a.method}", storage=storage, load_if_exists=True,
                                 sampler=optuna.samplers.TPESampler(seed=a.meta_seed, n_startup_trials=a.n_startup))
@@ -171,6 +174,7 @@ def main():
         done = len(study.trials)
         print(f"[tune {a.method}] trial {trial.number}: score={v:.4f} best={study.best_value:.4f} "
               f"({(time.perf_counter() - t0) / done:.0f}s/trial)", flush=True)
+    monitor.stop()
     best = dict(study.best_params)
     print("[tune] best:", json.dumps(best, default=float), "score", study.best_value)
     if a.method == "FMP":
