@@ -1,0 +1,25 @@
+[
+ {
+  "time": "2026-09-13 20:13:32",
+  "argv": [
+   "experiments_new/synt_functions/run.py",
+   "--workers",
+   "8",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned",
+   "--methods",
+   "RS",
+   "TPE",
+   "CMAES",
+   "FMP",
+   "FMP_DREAM"
+  ],
+  "n_jobs": 1900,
+  "n_run": 1860,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ }
+]

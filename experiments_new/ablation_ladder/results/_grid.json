@@ -1,0 +1,87 @@
+{
+  "exp": "ablation_ladder",
+  "budget": 500,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "methods": [
+    "L1_K1_VITERBI_SUB",
+    "L2_K4_ORCH",
+    "L3_NOSUB",
+    "L4_SOFT",
+    "L5_DREAM",
+    "L5_DREAM_LEGACYKERNEL"
+  ],
+  "tasks": [
+    "cont__sphere_10d",
+    "lcbench_7593",
+    "cont__rosenbrock_10d",
+    "cont__rastrigin_10d",
+    "cont__ackley_10d",
+    "cont__griewank_10d",
+    "cont__schwefel_10d",
+    "cont__levy_10d",
+    "cont__michalewicz_10d",
+    "cont__styblinski_tang_10d",
+    "noisy__sphere_10d",
+    "noisy__rastrigin_10d",
+    "noisy__ackley_10d",
+    "noisy__schwefel_10d",
+    "noisy__levy_10d",
+    "cat__sphere_10d",
+    "cat__rastrigin_10d",
+    "cat__ackley_10d",
+    "cat__schwefel_10d",
+    "cat__levy_10d",
+    "lcbench_189873",
+    "lcbench_168329",
+    "lcbench_167185",
+    "lcbench_167152",
+    "lcbench_168910",
+    "lcbench_167168",
+    "lcbench_189906",
+    "lcbench_168331",
+    "lcbench_168330"
+  ],
+  "fmp_base": {
+    "T_mcmc": 0.05021528037835243,
+    "sigma_fraction": 0.022095999012449814,
+    "wide_sigma_fraction": 0.3008503702038378,
+    "kde_tau": 0.006205167444665816,
+    "hmm_window": 12,
+    "rejection_streak": 24,
+    "bw_prior_strength": 89.80956876532602,
+    "burnin_fraction": 0.21939164151847443,
+    "n_init": 8,
+    "n_chains": 1,
+    "p_dream": 0.7412354684077219,
+    "emission_mu": [
+      -0.00946430696609267,
+      0.0946430696609267,
+      0.014196460449139003
+    ],
+    "emission_sigma": [
+      0.05678584179655601,
+      0.23660767415231673,
+      0.01892861393218534
+    ]
+  },
+  "baseline_params": {
+    "TPE": {},
+    "GP": {},
+    "CMAES": {},
+    "RS": {},
+    "TPE_HB": {},
+    "SMAC": {}
+  },
+  "overrides": null
+}

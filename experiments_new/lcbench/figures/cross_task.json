@@ -4,16 +4,18 @@
     "n_tasks": 10,
     "friedman_nemenyi": {
       "n_tasks": 10,
-      "n_methods": 5,
+      "n_methods": 7,
       "avg_ranks": {
         "GP": 1.0,
-        "CMAES": 2.3,
-        "TPE": 2.7,
-        "TPE_HB": 4.3,
-        "RS": 4.7
+        "CMAES": 3.0,
+        "FMP_DREAM": 3.2,
+        "TPE": 3.5,
+        "FMP": 4.7,
+        "TPE_HB": 5.9,
+        "RS": 6.7
       },
-      "friedman_p": 2.1366442263962967e-07,
-      "cd": 1.928987299076902
+      "friedman_p": 1.3299743643308528e-08,
+      "cd": 2.8490046683008434
     },
     "wilcoxon_vs_ref": {
       "CMAES": {
@@ -23,6 +25,22 @@
         "p": 0.556640625,
         "wins_a": 7,
         "wins_b": 3
+      },
+      "FMP": {
+        "a": "FMP",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.10546875,
+        "wins_a": 3,
+        "wins_b": 7
+      },
+      "FMP_DREAM": {
+        "a": "FMP_DREAM",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.4921875,
+        "wins_a": 5,
+        "wins_b": 5
       },
       "GP": {
         "a": "GP",

@@ -1,0 +1,17 @@
+\begin{table}[t]
+\caption{controller noisy: mean $\pm$ SEM over seeds; * = Holm-corrected Mann--Whitney $p<0.05$ vs CTRL_HMM.}
+\label{tab:controller_noisy}
+\begin{center}\small
+\begin{tabular}{lccccccc}
+\hline
+Task & CTRL\_FIXED & CTRL\_HMM & CTRL\_HMM\_LEARNEMIS & CTRL\_HMM\_NOBW & CTRL\_HMM\_VITERBI & CTRL\_RANDOM & CTRL\_RULE \\
+\hline
+noisy\_\_ackley\_10d & 21.1$\pm$0.144 & 20.4$\pm$0.279 & 19.9$\pm$0.305 & 20.7$\pm$0.293 & \textbf{19.7$\pm$0.749} & 20.6$\pm$0.159 & 20.7$\pm$0.232 \\
+noisy\_\_levy\_10d & 11.9$\pm$1.69 & 4.67$\pm$0.924 & 4.61$\pm$0.814 & \textbf{3.98$\pm$0.626} & 4.2$\pm$0.42 & 4.73$\pm$0.83 & 6.44$\pm$0.495 \\
+noisy\_\_rastrigin\_10d & 76.1$\pm$3.77 & 68.4$\pm$5.18 & 67.8$\pm$4.66 & 67.9$\pm$3.78 & \textbf{63.3$\pm$4.4} & 71.3$\pm$5.12 & 75$\pm$4.9 \\
+noisy\_\_schwefel\_10d & 2.03e+03$\pm$97.6 & 1.85e+03$\pm$85.3 & \textbf{1.71e+03$\pm$133} & 1.86e+03$\pm$106 & 2.03e+03$\pm$69.2 & 2.02e+03$\pm$129 & 2.02e+03$\pm$152 \\
+noisy\_\_sphere\_10d & 1.82$\pm$0.15 & 1.54$\pm$0.168 & \textbf{1.37$\pm$0.0862} & 1.56$\pm$0.229 & 1.84$\pm$0.333 & 1.9$\pm$0.161 & 1.84$\pm$0.26 \\
+\hline
+\end{tabular}
+\end{center}
+\end{table}

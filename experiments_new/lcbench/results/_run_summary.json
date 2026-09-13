@@ -1,0 +1,19 @@
+[
+ {
+  "time": "2026-09-13 19:33:45",
+  "argv": [
+   "experiments_new/lcbench/run.py",
+   "--workers",
+   "12",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned"
+  ],
+  "n_jobs": 1400,
+  "n_run": 400,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ }
+]

@@ -1,0 +1,242 @@
+{
+  "cat": {
+    "agg_col": "value",
+    "n_tasks": 5,
+    "friedman_nemenyi": {
+      "n_tasks": 5,
+      "n_methods": 6,
+      "avg_ranks": {
+        "L1_K1_VITERBI_SUB": 2.8,
+        "L3_NOSUB": 2.8,
+        "L4_SOFT": 2.8,
+        "L2_K4_ORCH": 3.0,
+        "L5_DREAM": 4.6,
+        "L5_DREAM_LEGACYKERNEL": 5.0
+      },
+      "friedman_p": 0.19255043307939615,
+      "cd": 3.372165476366781
+    },
+    "wilcoxon_vs_ref": {
+      "L2_K4_ORCH": {
+        "a": "L2_K4_ORCH",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 1.0,
+        "wins_a": 2,
+        "wins_b": 3
+      },
+      "L3_NOSUB": {
+        "a": "L3_NOSUB",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 0.4375,
+        "wins_a": 2,
+        "wins_b": 3
+      },
+      "L4_SOFT": {
+        "a": "L4_SOFT",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 1.0,
+        "wins_a": 3,
+        "wins_b": 2
+      },
+      "L5_DREAM": {
+        "a": "L5_DREAM",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 0.3125,
+        "wins_a": 1,
+        "wins_b": 4
+      },
+      "L5_DREAM_LEGACYKERNEL": {
+        "a": "L5_DREAM_LEGACYKERNEL",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 0.3125,
+        "wins_a": 1,
+        "wins_b": 4
+      }
+    }
+  },
+  "cont": {
+    "agg_col": "value",
+    "n_tasks": 9,
+    "friedman_nemenyi": {
+      "n_tasks": 9,
+      "n_methods": 6,
+      "avg_ranks": {
+        "L4_SOFT": 2.3333333333333335,
+        "L2_K4_ORCH": 2.7777777777777777,
+        "L1_K1_VITERBI_SUB": 3.2222222222222223,
+        "L3_NOSUB": 3.2222222222222223,
+        "L5_DREAM": 4.722222222222222,
+        "L5_DREAM_LEGACYKERNEL": 4.722222222222222
+      },
+      "friedman_p": 0.020718458061035536,
+      "cd": 2.5134637455113613
+    },
+    "wilcoxon_vs_ref": {
+      "L2_K4_ORCH": {
+        "a": "L2_K4_ORCH",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 9,
+        "p": 0.91015625,
+        "wins_a": 4,
+        "wins_b": 5
+      },
+      "L3_NOSUB": {
+        "a": "L3_NOSUB",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 9,
+        "p": 0.734375,
+        "wins_a": 4,
+        "wins_b": 5
+      },
+      "L4_SOFT": {
+        "a": "L4_SOFT",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 9,
+        "p": 0.91015625,
+        "wins_a": 6,
+        "wins_b": 3
+      },
+      "L5_DREAM": {
+        "a": "L5_DREAM",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 9,
+        "p": 0.65234375,
+        "wins_a": 3,
+        "wins_b": 6
+      },
+      "L5_DREAM_LEGACYKERNEL": {
+        "a": "L5_DREAM_LEGACYKERNEL",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 9,
+        "p": 0.65234375,
+        "wins_a": 3,
+        "wins_b": 6
+      }
+    }
+  },
+  "lcbench": {
+    "agg_col": "value",
+    "n_tasks": 10,
+    "friedman_nemenyi": {
+      "n_tasks": 10,
+      "n_methods": 6,
+      "avg_ranks": {
+        "L5_DREAM": 1.8,
+        "L5_DREAM_LEGACYKERNEL": 2.2,
+        "L4_SOFT": 2.8,
+        "L3_NOSUB": 4.3,
+        "L2_K4_ORCH": 4.4,
+        "L1_K1_VITERBI_SUB": 5.5
+      },
+      "friedman_p": 1.4371492611450382e-05,
+      "cd": 2.3844810756221153
+    },
+    "wilcoxon_vs_ref": {
+      "L2_K4_ORCH": {
+        "a": "L2_K4_ORCH",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 10,
+        "p": 0.01953125,
+        "wins_a": 9,
+        "wins_b": 1
+      },
+      "L3_NOSUB": {
+        "a": "L3_NOSUB",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 10,
+        "p": 0.048828125,
+        "wins_a": 9,
+        "wins_b": 1
+      },
+      "L4_SOFT": {
+        "a": "L4_SOFT",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 10,
+        "p": 0.009765625,
+        "wins_a": 9,
+        "wins_b": 1
+      },
+      "L5_DREAM": {
+        "a": "L5_DREAM",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 10,
+        "p": 0.009765625,
+        "wins_a": 9,
+        "wins_b": 1
+      },
+      "L5_DREAM_LEGACYKERNEL": {
+        "a": "L5_DREAM_LEGACYKERNEL",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 10,
+        "p": 0.009765625,
+        "wins_a": 9,
+        "wins_b": 1
+      }
+    }
+  },
+  "noisy": {
+    "agg_col": "value",
+    "n_tasks": 5,
+    "friedman_nemenyi": {
+      "n_tasks": 5,
+      "n_methods": 6,
+      "avg_ranks": {
+        "L5_DREAM_LEGACYKERNEL": 2.9,
+        "L5_DREAM": 2.9,
+        "L3_NOSUB": 3.2,
+        "L4_SOFT": 3.4,
+        "L1_K1_VITERBI_SUB": 4.0,
+        "L2_K4_ORCH": 4.6
+      },
+      "friedman_p": 0.6457466746705081,
+      "cd": 3.372165476366781
+    },
+    "wilcoxon_vs_ref": {
+      "L2_K4_ORCH": {
+        "a": "L2_K4_ORCH",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 1.0,
+        "wins_a": 3,
+        "wins_b": 2
+      },
+      "L3_NOSUB": {
+        "a": "L3_NOSUB",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 0.4375,
+        "wins_a": 3,
+        "wins_b": 2
+      },
+      "L4_SOFT": {
+        "a": "L4_SOFT",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 0.625,
+        "wins_a": 3,
+        "wins_b": 2
+      },
+      "L5_DREAM": {
+        "a": "L5_DREAM",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 0.625,
+        "wins_a": 3,
+        "wins_b": 2
+      },
+      "L5_DREAM_LEGACYKERNEL": {
+        "a": "L5_DREAM_LEGACYKERNEL",
+        "b": "L1_K1_VITERBI_SUB",
+        "n": 5,
+        "p": 0.625,
+        "wins_a": 3,
+        "wins_b": 2
+      }
+    }
+  }
+}

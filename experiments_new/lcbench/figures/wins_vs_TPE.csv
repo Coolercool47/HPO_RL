@@ -1,5 +1,7 @@
 method,n_tasks,wins,sig_wins,sig_losses
 CMAES,10,7,1,0
+FMP,10,2,0,1
+FMP_DREAM,10,6,0,0
 GP,10,10,8,0
 RS,10,0,0,9
 TPE_HB,10,1,0,4

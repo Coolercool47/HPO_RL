@@ -1,0 +1,17 @@
+[
+ {
+  "time": "2026-09-13 19:46:54",
+  "argv": [
+   "experiments_new/ablation_controller/run.py",
+   "--workers",
+   "12",
+   "--fmp-config",
+   "tuned"
+  ],
+  "n_jobs": 2030,
+  "n_run": 2030,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ }
+]
