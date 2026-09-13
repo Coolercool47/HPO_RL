@@ -13,7 +13,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=str(HERE / "results"))
     ap.add_argument("--figs", default=None)
-    ap.add_argument("--ref", default="FMP_CTRL_HMM")
+    ap.add_argument("--ref", default="CTRL_HMM")
     a = ap.parse_args()
     analyze(Path(a.results), Path(a.figs or (Path(a.results).parent / (Path(a.results).name.replace("results", "figures")))),
             ref_method=a.ref, exp_name="controller", curve_ncols=4)

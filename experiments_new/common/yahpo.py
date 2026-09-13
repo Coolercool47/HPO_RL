@@ -7,7 +7,6 @@ and costs 52 fidelity units; `Task.eval_cost = 52`. The multi-fidelity helper
 
 from __future__ import annotations
 
-import functools
 import os
 import warnings
 from pathlib import Path
@@ -48,17 +47,32 @@ def _init_yahpo():
         )
 
 
-@functools.lru_cache(maxsize=None)
-def _benchmark(instance: str):
-    _init_yahpo()
-    from yahpo_gym import benchmark_set
+_BENCH = None
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        bench = benchmark_set.BenchmarkSet("lcbench")
-        bench.set_instance(str(instance))
-    bench.check = False
-    return bench
+
+def _benchmark(instance: str | None = None):
+    """One shared BenchmarkSet (one single-threaded ONNX session) per process.
+
+    The instance only enters the surrogate through the `OpenML_task_id` field of the
+    evaluated configuration, which `evaluate_at_epoch` sets explicitly, so a single
+    session serves every instance. (Per-instance sessions cost ~40 MB and ~7 threads
+    each and, with 10 instances x N workers, exhausted memory on the first full run.)
+    """
+    global _BENCH
+    if _BENCH is None:
+        _init_yahpo()
+        import contextlib
+        import io
+
+        from yahpo_gym import benchmark_set
+
+        with warnings.catch_warnings(), contextlib.redirect_stdout(io.StringIO()):
+            warnings.simplefilter("ignore")
+            _BENCH = benchmark_set.BenchmarkSet("lcbench", active_session=True, multithread=False)
+        _BENCH.check = False
+    if instance is not None:
+        _BENCH.set_instance(str(instance))
+    return _BENCH
 
 
 def lcbench_space(instance: str) -> tuple[dict, float, float]:
@@ -86,7 +100,7 @@ def lcbench_space(instance: str) -> tuple[dict, float, float]:
 
 
 def evaluate_at_epoch(instance: str, cfg: dict, epoch: int, target: str = LCBENCH_TARGET) -> float:
-    bench = _benchmark(instance)
+    bench = _benchmark()
     q = dict(cfg)
     q["OpenML_task_id"] = str(instance)
     q[LCBENCH_FIDELITY] = int(round(epoch))

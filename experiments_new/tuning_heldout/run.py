@@ -29,6 +29,7 @@ import numpy as np
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
+from experiments_new.common.logging_util import start_log  # noqa: E402
 from experiments_new.common import methods as M  # noqa: E402
 from experiments_new.common.runner import CONFIG_DIR, run_job  # noqa: E402
 from experiments_new.lcbench import config as L  # noqa: E402
@@ -77,8 +78,8 @@ SUGGEST = {"FMP": suggest_fmp, "TPE": suggest_tpe, "CMAES": suggest_cmaes}
 
 def make_spec(method: str, sample: dict, fmp_base: dict) -> dict:
     if method == "FMP":
-        params = {**fmp_base, **M.FMP_VARIANTS["FMP_SOFT"]}
-        for k, v in sample.items():
+        params = {**fmp_base, **M.FMP_VARIANTS["L4_SOFT"]}
+        for k, v in sample.items():          # n_chains / p_dream in the sample override L4's fixed values
             params = apply_knob(params, k, v)
         return {"kind": "fmp", "params": params}
     spec = dict(M.BASELINES[method])
@@ -93,9 +94,10 @@ def meta_objective(method: str, sample: dict, tasks: list[dict], seeds: list[int
                  method_spec=spec, seed=s, budget=BUDGET, n_startup=int(spec.get("params", {}).get("n_startup_trials", 16)),
                  keep_history=False) for t in tasks for s in seeds]
     if workers > 1:
-        from joblib import Parallel, delayed
+        from joblib import Parallel, delayed, parallel_config
 
-        res = Parallel(n_jobs=workers, backend="loky")(delayed(run_job)(j, out_dir, save=True) for j in jobs)
+        with parallel_config(backend="loky", inner_max_num_threads=1):
+            res = Parallel(n_jobs=workers)(delayed(run_job)(j, out_dir, save=True) for j in jobs)
     else:
         res = [run_job(j, out_dir, save=True) for j in jobs]
     scores = []
@@ -110,6 +112,7 @@ def meta_objective(method: str, sample: dict, tasks: list[dict], seeds: list[int
 
 
 def main():
+    start_log(Path(__file__).resolve().parent, "tune")
     ap = argparse.ArgumentParser()
     ap.add_argument("--method", default="FMP", choices=list(SUGGEST))
     ap.add_argument("--n-trials", type=int, default=100)
@@ -174,7 +177,8 @@ def main():
         params = {**fmp_base}
         for k, v in best.items():
             params = apply_knob(params, k, v)
-        params = {k: v for k, v in params.items() if k not in M.FMP_VARIANTS["FMP_SOFT"] or k == "p_dream"}
+        # drop only the structural flags; n_chains and p_dream are tuned values and stay
+        params = {k: v for k, v in params.items() if k not in ("decoder", "explore_subsample", "orchestrate_every")}
         target = CONFIG_DIR / ("fmp_tuned_smoke.json" if a.smoke else "fmp_tuned.json")
         with open(target, "w", encoding="utf-8") as fh:
             json.dump({**params, "_meta": {"score": study.best_value, "instances": instances, "seeds": seeds, "n_trials": n_trials}}, fh, indent=2, default=float)

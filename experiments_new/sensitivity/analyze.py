@@ -17,11 +17,13 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
+from experiments_new.common.logging_util import start_log  # noqa: E402
 from experiments_new.common import io as IO  # noqa: E402
 from experiments_new.common import plots as P  # noqa: E402
 
 
 def main():
+    start_log(Path(__file__).resolve().parent, "analyze")
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=str(HERE / "results"))
     ap.add_argument("--figs", default=str(HERE / "figures"))

@@ -9,6 +9,7 @@ matplotlib>=3.8
 scikit-learn>=1.4
 scikit-posthocs>=0.9
 joblib>=1.3
+psutil>=5.9           # caps the default worker count by available RAM
 tqdm>=4.66
 pyyaml>=6.0
 optuna>=4.0

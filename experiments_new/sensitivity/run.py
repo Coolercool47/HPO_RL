@@ -24,7 +24,7 @@ from experiments_new.common import methods as M  # noqa: E402
 from experiments_new.common.runner import cli, load_fmp_base  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-BASE_VARIANT = "FMP_SOFT"
+BASE_VARIANT = "L4_SOFT"
 
 # knob -> levels (absolute values). Table-5 default is the middle entry.
 KNOBS: dict[str, list] = {

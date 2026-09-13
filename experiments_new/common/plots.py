@@ -4,6 +4,7 @@ emissions, transition-matrix evolution, sensitivity curves."""
 from __future__ import annotations
 
 import math
+import warnings
 from pathlib import Path
 
 import matplotlib
@@ -15,12 +16,21 @@ import numpy as np  # noqa: E402
 STATE_COLORS = {"EXPLOIT": "#1f77b4", "EXPLORE": "#ff7f0e", "TRAPPED": "#d62728", "INIT": "#7f7f7f",
                 "rescue": "#9467bd", "reseed": "#8c564b"}
 METHOD_COLORS = {"RS": "#7f7f7f", "TPE": "#ff7f0e", "GP": "#2ca02c", "CMAES": "#9467bd", "TPE_HB": "#bcbd22",
-                 "SMAC": "#17becf", "FMP": "#1f77b4", "FMP_DREAM": "#d62728", "FMP_MC": "#3b6fb6",
-                 "FMP_MC_NOSUB": "#6f9fd8", "FMP_SOFT": "#0b3d91"}
+                 "SMAC": "#17becf", "FMP": "#1f77b4", "FMP_DREAM": "#d62728", "L1_K1_VITERBI_SUB": "#8c564b",
+                 "L2_K4_ORCH": "#3b6fb6", "L3_NOSUB": "#6f9fd8", "L4_SOFT": "#0b3d91", "L5_DREAM": "#d62728"}
 
 
 def _color(m):
     return METHOD_COLORS.get(m, None)
+
+
+def _band(y, band):
+    if band == "iqr":
+        return np.nanmedian(y, axis=0), np.nanpercentile(y, 25, axis=0), np.nanpercentile(y, 75, axis=0)
+    mid = np.nanmean(y, axis=0)
+    sd = np.nanstd(y, axis=0, ddof=1) if y.shape[0] > 1 else np.zeros_like(mid)
+    half = sd / math.sqrt(y.shape[0]) if band == "sem" else sd
+    return mid, mid - half, mid + half
 
 
 def plot_convergence(curves: dict, tasks: list[str], methods: list[str], path: Path, *, band: str = "sem",
@@ -39,14 +49,9 @@ def plot_convergence(curves: dict, tasks: list[str], methods: list[str], path: P
                 continue
             y = c if transform is None else transform(c, task)
             x = np.arange(1, y.shape[1] + 1) if x_of is None else np.asarray(x_of(task, y.shape[1]))
-            if band == "iqr":
-                mid = np.nanmedian(y, axis=0)
-                lo, hi = np.nanpercentile(y, 25, axis=0), np.nanpercentile(y, 75, axis=0)
-            else:
-                mid = np.nanmean(y, axis=0)
-                sd = np.nanstd(y, axis=0, ddof=1) if y.shape[0] > 1 else np.zeros_like(mid)
-                half = sd / math.sqrt(y.shape[0]) if band == "sem" else sd
-                lo, hi = mid - half, mid + half
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)   # all-NaN columns before the first full evaluation
+                mid, lo, hi = _band(y, band)
             ax.plot(x, mid, label=f"{m} (n={y.shape[0]})", color=_color(m), lw=1.4)
             ax.fill_between(x, lo, hi, alpha=0.15, color=_color(m))
         ax.set_title(task, fontsize=10)

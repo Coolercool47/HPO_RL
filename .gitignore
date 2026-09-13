@@ -724,3 +724,4 @@ wandb/
 experiments_new/**/results_smoke/
 experiments_new/**/figures_smoke/
 experiments_new/configs/*_smoke.json
+experiments_new/**/logs/

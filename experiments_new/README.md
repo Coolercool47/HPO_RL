@@ -26,14 +26,16 @@ experiments_new/
 | `RS`, `TPE`, `GP`, `CMAES` | Optuna `RandomSampler`, `TPESampler`, `GPSampler`, `CmaEsSampler` (n_startup = FMP n_init) |
 | `TPE_HB` | TPE + Hyperband pruner (BOHB-style), LCBench only, cost counted in epochs |
 | `SMAC` | SMAC3 `HyperparameterOptimizationFacade` runner (needs `pip install smac`; not run on Windows) |
-| `FMP` | ladder (i): 1 chain, Viterbi, EXPLORE coordinate subsampling, no orchestrator (paper's "FMP-only" arm) |
-| `FMP_MC`, `FMP_MC_NOSUB`, `FMP_SOFT` | ladder (ii)–(iv) |
-| `FMP_DREAM` | ladder (v): + symmetric DREAM(ZS) kernel, p_dream = 0.5 (paper's full method) |
-| `FMP_CTRL_*` | controller ablation on top of `FMP_SOFT` |
+| `FMP` | H-MCMC-FMP: soft filter, orchestrator, factorized proposals only (p_dream = 0); n_chains from the shared config |
+| `FMP_DREAM` | same + symmetric DREAM(ZS) kernel; p_dream and n_chains from the shared config (defaults 0.5 / 4) |
+| `L1_K1_VITERBI_SUB` … `L5_DREAM` | ablation ladder (i)–(v); `L1` = the submitted paper's "FMP-only" arm |
+| `CTRL_*` | controller ablation on top of `L4_SOFT` |
 
 All FMP variants are configurations of `hpo_rl/baselines/HMM_MCMC_FMP.py`.
 
 ## Workflow
+
+See `RUNBOOK.md` (reference) and `NEXT_RUNS.md` (what to launch next, with status).
 
 ```
 python experiments_new/lcbench/select_instances.py          # once: test / tuning instances

@@ -36,6 +36,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from experiments_new.common import methods as M          # noqa: E402
+from experiments_new.common.logging_util import start_log  # noqa: E402
 from experiments_new.common.seeding import derive_seed, seed_everything  # noqa: E402
 from experiments_new.common.spaces import build_task, spec_key  # noqa: E402
 
@@ -56,7 +57,9 @@ def load_fmp_base(name_or_path: str = "table5") -> dict:
     if not p.is_file():
         raise FileNotFoundError(f"FMP config not found: {name_or_path} (looked at {p})")
     with open(p, encoding="utf-8") as fh:
-        return json.load(fh)
+        cfg = json.load(fh)
+    # keys starting with "_" (e.g. "_meta" written by the tuning script) are documentation, not kwargs
+    return {k: v for k, v in cfg.items() if not str(k).startswith("_")}
 
 
 def load_baseline_params(name_or_path: str = "default") -> dict:
@@ -69,7 +72,8 @@ def load_baseline_params(name_or_path: str = "default") -> dict:
     if not p.is_file():
         return {}
     with open(p, encoding="utf-8") as fh:
-        return json.load(fh)
+        cfg = json.load(fh)
+    return {k: v for k, v in cfg.items() if not str(k).startswith("_")}
 
 
 # ---------------------------------------------------------------------------
@@ -153,11 +157,29 @@ def pending_jobs(jobs: list[dict], out_dir: Path) -> list[dict]:
     return [j for j in jobs if not result_path(out_dir, j).is_file()]
 
 
-def run_jobs(jobs: list[dict], out_dir: Path, workers: int = 1, resume: bool = True, verbose: bool = True) -> list[dict]:
+def default_workers(mem_per_worker_gb: float = 0.5) -> int:
+    """CPU count - 2, capped by available RAM (a worker that has run GP-BO holds ~0.4 GB)."""
+    n = max(1, (os.cpu_count() or 2) - 2)
+    try:
+        import psutil
+
+        avail_gb = psutil.virtual_memory().available / 2**30
+        n = max(1, min(n, int(avail_gb / mem_per_worker_gb)))
+    except Exception:  # noqa: BLE001  psutil optional
+        n = min(n, 8)
+    return n
+
+
+def run_jobs(jobs: list[dict], out_dir: Path, workers: int = 1, resume: bool = True, verbose: bool = True,
+             chunk_size: int = 200) -> list[dict]:
+    """Execute pending jobs. With workers > 1 the jobs run in loky worker processes limited
+    to one BLAS/OMP/torch thread each; the executor is recycled every `chunk_size` jobs so
+    worker memory cannot grow without bound."""
     out_dir = Path(out_dir)
     todo = pending_jobs(jobs, out_dir) if resume else jobs
     if verbose:
-        print(f"[runner] {len(jobs)} jobs, {len(jobs) - len(todo)} done, {len(todo)} to run, workers={workers}")
+        print(f"[runner] {len(jobs)} jobs, {len(jobs) - len(todo)} done, {len(todo)} to run, workers={workers}, "
+              f"chunk={chunk_size}, est. worker RSS ~{0.4 * workers:.1f} GB")
     if not todo:
         return []
     t0 = time.perf_counter()
@@ -169,13 +191,19 @@ def run_jobs(jobs: list[dict], out_dir: Path, workers: int = 1, resume: bool = T
             if verbose:
                 _print_progress(i + 1, len(todo), r, t0)
     else:
-        from joblib import Parallel, delayed
+        from joblib import Parallel, delayed, parallel_config
+        from joblib.externals.loky import get_reusable_executor
 
-        for i, r in enumerate(Parallel(n_jobs=workers, backend="loky", return_as="generator")(
-                delayed(run_job)(j, out_dir) for j in todo)):
-            results.append(r)
-            if verbose:
-                _print_progress(i + 1, len(todo), r, t0)
+        done = 0
+        for start in range(0, len(todo), max(1, chunk_size)):
+            chunk = todo[start:start + chunk_size]
+            with parallel_config(backend="loky", inner_max_num_threads=1):
+                for r in Parallel(n_jobs=workers, return_as="generator")(delayed(run_job)(j, out_dir) for j in chunk):
+                    results.append(r)
+                    done += 1
+                    if verbose:
+                        _print_progress(done, len(todo), r, t0)
+            get_reusable_executor().shutdown(wait=True)   # recycle worker processes between chunks
     n_err = sum(1 for r in results if not r.get("ok"))
     if verbose:
         print(f"[runner] finished {len(results)} jobs in {time.perf_counter() - t0:.0f}s, errors={n_err}")
@@ -270,7 +298,8 @@ def cli(exp: str, task_specs: list[dict], methods: list[str], seeds: list[int], 
     parser = argparse.ArgumentParser(description=description or exp)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--smoke", action="store_true")
-    parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
+    parser.add_argument("--workers", type=int, default=None, help="default: CPU-2 capped by available RAM (0.5 GB/worker)")
+    parser.add_argument("--chunk", type=int, default=200, help="jobs per worker-pool lifetime (memory recycling)")
     parser.add_argument("--seeds", type=int, nargs="*", default=None)
     parser.add_argument("--n-seeds", type=int, default=None)
     parser.add_argument("--budget", type=int, default=None)
@@ -282,6 +311,9 @@ def cli(exp: str, task_specs: list[dict], methods: list[str], seeds: list[int], 
     parser.add_argument("--no-resume", action="store_true")
     parser.add_argument("--no-history", action="store_true", help="do not store per-eval FMP diagnostics")
     args = parser.parse_args()
+    if args.workers is None:
+        args.workers = default_workers()
+    start_log(REPO_ROOT / "experiments_new" / exp, "run" + ("_dry" if args.dry_run else "_smoke" if args.smoke else ""))
 
     fmp_base = load_fmp_base(args.fmp_config)
     baseline_params = load_baseline_params(args.baseline_config)
@@ -320,5 +352,13 @@ def cli(exp: str, task_specs: list[dict], methods: list[str], seeds: list[int], 
         json.dump({"exp": exp, "budget": budget, "seeds": seeds, "methods": methods,
                    "tasks": [spec_key(s) for s in task_specs], "fmp_base": fmp_base,
                    "baseline_params": baseline_params, "overrides": overrides}, fh, indent=2)
-    args.results = run_jobs(jobs, out, workers=args.workers, resume=not args.no_resume)
+    args.results = run_jobs(jobs, out, workers=args.workers, resume=not args.no_resume, chunk_size=args.chunk)
+    # machine-readable outcome of this invocation (appended, one entry per invocation)
+    summ_path = out / "_run_summary.json"
+    prev = json.loads(summ_path.read_text(encoding="utf-8")) if summ_path.is_file() else []
+    prev.append({"time": time.strftime("%Y-%m-%d %H:%M:%S"), "argv": sys.argv, "n_jobs": len(jobs),
+                 "n_run": len(args.results), "n_errors": sum(1 for r in args.results if not r.get("ok")),
+                 "errors": [r for r in args.results if not r.get("ok")][:50],
+                 "pending_after": len(pending_jobs(jobs, out))})
+    summ_path.write_text(json.dumps(prev, indent=1, default=str), encoding="utf-8")
     return args

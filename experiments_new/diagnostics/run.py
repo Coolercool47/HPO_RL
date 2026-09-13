@@ -1,7 +1,7 @@
 """E5: HMM controller diagnostics from stored FMP runs (no new workload needed).
 
     python experiments_new/diagnostics/run.py --results experiments_new/synt_functions/results --method FMP_DREAM
-    python experiments_new/diagnostics/run.py --fresh cont__rastrigin_10d FMP_SOFT 0   # run one seed now and plot
+    python experiments_new/diagnostics/run.py --fresh cont__rastrigin_10d L4_SOFT 0   # run one seed now and plot
 
 Figures (diagnostics/figures/<results-name>/):
     states_<task>_<method>_seed<k>.png    decoded state / posterior / temperature trajectory
@@ -21,6 +21,7 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
+from experiments_new.common.logging_util import start_log  # noqa: E402
 from experiments_new.common import io as IO  # noqa: E402
 from experiments_new.common import plots as P  # noqa: E402
 
@@ -28,6 +29,7 @@ HERE = Path(__file__).resolve().parent
 
 
 def main():
+    start_log(Path(__file__).resolve().parent, "diagnostics")
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=str(REPO_ROOT / "experiments_new" / "synt_functions" / "results"))
     ap.add_argument("--method", default="FMP_DREAM")

@@ -1,9 +1,0 @@
-Traceback (most recent call last):
-  File "/home/ed/HPO_RL/experiments_new/common/runner.py", line 125, in run_job
-    rec = M.run_method(job["method"], job["method_spec"], task, job["seed"], job["budget"],
-                       n_startup=job["n_startup"], keep_history=job.get("keep_history", True))
-  File "/home/ed/HPO_RL/experiments_new/common/methods.py", line 362, in run_method
-    return run_fmp(task, seed, budget, spec, keep_history=keep_history)
-  File "/home/ed/HPO_RL/experiments_new/common/methods.py", line 298, in run_fmp
-    alg = HMM_MCMC_FMP(lambda cfg: trace.evaluate(cfg), budget, task.space, seed=seed, **params)
-TypeError: HMM_MCMC_FMP.__init__() got an unexpected keyword argument '_meta'

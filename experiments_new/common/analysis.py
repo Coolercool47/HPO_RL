@@ -24,12 +24,14 @@ import pandas as pd
 from experiments_new.common import io as IO
 from experiments_new.common import plots as P
 from experiments_new.common import stats as S
+from experiments_new.common.logging_util import start_log
 
 
 def analyze(out_dir: Path, fig_dir: Path, ref_method: str = "TPE", methods: list[str] | None = None,
             exp_name: str = "", curve_ncols: int = 3, min_seeds: int = 2) -> dict:
     out_dir, fig_dir = Path(out_dir), Path(fig_dir)
     fig_dir.mkdir(parents=True, exist_ok=True)
+    start_log(fig_dir.parent, f"analyze_{fig_dir.name}")
     df = IO.load_results(out_dir, methods=methods)
     if df.empty:
         print(f"[analyze] no results in {out_dir}")

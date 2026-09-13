@@ -38,34 +38,51 @@ from experiments_new.common.spaces import Task, spec_suite
 # FMP variant presets (single-factor ablation ladder + controller ablation)
 # ---------------------------------------------------------------------------
 
-# (i)  FMP-only as in the submitted paper's "FMP-only" arm: one chain, Viterbi,
-#      EXPLORE coordinate subsampling, no orchestration.
-FMP_STEP1 = dict(p_dream=0.0, decoder="viterbi", explore_subsample=True, n_chains=1, orchestrate_every=0)
-# (ii) + parallel chains and orchestrator
-FMP_STEP2 = dict(p_dream=0.0, decoder="viterbi", explore_subsample=True, n_chains=4, orchestrate_every=5)
-# (iii) - EXPLORE coordinate subsampling (DREAM class never had it)
-FMP_STEP3 = dict(p_dream=0.0, decoder="viterbi", explore_subsample=False, n_chains=4, orchestrate_every=5)
-# (iv) soft forward-filter posterior mixing instead of hard Viterbi
-FMP_STEP4 = dict(p_dream=0.0, decoder="soft", explore_subsample=False, n_chains=4, orchestrate_every=5)
-# (v)  + DREAM(ZS) crossover kernel (symmetric version)
-FMP_STEP5 = dict(p_dream=0.5, decoder="soft", explore_subsample=False, n_chains=4, orchestrate_every=5)
+# Structural flags of the two methods reported in the paper. Everything else (incl.
+# n_chains and p_dream for FMP_DREAM) comes from the shared config (Table-5 class
+# defaults or configs/fmp_tuned.json), so a tuned configuration is applied unchanged.
+_MAIN = dict(decoder="soft", explore_subsample=False, orchestrate_every=5)
+FMP_MAIN = {**_MAIN, "p_dream": 0.0}          # H-MCMC-FMP: factorized proposals only
+FMP_DREAM_MAIN = {**_MAIN}                    # + DREAM(ZS) kernel with p_dream from config (default 0.5)
+
+# Single-factor ablation ladder (fixed structure, n_chains fixed at 1 / 4 by design):
+#   L1  paper's "FMP-only" arm: one chain, Viterbi, EXPLORE coordinate subsampling, no orchestrator
+#   L2  + 4 parallel chains and orchestrator
+#   L3  - EXPLORE coordinate subsampling (the DREAM class never had it)
+#   L4  soft forward-filter posterior mixing instead of hard Viterbi
+#   L5  + symmetric DREAM(ZS) kernel, p_dream = 0.5
+L1 = dict(p_dream=0.0, decoder="viterbi", explore_subsample=True, n_chains=1, orchestrate_every=0)
+L2 = dict(p_dream=0.0, decoder="viterbi", explore_subsample=True, n_chains=4, orchestrate_every=5)
+L3 = dict(p_dream=0.0, decoder="viterbi", explore_subsample=False, n_chains=4, orchestrate_every=5)
+L4 = dict(p_dream=0.0, decoder="soft", explore_subsample=False, n_chains=4, orchestrate_every=5)
+L5 = dict(p_dream=0.5, decoder="soft", explore_subsample=False, n_chains=4, orchestrate_every=5)
 
 FMP_VARIANTS: dict[str, dict] = {
-    "FMP": FMP_STEP1,
-    "FMP_MC": FMP_STEP2,
-    "FMP_MC_NOSUB": FMP_STEP3,
-    "FMP_SOFT": FMP_STEP4,
-    "FMP_DREAM": FMP_STEP5,
-    "FMP_DREAM_LEGACYKERNEL": {**FMP_STEP5, "dream_symmetric": False},
-    # controller ablation (on top of the multi-chain FMP configuration, step iv)
-    "FMP_CTRL_HMM": FMP_STEP4,
-    "FMP_CTRL_HMM_VITERBI": FMP_STEP3,
-    "FMP_CTRL_HMM_NOBW": {**FMP_STEP4, "learn_transitions": False},
-    "FMP_CTRL_HMM_LEARNEMIS": {**FMP_STEP4, "learn_emissions": True},
-    "FMP_CTRL_FIXED": {**FMP_STEP4, "controller": "fixed"},
-    "FMP_CTRL_RANDOM": {**FMP_STEP4, "controller": "random"},
-    "FMP_CTRL_RULE": {**FMP_STEP4, "controller": "rule"},
+    "FMP": FMP_MAIN,
+    "FMP_DREAM": FMP_DREAM_MAIN,
+    # ladder
+    "L1_K1_VITERBI_SUB": L1,
+    "L2_K4_ORCH": L2,
+    "L3_NOSUB": L3,
+    "L4_SOFT": L4,
+    "L5_DREAM": L5,
+    "L5_DREAM_LEGACYKERNEL": {**L5, "dream_symmetric": False},
+    # controller ablation on top of L4 (multi-chain, soft, no DREAM)
+    "CTRL_HMM": L4,
+    "CTRL_HMM_VITERBI": L3,
+    "CTRL_HMM_NOBW": {**L4, "learn_transitions": False},
+    "CTRL_HMM_LEARNEMIS": {**L4, "learn_emissions": True},
+    "CTRL_FIXED": {**L4, "controller": "fixed"},
+    "CTRL_RANDOM": {**L4, "controller": "random"},
+    "CTRL_RULE": {**L4, "controller": "rule"},
 }
+# names kept for backwards compatibility with earlier scripts
+FMP_VARIANTS.update({
+    "FMP_MC": L2, "FMP_MC_NOSUB": L3, "FMP_SOFT": L4,
+    "FMP_CTRL_HMM": L4, "FMP_CTRL_HMM_VITERBI": L3, "FMP_CTRL_HMM_NOBW": FMP_VARIANTS["CTRL_HMM_NOBW"],
+    "FMP_CTRL_HMM_LEARNEMIS": FMP_VARIANTS["CTRL_HMM_LEARNEMIS"], "FMP_CTRL_FIXED": FMP_VARIANTS["CTRL_FIXED"],
+    "FMP_CTRL_RANDOM": FMP_VARIANTS["CTRL_RANDOM"], "FMP_CTRL_RULE": FMP_VARIANTS["CTRL_RULE"],
+})
 
 BASELINES: dict[str, dict] = {
     "RS": {"kind": "optuna", "sampler": "random", "pruner": None},
@@ -81,7 +98,8 @@ def method_spec(name: str, fmp_base: dict | None = None, baseline_params: dict |
     """Resolve a method name to a spec. `fmp_base` = shared FMP hyperparameters
     (Table 5 defaults when empty); variant flags override it."""
     if name in FMP_VARIANTS:
-        params = {**(fmp_base or {}), **FMP_VARIANTS[name]}
+        base = {k: v for k, v in (fmp_base or {}).items() if not str(k).startswith("_")}
+        params = {**base, **FMP_VARIANTS[name]}
         return {"kind": "fmp", "params": params}
     if name in BASELINES:
         spec = dict(BASELINES[name])

@@ -8,6 +8,7 @@
   "bw_prior_strength": 89.80956876532602,
   "burnin_fraction": 0.21939164151847443,
   "n_init": 8,
+  "n_chains": 1,
   "p_dream": 0.7412354684077219,
   "emission_mu": [
     -0.00946430696609267,
@@ -36,6 +37,7 @@
       1001,
       1002
     ],
-    "n_trials": 100
+    "n_trials": 100,
+    "note": "regenerated from meta_study.db; n_chains and p_dream kept (were dropped in the first export)"
   }
 }

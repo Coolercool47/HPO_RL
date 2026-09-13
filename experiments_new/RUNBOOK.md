@@ -1,9 +1,19 @@
 # Runbook: rebuttal experiments in the right order
 
+> Current status and the exact commands for the *next* launch are in `NEXT_RUNS.md`;
+> this file is the general reference.
+
 All commands run from the code repo root (`HPO_RL/HPO_RL`) with the project venv
 (`.venv\Scripts\python.exe` on Windows, `.venv/bin/python` elsewhere). Every runner is
-resumable: re-running the same command skips finished runs and fills gaps. Add
-`--workers N` to use N processes (default: CPU count minus 2).
+resumable: re-running the same command skips finished runs and fills gaps.
+
+**Memory.** A worker process that has run GP-BO holds about 0.4 GB (torch); budget
+0.5 GB per worker. The default `--workers` is CPU count minus 2, capped by available RAM
+when `psutil` is installed; pass `--workers N` explicitly on a shared or small machine.
+Workers are limited to one BLAS/OMP/torch thread each and one single-threaded ONNX
+session per process, and the worker pool is recycled every `--chunk` jobs (default 200).
+Every script writes a full log to `experiments_new/<exp>/logs/` and every runner
+invocation appends its outcome (errors included) to `results/_run_summary.json`.
 
 ## 0. Environment (new machine)
 
@@ -69,6 +79,12 @@ instances overlap.
 
 ## 5. E1 synthetic and E2 LCBench, main comparison (~3 h with GP-BO)
 
+Method definitions: `FMP` = soft filter + orchestrator + factorized proposals (p_dream = 0);
+`FMP_DREAM` = the same + DREAM kernel. Both take every other knob, including n_chains and
+p_dream, from `--fmp-config` (Table-5 class defaults or `configs/fmp_tuned.json`), so the
+only difference between them is the DREAM kernel. The submitted paper's one-chain Viterbi
+arm lives in the ladder as `L1_K1_VITERBI_SUB`.
+
 Run the untuned reference first (cheap, separate output directory), then the tuned
 configuration used in the paper tables:
 
@@ -101,16 +117,17 @@ python experiments_new/ablation_ladder/analyze.py
 python experiments_new/ablation_controller/analyze.py
 ```
 
-Ladder reference = `FMP` (step i); controller reference = `FMP_CTRL_HMM`. Decision
-gates from the plan: if `FMP_DREAM` is not significantly better than the best earlier
-step, the paper is reframed around H-MCMC-FMP; if `FMP_CTRL_RULE` or `FMP_CTRL_RANDOM`
-match `FMP_CTRL_HMM`, the HMM contribution is not supported.
+Ladder reference = `L1_K1_VITERBI_SUB` (step i); controller reference = `CTRL_HMM`. Decision
+gates from the plan: if `L5_DREAM` is not significantly better than the best earlier
+step, the paper is reframed around H-MCMC-FMP; if `CTRL_RULE` or `CTRL_RANDOM`
+match `CTRL_HMM`, the HMM contribution is not supported.
 
 ## 7. E5 diagnostics (1 min, no new runs)
 
 ```
 python experiments_new/diagnostics/run.py --results experiments_new/synt_functions/results --method FMP_DREAM --seeds 0
 python experiments_new/diagnostics/run.py --results experiments_new/lcbench/results        --method FMP_DREAM --seeds 0
+python experiments_new/diagnostics/run.py --results experiments_new/ablation_controller/results --method CTRL_HMM --seeds 0
 ```
 
 Produces state-trajectory plots, O_t histograms with the hand-set emission densities

@@ -11,7 +11,7 @@
         "CMAES": 3.3,
         "FMP_DREAM": 3.6,
         "TPE_HB": 5.4,
-        "FMP": 5.8,
+        "L1_K1_VITERBI_SUB": 5.8,
         "RS": 6.4
       },
       "friedman_p": 7.505196630082724e-09,
@@ -25,14 +25,6 @@
         "p": 0.083984375,
         "wins_a": 3,
         "wins_b": 7
-      },
-      "FMP": {
-        "a": "FMP",
-        "b": "TPE",
-        "n": 10,
-        "p": 0.001953125,
-        "wins_a": 0,
-        "wins_b": 10
       },
       "FMP_DREAM": {
         "a": "FMP_DREAM",
@@ -49,6 +41,14 @@
         "p": 0.001953125,
         "wins_a": 10,
         "wins_b": 0
+      },
+      "L1_K1_VITERBI_SUB": {
+        "a": "L1_K1_VITERBI_SUB",
+        "b": "TPE",
+        "n": 10,
+        "p": 0.001953125,
+        "wins_a": 0,
+        "wins_b": 10
       },
       "RS": {
         "a": "RS",

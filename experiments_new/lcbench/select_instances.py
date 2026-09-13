@@ -23,6 +23,7 @@ import numpy as np
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
+from experiments_new.common.logging_util import start_log  # noqa: E402
 from experiments_new.common.yahpo import ALL_LCBENCH_INSTANCES, evaluate_at_epoch, lcbench_space  # noqa: E402
 from hpo_rl.baselines.HMM_MCMC_FMP import SobolInitializer, _param_record, decode_config  # noqa: E402
 
@@ -52,6 +53,7 @@ def survey(n_samples: int, seed: int) -> dict:
 
 
 def main():
+    start_log(Path(__file__).resolve().parent, "select_instances")
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-samples", type=int, default=256)
     ap.add_argument("--seed", type=int, default=12345)
