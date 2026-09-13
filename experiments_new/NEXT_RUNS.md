@@ -7,9 +7,10 @@ State of the results after the first run and the fixes that followed it:
 | E6 sensitivity | complete (4050 runs), analysed | nothing |
 | E0 held-out tuning | complete (FMP, TPE, CMA-ES; 100 trials each) | nothing; `configs/fmp_tuned.json` regenerated with `n_chains` and `p_dream` |
 | E2 LCBench, Table-5 config (`results_table5/`) | complete (7 methods x 10 tasks x 20 seeds) | nothing; the old `FMP` arm was renamed `L1_K1_VITERBI_SUB` in place |
-| E2 LCBench, tuned config (`results/`) | baselines complete, **FMP / FMP_DREAM missing** (crashed on `_meta`) | step 2 |
-| E1 synthetic, both configs | barely started (1 to 2 tasks) | steps 5 and 6 |
-| E3 ladder, E4 controller | not started | steps 3 and 4 |
+| E2 LCBench, tuned config (`results/`) | complete | nothing |
+| E1 synthetic, tuned config | RS/TPE/CMA-ES/FMP/FMP_DREAM complete; **GP missing** (OOM on the GP-only run) | step 5 |
+| E1 synthetic, Table-5 config | barely started | step 6 |
+| E3 ladder, E4 controller | complete | nothing (analyses in `figures/`) |
 | E5 diagnostics | not started (needs E2 / E4 results) | step 7 |
 
 All commands run from the code repo root with the project venv. Every runner is
@@ -29,9 +30,17 @@ Both must end with `[dry-run] all checks passed`. The first line of the dry-run 
 prints the tuned FMP configuration; it must contain `n_chains` and `p_dream` and no
 `_meta`.
 
-Memory: budget 0.5 GB per worker. Without `--workers` the runner uses CPU count minus
-2 capped by available RAM (needs `psutil`, in `requirements.txt`). On the 16 GB machine
-use `--workers 8` for anything that includes GP-BO and up to `--workers 12` otherwise.
+**WSL note.** Under WSL2 the Linux VM sees only the memory allowed by `%UserProfile%\.wslconfig`
+(default: half of the host RAM); the runner prints the memory it can see on its first line.
+On a 16 GB laptop that is 8 GB minus VS Code, so expect 2 to 3 concurrent GP jobs; raise it
+with `memory=12GB` in `.wslconfig` (then `wsl --shutdown`) if the host can spare it.
+
+Memory: GP-BO is the only heavy method and now runs one job per fresh worker process
+with its concurrency capped by available RAM (`--heavy-gb`, default 2 GB per job).
+On the 16 GB / 6-core machine use `--workers 5`; the runner will then run at most
+5 light jobs or about 4 to 5 GP jobs at a time and print the worker RSS after every job.
+If the peak worker RSS printed at the end exceeds about 2 GB, lower `--heavy-gb`
+concurrency by passing `--heavy-gb 4`.
 
 ## 2. Fill the tuned LCBench FMP runs (~5 min)
 

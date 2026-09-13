@@ -152,7 +152,7 @@
         "CTRL_RULE": 5.5,
         "CTRL_FIXED": 6.9
       },
-      "friedman_p": 7.344028712799344e-08,
+      "friedman_p": 7.344028712799345e-08,
       "cd": 2.8490046683008434
     },
     "wilcoxon_vs_ref": {

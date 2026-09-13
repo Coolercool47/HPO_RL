@@ -7,11 +7,18 @@ All commands run from the code repo root (`HPO_RL/HPO_RL`) with the project venv
 (`.venv\Scripts\python.exe` on Windows, `.venv/bin/python` elsewhere). Every runner is
 resumable: re-running the same command skips finished runs and fills gaps.
 
-**Memory.** A worker process that has run GP-BO holds about 0.4 GB (torch); budget
-0.5 GB per worker. The default `--workers` is CPU count minus 2, capped by available RAM
-when `psutil` is installed; pass `--workers N` explicitly on a shared or small machine.
-Workers are limited to one BLAS/OMP/torch thread each and one single-threaded ONNX
-session per process, and the worker pool is recycled every `--chunk` jobs (default 200).
+**Memory.** Under WSL2 the VM sees only the RAM allowed by `.wslconfig` (default half
+of the host); the runner prints what it can see on its first line. GP-BO (Optuna `GPSampler`, torch) is the only memory-heavy method: a
+500-trial run grows to 0.5 GB on Windows and considerably more on Linux, where glibc
+does not return torch's freed memory to the OS. The runner therefore treats `GP` and
+`SMAC` as *heavy* jobs: each runs in a fresh worker process, and their concurrency is
+capped at `available RAM / --heavy-gb` (default 2 GB per job) independently of
+`--workers`. Light jobs (everything else, < 0.3 GB per worker) run with the full
+`--workers` in chunks of `--chunk` jobs, after which the pool is recycled. Every worker
+is limited to one compute thread and one single-threaded ONNX session; on Linux the
+workers run with `MALLOC_ARENA_MAX=2` and call `malloc_trim` after every job. A worker
+whose RSS exceeds `--max-worker-gb` (default 3) after a job is replaced. The progress
+line prints the worker RSS after each job and the final line prints the peak.
 Every script writes a full log to `experiments_new/<exp>/logs/` and every runner
 invocation appends its outcome (errors included) to `results/_run_summary.json`.
 

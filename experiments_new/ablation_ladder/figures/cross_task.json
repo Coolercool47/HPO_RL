@@ -193,7 +193,7 @@
         "L1_K1_VITERBI_SUB": 4.0,
         "L2_K4_ORCH": 4.6
       },
-      "friedman_p": 0.6457466746705081,
+      "friedman_p": 0.6457466746705083,
       "cd": 3.372165476366781
     },
     "wilcoxon_vs_ref": {

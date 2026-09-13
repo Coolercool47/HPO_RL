@@ -210,9 +210,9 @@ def latex_table(summary_df: pd.DataFrame, value_fmt: str = "{:.3g}", bold_best: 
                 mean_col: str = "mean", err_col: str = "sem", lower_better: bool = True) -> str:
     """Rows = tasks, columns = methods, cells = mean +- err, best in bold, '*' when
     significantly different from `ref_method` after Holm correction."""
-    methods = methods or sorted(summary_df["method"].unique())
     piv_m = summary_df.pivot(index="task", columns="method", values=mean_col)
     piv_e = summary_df.pivot(index="task", columns="method", values=err_col)
+    methods = [m for m in (methods or sorted(summary_df["method"].unique())) if m in piv_m.columns]
     sig_map = {}
     if sig is not None and not sig.empty:
         for _, r in sig.iterrows():

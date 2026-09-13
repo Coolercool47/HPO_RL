@@ -119,8 +119,47 @@ def result_path(out_dir: Path, job: dict) -> Path:
     return Path(out_dir) / job["task_key"] / job["method"] / f"seed_{job['seed']:03d}.json"
 
 
+HEAVY_METHODS = {"GP", "SMAC"}          # torch / RF surrogates: ~0.5-2 GB per run, fresh process per job
+HEAVY_GB_PER_WORKER = 2.0               # memory budget assumed per concurrent heavy job (measured peak ~0.75 GB; margin for WSL/laptops)
+
+
+def _rss_gb() -> float:
+    try:
+        import psutil
+
+        return psutil.Process().memory_info().rss / 2**30
+    except Exception:  # noqa: BLE001
+        return float("nan")
+
+
+def _limit_worker_threads() -> None:
+    """Called inside every worker before a job: one compute thread per process."""
+    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ.setdefault(var, "1")
+    if "torch" in sys.modules:
+        try:
+            sys.modules["torch"].set_num_threads(1)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _release_memory() -> None:
+    """After a job: drop Python garbage and, on glibc, hand freed heap back to the OS."""
+    import gc
+
+    gc.collect()
+    if sys.platform.startswith("linux"):
+        try:
+            import ctypes
+
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def run_job(job: dict, out_dir: Path | None = None, save: bool = True) -> dict:
     """Execute one job; returns a short summary dict. Errors are captured, not raised."""
+    _limit_worker_threads()
     t0 = time.perf_counter()
     run_seed = derive_seed(job["seed"], job["task_key"])
     seed_everything(run_seed)
@@ -131,18 +170,28 @@ def run_job(job: dict, out_dir: Path | None = None, save: bool = True) -> dict:
         rec["exp"] = job["exp"]
         rec["run_seed_derived"] = run_seed
         rec["wall_time"] = time.perf_counter() - t0
+        rec["worker_rss_gb"] = _rss_gb()
         if save and out_dir is not None:
             _atomic_json_dump(rec, result_path(out_dir, job))
-        return {"ok": True, "task": job["task_key"], "method": job["method"], "seed": job["seed"],
-                "best_value": rec["best_value"], "best_true_value": rec["best_true_value"], "time": rec["wall_time"]}
+        out = {"ok": True, "task": job["task_key"], "method": job["method"], "seed": job["seed"],
+               "best_value": rec["best_value"], "best_true_value": rec["best_true_value"], "time": rec["wall_time"],
+               "rss_gb": rec["worker_rss_gb"]}
     except Exception as e:  # noqa: BLE001
-        err = {"ok": False, "task": job["task_key"], "method": job["method"], "seed": job["seed"],
-               "error": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc()}
+        out = {"ok": False, "task": job["task_key"], "method": job["method"], "seed": job["seed"],
+               "error": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc(), "rss_gb": _rss_gb()}
         if save and out_dir is not None:
             p = result_path(out_dir, job).with_suffix(".error.txt")
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(err["traceback"], encoding="utf-8")
-        return err
+            p.write_text(out["traceback"], encoding="utf-8")
+    finally:
+        _release_memory()
+    max_gb = float(os.environ.get("EXP_MAX_WORKER_GB", "0") or 0)
+    if max_gb > 0 and out.get("rss_gb", 0) > max_gb and os.environ.get("LOKY_PID") is not None:
+        # this worker has grown too large: leave; loky replaces it with a fresh process
+        out["worker_recycled"] = True
+        sys.stdout.flush()
+        os._exit(0)
+    return out
 
 
 def _atomic_json_dump(obj: dict, path: Path) -> None:
@@ -170,43 +219,90 @@ def default_workers(mem_per_worker_gb: float = 0.5) -> int:
     return n
 
 
+def heavy_workers(workers: int, gb_per_job: float = HEAVY_GB_PER_WORKER) -> int:
+    """Concurrent GP/SMAC jobs allowed by available RAM (never more than `workers`)."""
+    try:
+        import psutil
+
+        avail_gb = psutil.virtual_memory().available / 2**30
+        return max(1, min(workers, int(avail_gb / gb_per_job)))
+    except Exception:  # noqa: BLE001
+        return max(1, min(workers, 4))
+
+
+def _parallel_run(chunk: list[dict], out_dir: Path, workers: int, results: list, counter: list, n_total: int,
+                  t0: float, verbose: bool) -> None:
+    from joblib import Parallel, delayed, parallel_config
+    from joblib.externals.loky import get_reusable_executor
+
+    if sys.platform.startswith("linux"):
+        # glibc: fewer arenas and eager trimming, so torch's many small frees are returned to the OS
+        os.environ.setdefault("MALLOC_ARENA_MAX", "2")
+        os.environ.setdefault("MALLOC_TRIM_THRESHOLD_", "131072")
+        os.environ.setdefault("MALLOC_MMAP_THRESHOLD_", "131072")
+    with parallel_config(backend="loky", inner_max_num_threads=1):
+        for r in Parallel(n_jobs=workers, return_as="generator")(delayed(run_job)(j, out_dir) for j in chunk):
+            results.append(r)
+            counter[0] += 1
+            if verbose:
+                _print_progress(counter[0], n_total, r, t0)
+    get_reusable_executor().shutdown(wait=True)   # recycle worker processes
+
+
 def run_jobs(jobs: list[dict], out_dir: Path, workers: int = 1, resume: bool = True, verbose: bool = True,
-             chunk_size: int = 200) -> list[dict]:
-    """Execute pending jobs. With workers > 1 the jobs run in loky worker processes limited
-    to one BLAS/OMP/torch thread each; the executor is recycled every `chunk_size` jobs so
-    worker memory cannot grow without bound."""
+             chunk_size: int = 200, heavy_gb: float = HEAVY_GB_PER_WORKER, max_worker_gb: float = 0.0) -> list[dict]:
+    """Execute pending jobs.
+
+    Light jobs (everything but GP / SMAC) run `chunk_size` at a time in a loky pool of
+    `workers` processes limited to one compute thread each; the pool is recycled after
+    every chunk. Heavy jobs run one job per worker lifetime (the pool is recycled every
+    `n_heavy` jobs) with `n_heavy` = min(workers, available RAM / heavy_gb), because a
+    500-trial GP-BO run holds 0.5-2 GB that glibc does not always return."""
     out_dir = Path(out_dir)
     todo = pending_jobs(jobs, out_dir) if resume else jobs
+    light = [j for j in todo if j["method"] not in HEAVY_METHODS]
+    heavy = [j for j in todo if j["method"] in HEAVY_METHODS]
+    n_heavy = heavy_workers(workers, heavy_gb) if heavy else 0
+    if max_worker_gb > 0:
+        os.environ["EXP_MAX_WORKER_GB"] = str(max_worker_gb)
     if verbose:
-        print(f"[runner] {len(jobs)} jobs, {len(jobs) - len(todo)} done, {len(todo)} to run, workers={workers}, "
-              f"chunk={chunk_size}, est. worker RSS ~{0.4 * workers:.1f} GB")
+        try:
+            import psutil
+
+            vm = psutil.virtual_memory()
+            print(f"[runner] memory visible to this process: total={vm.total / 2**30:.1f} GB, available={vm.available / 2**30:.1f} GB")
+        except Exception:  # noqa: BLE001
+            pass
+        print(f"[runner] {len(jobs)} jobs, {len(jobs) - len(todo)} done, {len(todo)} to run "
+              f"({len(light)} light + {len(heavy)} heavy), workers={workers}, chunk={chunk_size}, "
+              f"heavy concurrency={n_heavy} ({heavy_gb:.1f} GB/job budget), max_worker_gb={max_worker_gb or 'off'}")
     if not todo:
         return []
     t0 = time.perf_counter()
     results: list[dict] = []
+    counter = [0]
     if workers <= 1:
-        for i, j in enumerate(todo):
+        for j in todo:
             r = run_job(j, out_dir)
             results.append(r)
+            counter[0] += 1
             if verbose:
-                _print_progress(i + 1, len(todo), r, t0)
+                _print_progress(counter[0], len(todo), r, t0)
     else:
-        from joblib import Parallel, delayed, parallel_config
-        from joblib.externals.loky import get_reusable_executor
-
-        done = 0
-        for start in range(0, len(todo), max(1, chunk_size)):
-            chunk = todo[start:start + chunk_size]
-            with parallel_config(backend="loky", inner_max_num_threads=1):
-                for r in Parallel(n_jobs=workers, return_as="generator")(delayed(run_job)(j, out_dir) for j in chunk):
-                    results.append(r)
-                    done += 1
-                    if verbose:
-                        _print_progress(done, len(todo), r, t0)
-            get_reusable_executor().shutdown(wait=True)   # recycle worker processes between chunks
+        for start in range(0, len(light), max(1, chunk_size)):
+            _parallel_run(light[start:start + chunk_size], out_dir, workers, results, counter, len(todo), t0, verbose)
+        i = 0
+        while i < len(heavy):
+            # re-evaluate the budget before every heavy batch: other programs (VS Code, browser)
+            # may have taken memory since the run started
+            n_heavy = heavy_workers(workers, heavy_gb)
+            _parallel_run(heavy[i:i + n_heavy], out_dir, n_heavy, results, counter, len(todo), t0, verbose)
+            i += n_heavy
     n_err = sum(1 for r in results if not r.get("ok"))
     if verbose:
-        print(f"[runner] finished {len(results)} jobs in {time.perf_counter() - t0:.0f}s, errors={n_err}")
+        rss = [r.get("rss_gb") for r in results if r.get("rss_gb") == r.get("rss_gb")]
+        print(f"[runner] finished {len(results)} jobs in {time.perf_counter() - t0:.0f}s, errors={n_err}, "
+              f"peak worker RSS={max(rss) if rss else float('nan'):.2f} GB")
         for r in results:
             if not r.get("ok"):
                 print(f"  ERROR {r['task']}/{r['method']}/seed{r['seed']}: {r['error']}")
@@ -218,7 +314,7 @@ def _print_progress(i, n, r, t0):
     eta = el / i * (n - i)
     if r.get("ok"):
         print(f"[{i}/{n}] {r['task']:<28s} {r['method']:<24s} seed={r['seed']:<3d} best={r['best_true_value']:.4g} "
-              f"({r['time']:.1f}s)  elapsed={el:.0f}s eta={eta:.0f}s", flush=True)
+              f"({r['time']:.1f}s, rss={r.get('rss_gb', float('nan')):.2f}GB)  elapsed={el:.0f}s eta={eta:.0f}s", flush=True)
     else:
         print(f"[{i}/{n}] {r['task']}/{r['method']}/seed{r['seed']} FAILED: {r['error']}", flush=True)
 
@@ -299,7 +395,11 @@ def cli(exp: str, task_specs: list[dict], methods: list[str], seeds: list[int], 
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--workers", type=int, default=None, help="default: CPU-2 capped by available RAM (0.5 GB/worker)")
-    parser.add_argument("--chunk", type=int, default=200, help="jobs per worker-pool lifetime (memory recycling)")
+    parser.add_argument("--chunk", type=int, default=200, help="light jobs per worker-pool lifetime (memory recycling)")
+    parser.add_argument("--heavy-gb", type=float, default=HEAVY_GB_PER_WORKER,
+                        help="RAM budget per concurrent GP/SMAC job; caps their concurrency (default 2.0)")
+    parser.add_argument("--max-worker-gb", type=float, default=3.0,
+                        help="a worker exceeding this RSS after a job is replaced by a fresh process (0 = off)")
     parser.add_argument("--seeds", type=int, nargs="*", default=None)
     parser.add_argument("--n-seeds", type=int, default=None)
     parser.add_argument("--budget", type=int, default=None)
@@ -352,7 +452,8 @@ def cli(exp: str, task_specs: list[dict], methods: list[str], seeds: list[int], 
         json.dump({"exp": exp, "budget": budget, "seeds": seeds, "methods": methods,
                    "tasks": [spec_key(s) for s in task_specs], "fmp_base": fmp_base,
                    "baseline_params": baseline_params, "overrides": overrides}, fh, indent=2)
-    args.results = run_jobs(jobs, out, workers=args.workers, resume=not args.no_resume, chunk_size=args.chunk)
+    args.results = run_jobs(jobs, out, workers=args.workers, resume=not args.no_resume, chunk_size=args.chunk,
+                            heavy_gb=args.heavy_gb, max_worker_gb=args.max_worker_gb)
     # machine-readable outcome of this invocation (appended, one entry per invocation)
     summ_path = out / "_run_summary.json"
     prev = json.loads(summ_path.read_text(encoding="utf-8")) if summ_path.is_file() else []
