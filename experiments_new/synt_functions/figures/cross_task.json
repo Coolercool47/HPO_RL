@@ -4,16 +4,17 @@
     "n_tasks": 5,
     "friedman_nemenyi": {
       "n_tasks": 5,
-      "n_methods": 5,
+      "n_methods": 6,
       "avg_ranks": {
-        "CMAES": 1.8,
-        "FMP": 1.8,
-        "TPE": 3.0,
-        "FMP_DREAM": 3.4,
-        "RS": 5.0
+        "GP": 1.4,
+        "FMP": 2.6,
+        "CMAES": 2.8,
+        "TPE": 3.8,
+        "FMP_DREAM": 4.4,
+        "RS": 6.0
       },
-      "friedman_p": 0.007044057560556267,
-      "cd": 2.728
+      "friedman_p": 0.0025151777873016036,
+      "cd": 3.372165476366781
     },
     "wilcoxon_vs_ref": {
       "CMAES": {
@@ -40,6 +41,14 @@
         "wins_a": 2,
         "wins_b": 3
       },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.125,
+        "wins_a": 4,
+        "wins_b": 1
+      },
       "RS": {
         "a": "RS",
         "b": "TPE",
@@ -54,18 +63,18 @@
     "agg_col": "nregret",
     "n_tasks": 9,
     "friedman_nemenyi": {
-      "n_tasks": 3,
+      "n_tasks": 9,
       "n_methods": 6,
       "avg_ranks": {
-        "GP": 1.0,
-        "CMAES": 2.0,
-        "FMP": 3.3333333333333335,
-        "FMP_DREAM": 4.333333333333333,
+        "GP": 1.2222222222222223,
+        "CMAES": 2.3333333333333335,
+        "FMP": 2.888888888888889,
+        "FMP_DREAM": 4.222222222222222,
         "TPE": 4.333333333333333,
         "RS": 6.0
       },
-      "friedman_p": 0.01654278592895881,
-      "cd": 4.353446910208048
+      "friedman_p": 5.989480295382939e-07,
+      "cd": 2.5134637455113613
     },
     "wilcoxon_vs_ref": {
       "CMAES": {
@@ -95,10 +104,10 @@
       "GP": {
         "a": "GP",
         "b": "TPE",
-        "n": 3,
-        "p": NaN,
-        "wins_a": 3,
-        "note": "n<5"
+        "n": 9,
+        "p": 0.00390625,
+        "wins_a": 9,
+        "wins_b": 0
       },
       "RS": {
         "a": "RS",
@@ -115,16 +124,17 @@
     "n_tasks": 5,
     "friedman_nemenyi": {
       "n_tasks": 5,
-      "n_methods": 5,
+      "n_methods": 6,
       "avg_ranks": {
-        "CMAES": 1.6,
-        "FMP": 2.8,
-        "FMP_DREAM": 2.8,
-        "TPE": 3.2,
-        "RS": 4.6
+        "CMAES": 2.2,
+        "GP": 2.8,
+        "FMP": 3.2,
+        "FMP_DREAM": 3.4,
+        "TPE": 4.0,
+        "RS": 5.4
       },
-      "friedman_p": 0.054469414619313004,
-      "cd": 2.728
+      "friedman_p": 0.11853583004572675,
+      "cd": 3.372165476366781
     },
     "wilcoxon_vs_ref": {
       "CMAES": {
@@ -150,6 +160,14 @@
         "p": 0.3125,
         "wins_a": 3,
         "wins_b": 2
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.4375,
+        "wins_a": 4,
+        "wins_b": 1
       },
       "RS": {
         "a": "RS",
