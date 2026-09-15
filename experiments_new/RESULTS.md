@@ -119,9 +119,13 @@ popsize 7, 5 start-up trials.
 ## 7. Untuned reference (Table-5 defaults)
 
 LCBench: GP 86.8, TPE 81.1, FMP_DREAM 80.3, CMAES 79.8, TPE_HB 77.5, L1 77.5, RS 76.6.
-Synthetic (GP still running for the noisy/categorical suites): FMP ranks behind TPE on
-all three suites (4th of 7 on continuous), i.e. the held-out tuning is what moves FMP
-ahead of TPE. Tuning changed TPE and GP by < 0.5 points and CMA-ES by +2 points.
+Synthetic (complete, 7 methods): average ranks continuous GP 1.0, CMAES 2.0, TPE 3.0,
+FMP 4.0, FMP_DREAM 5.0, L1 6.0, RS 7.0; noisy CMAES 2.0, TPE 2.2, GP 2.8, FMP 4.1;
+categorical GP 1.2, CMAES 2.4, TPE 3.2, FMP 4.1. At the paper's defaults FMP therefore
+ranks behind TPE on every synthetic suite; the held-out tuning (Section 5) is what moves
+it ahead of TPE, while tuning changed TPE and GP by < 0.5 points and CMA-ES by +2 points.
+The paper must present the tuned configuration as the method's defaults and the
+Table-5 run as the robustness reference.
 
 ## 8. What this means for the rebuttal
 

@@ -24,12 +24,7 @@
     19
   ],
   "methods": [
-    "RS",
-    "TPE",
-    "GP",
-    "CMAES",
-    "FMP",
-    "FMP_DREAM"
+    "GP"
   ],
   "tasks": [
     "cont__sphere_10d",
@@ -54,7 +49,6 @@
   ],
   "fmp_base": {},
   "baseline_params": {
-    "_comment": "Baseline sampler settings. n_startup_trials defaults to the FMP n_init (16) so every method gets the same initial design size. Keys map to Optuna sampler kwargs.",
     "TPE": {},
     "GP": {},
     "CMAES": {},
