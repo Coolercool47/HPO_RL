@@ -1,6 +1,7 @@
-# Next runs (after the first full run of 2026-09-13)
+# Next runs
 
-State of the results after the first run and the fixes that followed it:
+**All planned experiments are complete as of 2026-09-15** (see `RESULTS.md`). The
+steps below are kept for re-runs and for adding SMAC. State:
 
 | experiment | status | what to do |
 |---|---|---|
@@ -8,10 +9,10 @@ State of the results after the first run and the fixes that followed it:
 | E0 held-out tuning | complete (FMP, TPE, CMA-ES; 100 trials each) | nothing; `configs/fmp_tuned.json` regenerated with `n_chains` and `p_dream` |
 | E2 LCBench, Table-5 config (`results_table5/`) | complete (7 methods x 10 tasks x 20 seeds) | nothing; the old `FMP` arm was renamed `L1_K1_VITERBI_SUB` in place |
 | E2 LCBench, tuned config (`results/`) | complete | nothing |
-| E1 synthetic, tuned config | RS/TPE/CMA-ES/FMP/FMP_DREAM complete; **GP missing** (OOM on the GP-only run) | step 5 |
-| E1 synthetic, Table-5 config | barely started | step 6 |
+| E1 synthetic, tuned config | complete (6 methods x 19 tasks x 20 seeds), analysed | nothing |
+| E1 synthetic, Table-5 config | complete, analysed (`figures_table5/`) | nothing |
 | E3 ladder, E4 controller | complete | nothing (analyses in `figures/`) |
-| E5 diagnostics | not started (needs E2 / E4 results) | step 7 |
+| E5 diagnostics | complete (`diagnostics/figures/`) | nothing |
 
 All commands run from the code repo root with the project venv. Every runner is
 resumable: a re-run skips finished runs and only fills the gaps, so an interrupted

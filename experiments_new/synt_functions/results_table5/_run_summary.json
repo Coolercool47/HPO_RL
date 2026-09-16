@@ -1,0 +1,62 @@
+[
+ {
+  "time": "2026-09-14 20:28:59",
+  "argv": [
+   "experiments_new/synt_functions/run.py",
+   "--workers",
+   "8",
+   "--out",
+   "experiments_new/synt_functions/results_table5",
+   "--methods",
+   "RS",
+   "TPE",
+   "CMAES",
+   "FMP",
+   "FMP_DREAM"
+  ],
+  "n_jobs": 1900,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.103710174560547,
+   "workers_rss_max_gb": 0.2587699890136719,
+   "used_gb": 12.290119171142578,
+   "swap_used_gb": 0.7429847717285156,
+   "min_available_gb": 3.486896514892578
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 1780,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ },
+ {
+  "time": "2026-09-15 09:47:15",
+  "argv": [
+   "experiments_new/synt_functions/run.py",
+   "--workers",
+   "8",
+   "--heavy-gb",
+   "1.0",
+   "--out",
+   "experiments_new/synt_functions/results_table5",
+   "--methods",
+   "GP",
+   "--mem-report",
+   "300"
+  ],
+  "n_jobs": 380,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.501934051513672,
+   "workers_rss_max_gb": 0.5114555358886719,
+   "used_gb": 14.722244262695312,
+   "swap_used_gb": 0.15488052368164062,
+   "min_available_gb": 1.0547714233398438
+  },
+  "workers": 8,
+  "heavy_gb": 1.0,
+  "n_run": 152,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ }
+]

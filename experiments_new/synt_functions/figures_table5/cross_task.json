@@ -1,59 +1,188 @@
 {
+  "cat": {
+    "agg_col": "nregret",
+    "n_tasks": 5,
+    "friedman_nemenyi": {
+      "n_tasks": 5,
+      "n_methods": 6,
+      "avg_ranks": {
+        "GP": 1.2,
+        "CMAES": 2.4,
+        "TPE": 3.2,
+        "FMP": 4.1,
+        "FMP_DREAM": 4.1,
+        "RS": 6.0
+      },
+      "friedman_p": 0.0012818952336528173,
+      "cd": 3.372165476366781
+    },
+    "wilcoxon_vs_ref": {
+      "CMAES": {
+        "a": "CMAES",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.4375,
+        "wins_a": 4,
+        "wins_b": 1
+      },
+      "FMP": {
+        "a": "FMP",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.4375,
+        "wins_a": 1,
+        "wins_b": 4
+      },
+      "FMP_DREAM": {
+        "a": "FMP_DREAM",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.4375,
+        "wins_a": 1,
+        "wins_b": 4
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.0625,
+        "wins_a": 5,
+        "wins_b": 0
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.0625,
+        "wins_a": 0,
+        "wins_b": 5
+      }
+    }
+  },
   "cont": {
     "agg_col": "nregret",
-    "n_tasks": 2,
+    "n_tasks": 9,
     "friedman_nemenyi": {
       "n_tasks": 1,
-      "n_methods": 6,
+      "n_methods": 7,
       "avg_ranks": {
         "GP": 1.0,
         "CMAES": 2.0,
         "TPE": 3.0,
-        "FMP_DREAM": 4.0,
-        "FMP": 5.0,
-        "RS": 6.0
+        "FMP": 4.0,
+        "FMP_DREAM": 5.0,
+        "L1_K1_VITERBI_SUB": 6.0,
+        "RS": 7.0
       }
     },
     "wilcoxon_vs_ref": {
       "CMAES": {
         "a": "CMAES",
         "b": "TPE",
-        "n": 1,
-        "p": NaN,
-        "wins_a": 1,
-        "note": "n<5"
+        "n": 9,
+        "p": 0.09765625,
+        "wins_a": 8,
+        "wins_b": 1
       },
       "FMP": {
         "a": "FMP",
         "b": "TPE",
-        "n": 1,
-        "p": NaN,
-        "wins_a": 0,
-        "note": "n<5"
+        "n": 9,
+        "p": 0.0390625,
+        "wins_a": 2,
+        "wins_b": 7
       },
       "FMP_DREAM": {
         "a": "FMP_DREAM",
         "b": "TPE",
-        "n": 1,
-        "p": NaN,
-        "wins_a": 0,
-        "note": "n<5"
+        "n": 9,
+        "p": 0.0390625,
+        "wins_a": 2,
+        "wins_b": 7
       },
       "GP": {
         "a": "GP",
         "b": "TPE",
+        "n": 9,
+        "p": 0.00390625,
+        "wins_a": 9,
+        "wins_b": 0
+      },
+      "L1_K1_VITERBI_SUB": {
+        "a": "L1_K1_VITERBI_SUB",
+        "b": "TPE",
         "n": 1,
         "p": NaN,
-        "wins_a": 1,
+        "wins_a": 0,
         "note": "n<5"
       },
       "RS": {
         "a": "RS",
         "b": "TPE",
-        "n": 2,
-        "p": NaN,
+        "n": 9,
+        "p": 0.00390625,
         "wins_a": 0,
-        "note": "n<5"
+        "wins_b": 9
+      }
+    }
+  },
+  "noisy": {
+    "agg_col": "nregret",
+    "n_tasks": 5,
+    "friedman_nemenyi": {
+      "n_tasks": 5,
+      "n_methods": 6,
+      "avg_ranks": {
+        "CMAES": 2.0,
+        "TPE": 2.2,
+        "GP": 2.8,
+        "FMP": 4.1,
+        "FMP_DREAM": 4.1,
+        "RS": 5.8
+      },
+      "friedman_p": 0.008956074737246933,
+      "cd": 3.372165476366781
+    },
+    "wilcoxon_vs_ref": {
+      "CMAES": {
+        "a": "CMAES",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.4375,
+        "wins_a": 4,
+        "wins_b": 1
+      },
+      "FMP": {
+        "a": "FMP",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.0625,
+        "wins_a": 0,
+        "wins_b": 5
+      },
+      "FMP_DREAM": {
+        "a": "FMP_DREAM",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.0625,
+        "wins_a": 0,
+        "wins_b": 5
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 5,
+        "p": 1.0,
+        "wins_a": 2,
+        "wins_b": 3
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 5,
+        "p": 0.0625,
+        "wins_a": 0,
+        "wins_b": 5
       }
     }
   }

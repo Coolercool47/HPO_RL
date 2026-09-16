@@ -21,5 +21,37 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-14 20:14:58",
+  "argv": [
+   "experiments_new/synt_functions/run.py",
+   "--workers",
+   "8",
+   "--heavy-gb",
+   "1.0",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned",
+   "--methods",
+   "GP",
+   "--mem-report",
+   "300"
+  ],
+  "n_jobs": 380,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.456951141357422,
+   "workers_rss_max_gb": 0.5135421752929688,
+   "used_gb": 13.93027114868164,
+   "swap_used_gb": 0.84808349609375,
+   "min_available_gb": 1.8467445373535156
+  },
+  "workers": 8,
+  "heavy_gb": 1.0,
+  "n_run": 207,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]
