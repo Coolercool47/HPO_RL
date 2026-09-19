@@ -164,10 +164,15 @@ docker run --rm -v "${PWD}:/work" -w /work hpo-smac python experiments_new/synt_
 
 (Git Bash: prefix with `MSYS_NO_PATHCONV=1` and give the Windows path, e.g.
 `-v "C:/path/to/HPO_RL:/work"`.) Results are written into the mounted working tree, the run
-is resumable, and SMAC is scheduled as a heavy job like GP. Measured in the container:
-about 0.3 s per evaluation on synthetic tasks and 2 s on LCBench at small budgets, 0.5 GB
-peak per worker; expect roughly 10-15 h for both suites with 4 workers. The container sees
-only the memory Docker Desktop is allowed (Settings > Resources, or `.wslconfig`).
+is resumable, and SMAC is scheduled as a heavy job like GP (add `--heavy-gb 1.0` to run
+about 6 at once in an 8 GB Docker VM; peak is 0.53 GB per worker).
+
+Measured 2026-09-19 with full budgets (4 runs each, 3 concurrent): 100 s per LCBench run
+(200 evaluations) and 415 s per synthetic run (500 evaluations). Projection with 6
+concurrent jobs: LCBench 26 instances x 20 seeds = 520 runs, about 2.5 h; synthetic
+380 runs, about 7.5 h. The 8 timing runs are kept in `smac_timing/`; they are valid
+results and can be moved into the matching `results/<task>/SMAC/` folders before a full
+run (the runner skips finished jobs).
 
 On native Linux / WSL instead: `pip install "smac>=2.1"` and run the same two commands
 without Docker.
