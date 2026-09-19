@@ -121,60 +121,60 @@
   },
   "lcbench": {
     "agg_col": "value",
-    "n_tasks": 10,
+    "n_tasks": 26,
     "friedman_nemenyi": {
-      "n_tasks": 10,
+      "n_tasks": 26,
       "n_methods": 6,
       "avg_ranks": {
-        "L5_DREAM": 1.8,
-        "L5_DREAM_LEGACYKERNEL": 2.2,
-        "L4_SOFT": 2.8,
-        "L3_NOSUB": 4.3,
-        "L2_K4_ORCH": 4.4,
-        "L1_K1_VITERBI_SUB": 5.5
+        "L5_DREAM": 1.6153846153846154,
+        "L5_DREAM_LEGACYKERNEL": 2.076923076923077,
+        "L4_SOFT": 3.0,
+        "L3_NOSUB": 4.1923076923076925,
+        "L2_K4_ORCH": 4.346153846153846,
+        "L1_K1_VITERBI_SUB": 5.769230769230769
       },
-      "friedman_p": 1.4371492611450382e-05,
-      "cd": 2.3844810756221153
+      "friedman_p": 5.490322948368559e-18,
+      "cd": 1.4787923867388968
     },
     "wilcoxon_vs_ref": {
       "L2_K4_ORCH": {
         "a": "L2_K4_ORCH",
         "b": "L1_K1_VITERBI_SUB",
-        "n": 10,
-        "p": 0.01953125,
-        "wins_a": 9,
-        "wins_b": 1
+        "n": 26,
+        "p": 4.410743713378906e-05,
+        "wins_a": 24,
+        "wins_b": 2
       },
       "L3_NOSUB": {
         "a": "L3_NOSUB",
         "b": "L1_K1_VITERBI_SUB",
-        "n": 10,
-        "p": 0.048828125,
-        "wins_a": 9,
+        "n": 26,
+        "p": 2.2709369659423828e-05,
+        "wins_a": 25,
         "wins_b": 1
       },
       "L4_SOFT": {
         "a": "L4_SOFT",
         "b": "L1_K1_VITERBI_SUB",
-        "n": 10,
-        "p": 0.009765625,
-        "wins_a": 9,
+        "n": 26,
+        "p": 6.16908073425293e-06,
+        "wins_a": 25,
         "wins_b": 1
       },
       "L5_DREAM": {
         "a": "L5_DREAM",
         "b": "L1_K1_VITERBI_SUB",
-        "n": 10,
-        "p": 0.009765625,
-        "wins_a": 9,
+        "n": 26,
+        "p": 7.450580596923828e-07,
+        "wins_a": 25,
         "wins_b": 1
       },
       "L5_DREAM_LEGACYKERNEL": {
         "a": "L5_DREAM_LEGACYKERNEL",
         "b": "L1_K1_VITERBI_SUB",
-        "n": 10,
-        "p": 0.009765625,
-        "wins_a": 9,
+        "n": 26,
+        "p": 2.086162567138672e-06,
+        "wins_a": 25,
         "wins_b": 1
       }
     }

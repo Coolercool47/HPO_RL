@@ -13,5 +13,29 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-19 22:43:31",
+  "argv": [
+   "experiments_new/ablation_controller/run.py",
+   "--workers",
+   "8",
+   "--fmp-config",
+   "tuned"
+  ],
+  "n_jobs": 3150,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.4384765625,
+   "workers_rss_max_gb": 0.3004493713378906,
+   "used_gb": 11.09688949584961,
+   "swap_used_gb": 1.0617485046386719,
+   "min_available_gb": 4.680126190185547
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 1120,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]

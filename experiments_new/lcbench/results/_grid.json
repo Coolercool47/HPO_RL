@@ -5,44 +5,13 @@
     0,
     1,
     2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19
+    3
   ],
   "methods": [
-    "RS",
-    "TPE",
-    "GP",
-    "CMAES",
-    "TPE_HB",
-    "FMP",
-    "FMP_DREAM"
+    "SMAC"
   ],
   "tasks": [
-    "lcbench_7593",
-    "lcbench_189873",
-    "lcbench_168329",
-    "lcbench_167185",
-    "lcbench_167152",
-    "lcbench_168910",
-    "lcbench_167168",
-    "lcbench_189906",
-    "lcbench_168331",
-    "lcbench_168330"
+    "lcbench_7593"
   ],
   "fmp_base": {
     "T_mcmc": 0.05021528037835243,

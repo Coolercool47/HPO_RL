@@ -13,5 +13,29 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-19 22:41:19",
+  "argv": [
+   "experiments_new/ablation_ladder/run.py",
+   "--workers",
+   "8",
+   "--fmp-config",
+   "tuned"
+  ],
+  "n_jobs": 2700,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.4408912658691406,
+   "workers_rss_max_gb": 0.30091094970703125,
+   "used_gb": 11.258228302001953,
+   "swap_used_gb": 1.0617485046386719,
+   "min_available_gb": 4.518787384033203
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 960,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]

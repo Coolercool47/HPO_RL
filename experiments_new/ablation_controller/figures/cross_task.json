@@ -139,70 +139,70 @@
   },
   "lcbench": {
     "agg_col": "value",
-    "n_tasks": 10,
+    "n_tasks": 26,
     "friedman_nemenyi": {
-      "n_tasks": 10,
+      "n_tasks": 26,
       "n_methods": 7,
       "avg_ranks": {
-        "CTRL_HMM": 2.5,
-        "CTRL_HMM_NOBW": 2.5,
-        "CTRL_RANDOM": 2.5,
-        "CTRL_HMM_LEARNEMIS": 2.8,
-        "CTRL_HMM_VITERBI": 5.3,
-        "CTRL_RULE": 5.5,
-        "CTRL_FIXED": 6.9
+        "CTRL_HMM": 2.6153846153846154,
+        "CTRL_HMM_NOBW": 2.6538461538461537,
+        "CTRL_HMM_LEARNEMIS": 2.8461538461538463,
+        "CTRL_RANDOM": 3.0384615384615383,
+        "CTRL_HMM_VITERBI": 4.846153846153846,
+        "CTRL_RULE": 5.3076923076923075,
+        "CTRL_FIXED": 6.6923076923076925
       },
-      "friedman_p": 7.344028712799345e-08,
-      "cd": 2.8490046683008434
+      "friedman_p": 1.1293213943899753e-16,
+      "cd": 1.7668776893805551
     },
     "wilcoxon_vs_ref": {
       "CTRL_FIXED": {
         "a": "CTRL_FIXED",
         "b": "CTRL_HMM",
-        "n": 10,
-        "p": 0.001953125,
-        "wins_a": 0,
-        "wins_b": 10
+        "n": 26,
+        "p": 5.960464477539063e-08,
+        "wins_a": 1,
+        "wins_b": 25
       },
       "CTRL_HMM_LEARNEMIS": {
         "a": "CTRL_HMM_LEARNEMIS",
         "b": "CTRL_HMM",
-        "n": 10,
-        "p": 0.625,
-        "wins_a": 4,
-        "wins_b": 6
+        "n": 26,
+        "p": 0.6893201172351837,
+        "wins_a": 12,
+        "wins_b": 14
       },
       "CTRL_HMM_NOBW": {
         "a": "CTRL_HMM_NOBW",
         "b": "CTRL_HMM",
-        "n": 10,
-        "p": 0.6953125,
-        "wins_a": 5,
-        "wins_b": 5
+        "n": 26,
+        "p": 0.6528128087520599,
+        "wins_a": 13,
+        "wins_b": 13
       },
       "CTRL_HMM_VITERBI": {
         "a": "CTRL_HMM_VITERBI",
         "b": "CTRL_HMM",
-        "n": 10,
-        "p": 0.009765625,
-        "wins_a": 1,
-        "wins_b": 9
+        "n": 26,
+        "p": 2.2709369659423828e-05,
+        "wins_a": 4,
+        "wins_b": 22
       },
       "CTRL_RANDOM": {
         "a": "CTRL_RANDOM",
         "b": "CTRL_HMM",
-        "n": 10,
-        "p": 0.845703125,
-        "wins_a": 5,
-        "wins_b": 5
+        "n": 26,
+        "p": 0.4082431197166443,
+        "wins_a": 11,
+        "wins_b": 15
       },
       "CTRL_RULE": {
         "a": "CTRL_RULE",
         "b": "CTRL_HMM",
-        "n": 10,
-        "p": 0.001953125,
-        "wins_a": 0,
-        "wins_b": 10
+        "n": 26,
+        "p": 2.086162567138672e-06,
+        "wins_a": 1,
+        "wins_b": 25
       }
     }
   },

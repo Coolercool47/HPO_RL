@@ -29,8 +29,8 @@
     "GP",
     "CMAES",
     "TPE_HB",
-    "FMP",
-    "FMP_DREAM"
+    "FMP_DREAM",
+    "L1_K1_VITERBI_SUB"
   ],
   "tasks": [
     "lcbench_7593",
@@ -42,11 +42,26 @@
     "lcbench_167168",
     "lcbench_189906",
     "lcbench_168331",
-    "lcbench_168330"
+    "lcbench_168330",
+    "lcbench_3945",
+    "lcbench_34539",
+    "lcbench_126025",
+    "lcbench_126026",
+    "lcbench_126029",
+    "lcbench_146212",
+    "lcbench_167104",
+    "lcbench_167149",
+    "lcbench_167181",
+    "lcbench_167190",
+    "lcbench_168335",
+    "lcbench_168868",
+    "lcbench_168908",
+    "lcbench_189862",
+    "lcbench_189865",
+    "lcbench_189908"
   ],
   "fmp_base": {},
   "baseline_params": {
-    "_comment": "Baseline sampler settings. n_startup_trials defaults to the FMP n_init (16) so every method gets the same initial design size. Keys map to Optuna sampler kwargs.",
     "TPE": {},
     "GP": {},
     "CMAES": {},
