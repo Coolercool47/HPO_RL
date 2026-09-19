@@ -3,7 +3,7 @@
 Part A - one-at-a-time: every knob in KNOBS is set to 5 levels (others at the shared
          config), 5 representative tasks, 10 seeds. Method names: S__<knob>__<level>.
 Part B - random configurations for fANOVA importances: N_RANDOM joint samples of all
-         knobs on one task (rastrigin 10-D), 5 seeds. Method names: R__<i>.
+         knobs on all 9 tasks, 5 seeds. Method names: R__<i>.
 
     python experiments_new/sensitivity/run.py --dry-run | --smoke | --workers 10
     python experiments_new/sensitivity/run.py --part A            # only the OAT sweep
@@ -55,10 +55,33 @@ TASKS_A = [
     dict(kind="synthetic", function="rastrigin", dims=10, noise_std=0.0, categorical=False),
     dict(kind="synthetic", function="schwefel", dims=10, noise_std=0.0, categorical=False),
     dict(kind="synthetic", function="ackley", dims=10, noise_std=0.0, categorical=True),
-    dict(kind="lcbench", instance="7593"),
-    dict(kind="lcbench", instance="168329"),
+    # LCBench at the main protocol's budget (200 full-fidelity evaluations); two instances from
+    # the original hard set and two from the added ones
+    dict(kind="lcbench", instance="7593", budget=200),
+    dict(kind="lcbench", instance="168329", budget=200),
+    dict(kind="lcbench", instance="167185", budget=200),
+    dict(kind="lcbench", instance="126026", budget=200),
+    dict(kind="lcbench", instance="167181", budget=200),
+    dict(kind="lcbench", instance="189908", budget=200),
 ]
-TASKS_B = [dict(kind="synthetic", function="rastrigin", dims=10, noise_std=0.0, categorical=False)]
+# knobs swept multiplicatively (x0.25, x0.5, x1, x2, x4) when the sweep is centred on a tuned config
+MULT_KNOBS = ["T_mcmc", "sigma_fraction", "wide_sigma_fraction", "kde_tau", "hmm_window", "rejection_streak",
+              "bw_prior_strength", "n_init"]
+KNOB_CAPS = {"sigma_fraction": 1.0, "wide_sigma_fraction": 4.0, "n_init": 64}
+
+
+def centred_knobs(base: dict) -> dict[str, list]:
+    """Levels around the values of `base` (tuned config); absolute grids for the bounded knobs."""
+    out = dict(KNOBS)
+    for k in MULT_KNOBS:
+        if k not in base:
+            continue
+        lv = [float(base[k]) * m for m in (0.25, 0.5, 1.0, 2.0, 4.0)]
+        lv = [min(v, KNOB_CAPS.get(k, float("inf"))) for v in lv]
+        lv = [max(2, int(round(v))) for v in lv] if k in INT_KNOBS else [float(f"{v:.4g}") for v in lv]
+        out[k] = sorted(set(lv))
+    return out
+TASKS_B = TASKS_A   # random configurations (fANOVA) on every task, not on one function
 
 
 def apply_knob(params: dict, knob: str, value) -> dict:
@@ -76,13 +99,18 @@ def apply_knob(params: dict, knob: str, value) -> dict:
 
 
 def build_specs(fmp_base: dict, part: str) -> tuple[list[str], dict, dict]:
-    base = {**fmp_base, **M.FMP_VARIANTS[BASE_VARIANT]}
+    if fmp_base:   # tuned config: sweep around the reported method (n_chains / p_dream from the config)
+        base = M.method_spec("FMP_DREAM", fmp_base)["params"]
+        knobs = centred_knobs(base)
+    else:          # Table-5 defaults: multi-chain soft FMP, p_dream = 0 (ladder step iv)
+        base = {**fmp_base, **M.FMP_VARIANTS[BASE_VARIANT]}
+        knobs = KNOBS
     names, specs, meta = [], {}, {}
     if part in ("A", "AB"):
         names.append("S__base")
         specs["S__base"] = {"kind": "fmp", "params": dict(base)}
         meta["S__base"] = {"knob": "base", "level": None}
-        for knob, levels in KNOBS.items():
+        for knob, levels in knobs.items():
             for lv in levels:
                 n = f"S__{knob}__{lv}"
                 names.append(n)

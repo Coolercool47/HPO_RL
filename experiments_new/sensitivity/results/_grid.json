@@ -211,11 +211,18 @@
     "R__199"
   ],
   "tasks": [
-    "cont__rastrigin_10d"
+    "cont__rastrigin_10d",
+    "cont__schwefel_10d",
+    "cat__ackley_10d",
+    "lcbench_7593",
+    "lcbench_168329",
+    "lcbench_167185",
+    "lcbench_126026",
+    "lcbench_167181",
+    "lcbench_189908"
   ],
   "fmp_base": {},
   "baseline_params": {
-    "_comment": "Baseline sampler settings. n_startup_trials defaults to the FMP n_init (16) so every method gets the same initial design size. Keys map to Optuna sampler kwargs.",
     "TPE": {},
     "GP": {},
     "CMAES": {},

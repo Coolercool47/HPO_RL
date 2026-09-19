@@ -1,13 +1,25 @@
-knob,mean
-p_dream,2.447111000919233
-kde_tau,1.873701506492594
-T_mcmc,0.8822622010997209
-n_init,0.629386726702363
-emission_scale,0.6230626970693074
-rejection_streak,0.5946876414016918
-n_chains,0.5728993268080884
-sigma_fraction,0.4989439936841185
-burnin_fraction,0.39724393477132197
-wide_sigma_fraction,0.3047226236709777
-hmm_window,0.2515470123457503
-bw_prior_strength,0.17420775674529665
+suite,knob,range,best_level,worst_level,best_level_per_task
+lcbench,kde_tau,1.9222976048787435,0.015,0.5,126026=0.005; 167181=0.005; 167185=0.005; 168329=0.015; 189908=0.015; 7593=0.015
+lcbench,p_dream,1.6183334350585938,0.0,1.0,126026=0.5; 167181=0.5; 167185=0.75; 168329=0; 189908=0; 7593=0
+lcbench,n_chains,1.2175533294677736,4.0,16.0,126026=2; 167181=2; 167185=4; 168329=8; 189908=4; 7593=1
+lcbench,emission_scale,0.8045486132303874,0.1,3.0,126026=0.1; 167181=10; 167185=1; 168329=0.1; 189908=0.3; 7593=0.1
+lcbench,n_init,0.7764243443806966,32.0,8.0,126026=4; 167181=8; 167185=8; 168329=32; 189908=32; 7593=32
+lcbench,T_mcmc,0.7057879765828451,0.1,1.0,126026=0.1; 167181=0.1; 167185=1; 168329=0.1; 189908=0.1; 7593=10
+lcbench,sigma_fraction,0.5324909210205078,0.01,0.1,126026=0.01; 167181=0.01; 167185=0.1; 168329=0.01; 189908=0.01; 7593=0.3
+lcbench,wide_sigma_fraction,0.5066898028055826,0.04,0.12,126026=0.12; 167181=0.12; 167185=0.4; 168329=1.2; 189908=4; 7593=0.04
+lcbench,rejection_streak,0.3283177693684896,5.0,40.0,126026=3; 167181=3; 167185=3; 168329=5; 189908=5; 7593=3
+lcbench,hmm_window,0.3201302528381348,32.0,16.0,126026=2; 167181=32; 167185=16; 168329=32; 189908=2; 7593=32
+lcbench,bw_prior_strength,0.1530736287434896,2.5,250.0,126026=7.5; 167181=7.5; 167185=25; 168329=75; 189908=250; 7593=2.5
+lcbench,burnin_fraction,0.05098724365234375,0.4,0.0,126026=0; 167181=0.4; 167185=0; 168329=0; 189908=0.4; 7593=0.4
+synthetic,p_dream,0.33824353177580424,0.25,1.0,cat__ackley=0.25; cont__rastrigin=0.25; cont__schwefel=0.25
+synthetic,kde_tau,0.2895636611298338,0.05,0.5,cat__ackley=0.015; cont__rastrigin=0.05; cont__schwefel=0.05
+synthetic,emission_scale,0.22105170987788192,1.0,10.0,cat__ackley=0.1; cont__rastrigin=1; cont__schwefel=1
+synthetic,sigma_fraction,0.17628634715814429,0.03,1.0,cat__ackley=0.03; cont__rastrigin=0.1; cont__schwefel=0.03
+synthetic,n_chains,0.148498449209982,2.0,16.0,cat__ackley=8; cont__rastrigin=4; cont__schwefel=2
+synthetic,wide_sigma_fraction,0.13568775503832786,0.04,1.2,cat__ackley=0.04; cont__rastrigin=0.4; cont__schwefel=4
+synthetic,n_init,0.09833288639063242,4.0,64.0,cat__ackley=32; cont__rastrigin=16; cont__schwefel=16
+synthetic,T_mcmc,0.08980984448180929,0.3,3.0,cat__ackley=0.1; cont__rastrigin=1; cont__schwefel=10
+synthetic,bw_prior_strength,0.059843499804230205,75.0,250.0,cat__ackley=75; cont__rastrigin=75; cont__schwefel=250
+synthetic,rejection_streak,0.0469656627185967,40.0,3.0,cat__ackley=40; cont__rastrigin=10; cont__schwefel=10
+synthetic,hmm_window,0.03864472770900507,16.0,2.0,cat__ackley=2; cont__rastrigin=8; cont__schwefel=8
+synthetic,burnin_fraction,0.00533146791379735,0.05,0.1,cat__ackley=0.2; cont__rastrigin=0; cont__schwefel=0

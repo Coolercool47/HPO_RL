@@ -725,3 +725,7 @@ experiments_new/**/results_smoke/
 experiments_new/**/figures_smoke/
 experiments_new/configs/*_smoke.json
 experiments_new/**/logs/
+
+# sensitivity raw runs are too large for git (2.8 GB); figures*/sensitivity_runs.csv holds every per-run scalar the analysis uses
+experiments_new/sensitivity/results/
+experiments_new/sensitivity/results_tuned/
