@@ -13,7 +13,8 @@ def load_instances() -> tuple[list[str], list[str]]:
     if CONFIG.is_file():
         with open(CONFIG, encoding="utf-8") as fh:
             d = json.load(fh)
-        return list(d["test"]), list(d["tune"])
+        # test = 10 core instances (ablations, sensitivity) + every other non-tuning instance
+        return list(d["test"]) + list(d.get("test_extra", [])), list(d["tune"])
     return list(PAPER_INSTANCES), []
 
 

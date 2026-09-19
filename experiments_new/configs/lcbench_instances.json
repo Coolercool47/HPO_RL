@@ -1,7 +1,7 @@
 {
   "seed": 12345,
   "n_samples": 256,
-  "rule": "paper 5 + hardest by survey; tuning = next hardest, disjoint",
+  "rule": "paper 5 + hardest by survey; tuning = next hardest, disjoint; test_extra = every remaining instance, so test + test_extra = all 26 instances not used for tuning (no selection)",
   "test": [
     "7593",
     "189873",
@@ -13,6 +13,24 @@
     "189906",
     "168331",
     "168330"
+  ],
+  "test_extra": [
+    "3945",
+    "34539",
+    "126025",
+    "126026",
+    "126029",
+    "146212",
+    "167104",
+    "167149",
+    "167181",
+    "167190",
+    "168335",
+    "168868",
+    "168908",
+    "189862",
+    "189865",
+    "189908"
   ],
   "tune": [
     "189905",
