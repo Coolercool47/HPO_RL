@@ -100,6 +100,10 @@ def method_spec(name: str, fmp_base: dict | None = None, baseline_params: dict |
     if name in FMP_VARIANTS:
         base = {k: v for k, v in (fmp_base or {}).items() if not str(k).startswith("_")}
         params = {**base, **FMP_VARIANTS[name]}
+        if name == "FMP_DREAM":
+            # Table-5 value; the class default is 0.0, so an empty shared config would
+            # otherwise silently turn FMP_DREAM into FMP
+            params.setdefault("p_dream", 0.5)
         return {"kind": "fmp", "params": params}
     if name in BASELINES:
         spec = dict(BASELINES[name])

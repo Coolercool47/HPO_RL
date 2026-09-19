@@ -24,7 +24,8 @@
     19
   ],
   "methods": [
-    "GP"
+    "FMP_DREAM",
+    "L1_K1_VITERBI_SUB"
   ],
   "tasks": [
     "cont__sphere_10d",

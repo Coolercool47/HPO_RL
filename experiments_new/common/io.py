@@ -45,6 +45,14 @@ def load_results(out_dir: Path, methods=None, tasks=None) -> pd.DataFrame:
             "time_objective": rec["time_objective"], "wall_time": rec.get("wall_time", np.nan),
             "cost_total": rec["costs"][-1] if rec["costs"] else np.nan,
         }
+        # a multi-chain FMP sweep can finish 1-2 evaluations past the budget; score every
+        # single-fidelity run on its first `budget` evaluations only
+        vals = rec.get("values") or []
+        if rec["method"] != "TPE_HB" and len(vals) > rec["budget"]:
+            i = int(np.argmin(np.asarray(vals[:rec["budget"]], dtype=float)))
+            tv = rec.get("true_values")
+            row.update(n_evals=rec["budget"], best_value=vals[i], best_true_value=(tv[i] if tv else vals[i]),
+                       best_raw=rec["raw"][i] if rec.get("raw") else row["best_raw"], truncated=True)
         row["time_overhead"] = row["time_total"] - row["time_objective"]
         if "fmp" in rec and "summary" in rec["fmp"]:
             for k, v in rec["fmp"]["summary"].items():

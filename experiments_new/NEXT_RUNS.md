@@ -10,7 +10,7 @@ steps below are kept for re-runs and for adding SMAC. State:
 | E2 LCBench, Table-5 config (`results_table5/`) | complete (7 methods x 10 tasks x 20 seeds) | nothing; the old `FMP` arm was renamed `L1_K1_VITERBI_SUB` in place |
 | E2 LCBench, tuned config (`results/`) | complete | nothing |
 | E1 synthetic, tuned config | complete (6 methods x 19 tasks x 20 seeds), analysed | nothing |
-| E1 synthetic, Table-5 config | complete, analysed (`figures_table5/`) | nothing |
+| E1 synthetic, Table-5 config | complete (7 methods x 19 tasks x 20 seeds; FMP_DREAM and L1 rerun 2026-09-19 after the p_dream default fix), analysed (`figures_table5/`) | nothing |
 | E3 ladder, E4 controller | complete | nothing (analyses in `figures/`) |
 | E5 diagnostics | complete (`diagnostics/figures/`) | nothing |
 

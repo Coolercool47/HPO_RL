@@ -58,5 +58,32 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-19 19:47:54",
+  "argv": [
+   "experiments_new/synt_functions/run.py",
+   "--workers",
+   "8",
+   "--out",
+   "experiments_new/synt_functions/results_table5",
+   "--methods",
+   "FMP_DREAM",
+   "L1_K1_VITERBI_SUB"
+  ],
+  "n_jobs": 760,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.030120849609375,
+   "workers_rss_max_gb": 0.24908828735351562,
+   "used_gb": 12.265567779541016,
+   "swap_used_gb": 0.15874099731445312,
+   "min_available_gb": 3.5114479064941406
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 720,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]

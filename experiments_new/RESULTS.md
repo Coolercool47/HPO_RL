@@ -118,14 +118,37 @@ popsize 7, 5 start-up trials.
 
 ## 7. Untuned reference (Table-5 defaults)
 
-LCBench: GP 86.8, TPE 81.1, FMP_DREAM 80.3, CMAES 79.8, TPE_HB 77.5, L1 77.5, RS 76.6.
-Synthetic (complete, 7 methods): average ranks continuous GP 1.0, CMAES 2.0, TPE 3.0,
-FMP 4.0, FMP_DREAM 5.0, L1 6.0, RS 7.0; noisy CMAES 2.0, TPE 2.2, GP 2.8, FMP 4.1;
-categorical GP 1.2, CMAES 2.4, TPE 3.2, FMP 4.1. At the paper's defaults FMP therefore
-ranks behind TPE on every synthetic suite; the held-out tuning (Section 5) is what moves
-it ahead of TPE, while tuning changed TPE and GP by < 0.5 points and CMA-ES by +2 points.
-The paper must present the tuned configuration as the method's defaults and the
-Table-5 run as the robustness reference.
+LCBench (mean best accuracy): GP 86.8, TPE 81.1, FMP_DREAM 80.3, CMAES 79.8, TPE_HB 77.5,
+L1 77.5, RS 76.6. There is no plain `FMP` arm in this set; L1 is the submitted paper's
+"FMP-only" structure.
+
+Synthetic, 7 methods x 19 tasks x 20 seeds (2660 runs). Mean normalized regret:
+
+| suite | GP | CMAES | TPE | FMP | FMP_DREAM | L1 | RS |
+|---|---|---|---|---|---|---|---|
+| continuous (9) | 0.167 | 0.300 | 0.361 | 0.425 | 0.509 | 0.707 | 1.00 |
+| noisy (5) | 0.515 | 0.397 | 0.500 | 0.572 | 0.589 | 0.779 | 1.00 |
+| categorical (5) | 0.212 | 0.323 | 0.425 | 0.442 | 0.520 | 0.681 | 0.97 |
+
+Average ranks: continuous GP 1.1, CMAES 2.3, TPE 3.1, FMP 3.7, FMP_DREAM 4.9, L1 5.9, RS 7.0;
+noisy CMAES 2.2, TPE 2.2, GP 3.0, FMP 3.8, FMP_DREAM 4.4, L1 5.6; categorical GP 1.2,
+CMAES 2.6, TPE 3.0, FMP 3.6, FMP_DREAM 4.8, L1 5.8. Against TPE: FMP wins 4/19 tasks
+(0 sig. better, 3 sig. worse), FMP_DREAM 0/19 (9 sig. worse), L1 0/19 (17 sig. worse).
+FMP_DREAM beats FMP on 1/19 tasks.
+
+At the paper's defaults every variant therefore ranks behind TPE on every synthetic suite,
+and the submitted paper's FMP-only structure is significantly worse than TPE on 17 of 19
+tasks. The held-out tuning (Section 5) is what moves FMP ahead of TPE, while tuning changed
+TPE and GP by < 0.5 points and CMA-ES by +2 points. The paper must present the tuned
+configuration as the method's defaults and the Table-5 run as the robustness reference.
+
+Correction (2026-09-19): an earlier version of this section reported the synthetic
+FMP_DREAM arm from runs in which DREAM was switched off (the shared Table-5 config left
+`p_dream` at the class default 0, so the arm duplicated FMP on 18 of 19 tasks), and reported
+L1 from a single task. Both arms were rerun; `methods.method_spec` now defaults FMP_DREAM
+to p_dream = 0.5. All other result sets were audited (stored configs, task coverage, run
+counts) and are unaffected. Scoring now also caps every single-fidelity run at its budget:
+about 1 % of multi-chain FMP runs had used 1-2 evaluations more.
 
 ## 8. What this means for the rebuttal
 
