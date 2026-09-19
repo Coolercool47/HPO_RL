@@ -1,0 +1,18 @@
+# Linux image for the SMAC3 baseline (SMAC has no official Windows support).
+# Build (from the repository root):
+#   docker build -f experiments_new/docker/Dockerfile.smac -t hpo-smac experiments_new
+# Run (repository mounted, results written straight into the working tree):
+#   docker run --rm -v "${PWD}:/work" -w /work hpo-smac \
+#     python experiments_new/lcbench/run.py --methods SMAC --workers 4 --fmp-config tuned --baseline-config tuned
+FROM python:3.11-slim
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential swig \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt /tmp/requirements.txt
+# CPU-only torch keeps the image small; yahpo-gym without deps (its pins are outdated)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && grep -v -i "^smac\|^yahpo\|^torch" /tmp/requirements.txt > /tmp/req.txt \
+    && pip install --no-cache-dir -r /tmp/req.txt \
+    && pip install --no-cache-dir "smac>=2.1" \
+    && pip install --no-cache-dir --no-deps yahpo-gym==1.0.2
+ENV PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
+WORKDIR /work

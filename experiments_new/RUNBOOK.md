@@ -151,16 +151,29 @@ Produces state-trajectory plots, O_t histograms with the hand-set emission densi
 and an offline 3-component GMM, Baum-Welch transition-matrix evolution, and
 `occupancy_<method>.csv` (state occupancy, acceptance per state, rescues).
 
-## 8. Adding SMAC later (Linux / WSL)
+## 8. Adding SMAC later (Linux, WSL or Docker)
+
+SMAC3 has no Windows build. On Windows use Docker Desktop (it runs on the WSL2 backend, so
+no separate WSL setup is needed). From the repository root:
 
 ```
-pip install "smac>=2.1"
-python experiments_new/synt_functions/run.py --methods SMAC --workers 10 --fmp-config tuned
-python experiments_new/lcbench/run.py        --methods SMAC --workers 10 --fmp-config tuned
+docker build -f experiments_new/docker/Dockerfile.smac -t hpo-smac experiments_new
+docker run --rm -v "${PWD}:/work" -w /work hpo-smac python experiments_new/lcbench/run.py        --methods SMAC --workers 4 --fmp-config tuned --baseline-config tuned
+docker run --rm -v "${PWD}:/work" -w /work hpo-smac python experiments_new/synt_functions/run.py --methods SMAC --workers 4 --fmp-config tuned --baseline-config tuned
 ```
+
+(Git Bash: prefix with `MSYS_NO_PATHCONV=1` and give the Windows path, e.g.
+`-v "C:/path/to/HPO_RL:/work"`.) Results are written into the mounted working tree, the run
+is resumable, and SMAC is scheduled as a heavy job like GP. Measured in the container:
+about 0.3 s per evaluation on synthetic tasks and 2 s on LCBench at small budgets, 0.5 GB
+peak per worker; expect roughly 10-15 h for both suites with 4 workers. The container sees
+only the memory Docker Desktop is allowed (Settings > Resources, or `.wslconfig`).
+
+On native Linux / WSL instead: `pip install "smac>=2.1"` and run the same two commands
+without Docker.
 
 Only the SMAC runs are executed; re-running the analysis scripts merges them into the
-existing tables and figures.
+tables and figures.
 
 ## Reading the critical-difference diagram
 
