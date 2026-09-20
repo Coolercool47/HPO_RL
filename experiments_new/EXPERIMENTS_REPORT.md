@@ -1,4 +1,4 @@
-# Experiment inventory (state of 2026-09-20)
+# Experiment inventory (final state of 2026-09-21)
 
 Counts are taken from the result files on disk, not from the plan. Every finished set has
 0 error files. Numbers and conclusions are in `RESULTS.md`; this file says what was run.
@@ -9,12 +9,13 @@ primary benchmark; synthetic functions are the secondary robustness check.
 
 | | runs | share |
 |---|---|---|
-| all experiments | 52 010 | |
-| LCBench | 34 940 | 67 % |
-| synthetic functions | 17 070 | 33 % |
+| all experiments | 60 370 | |
+| LCBench | 37 700 | 62 % |
+| rbv2 SVM / XGBoost (real data, categorical + conditional) | 5 600 | 9 % |
+| synthetic functions | 17 070 | 28 % |
 
-The Table-5 LCBench reference is being extended from 10 to 26 instances (+2 240 runs, in
-progress); SMAC is not run (8 timing runs only).
+All planned experiments are complete, including SMAC on LCBench and rbv2 (SMAC on the synthetic
+functions was not run: lowest priority under plan revision 2, about 7.5 h).
 
 LCBench instances: 34 exist. 8 are reserved for tuning (189905, 167201, 189354, 189866,
 167200, 167184, 189909, 167161). All other 26 form the test set: the 10 originally selected
@@ -29,8 +30,9 @@ fidelity, budget counted in epochs, 200 x 52).
 | ID | folder | design | runs | LCBench runs | LCBench instances | budget |
 |---|---|---|---|---|---|---|
 | E0 held-out tuning | `tuning_heldout/` | 3 methods (FMP, TPE, CMA-ES) x 100 meta-trials x 8 tuning instances x 3 seeds | 7 200 | 7 200 | 8 (tuning) | 200 |
-| E2 LCBench, tuned | `lcbench/results` | 7 methods (RS, TPE, GP, CMAES, TPE_HB, FMP, FMP_DREAM) x 26 instances x 20 seeds | 3 640 | 3 640 | 26 | 200 |
-| E2 LCBench, Table-5 | `lcbench/results_table5` | 7 methods (L1 in place of FMP) x 10 instances x 20 seeds; extension to 26 in progress | 1 400 | 1 400 | 10 (-> 26) | 200 |
+| E2 LCBench, tuned | `lcbench/results` | 8 methods (RS, TPE, GP, SMAC, CMAES, TPE_HB, FMP, FMP_DREAM) x 26 instances x 20 seeds | 4 160 | 4 160 | 26 | 200 |
+| E2 LCBench, Table-5 | `lcbench/results_table5` | 7 methods (L1 in place of FMP) x 26 instances x 20 seeds | 3 640 | 3 640 | 26 | 200 |
+| E8 rbv2 (SVM, XGBoost) | `rbv2/results` | 7 methods (RS, TPE, GP, SMAC, CMAES, FMP, FMP_DREAM) x 40 instances (20 per scenario) x 20 seeds; nothing tuned on it | 5 600 | – | 40 rbv2 | 200 |
 | E1 synthetic, tuned | `synt_functions/results` | 6 methods x 19 tasks (9 cont, 5 noisy, 5 cat; 10-D) x 20 seeds | 2 280 | 0 | – | 500 |
 | E1 synthetic, Table-5 | `synt_functions/results_table5` | 7 methods (+ L1) x 19 x 20 | 2 660 | 0 | – | 500 |
 | E3 ablation ladder | `ablation_ladder/` | 6 variants x (26 LCBench + 19 synthetic) x 10 seeds | 2 700 | 1 560 | 26 | 200 / 500 |
@@ -58,9 +60,9 @@ Sensitivity LCBench instances: 7593, 168329, 167185 (original set), 126026, 1671
 * LCBench test set is 26 instances (plan: 10).
 * Sensitivity: 12 knobs (plan: 10), two centres, LCBench-first; fANOVA on all 9 tasks
   (first version: Rastrigin only).
-* SMAC is not run. The runner works in a Linux container (`docker/Dockerfile.smac`);
-  measured cost 100 s per LCBench run and 415 s per synthetic run, about 10 h for both
-  suites with 6 concurrent jobs (RUNBOOK section 8).
+* SMAC runs in a Linux container (`docker/Dockerfile.smac`): done on LCBench (520 runs, 2.7 h) and
+  rbv2 (800 runs, 4.5 h) with 6 concurrent jobs; not run on the synthetic functions.
+* E8 (rbv2) was added by plan revision 2 because LCBench has no categorical hyperparameters.
 * Ablations and sensitivity use 10 seeds (as planned); main comparisons use 20.
 
 ## Corrections made after the first digest
@@ -77,4 +79,5 @@ Sensitivity LCBench instances: 7593, 168329, 167185 (original set), 126026, 1671
 
 * GP-BO results may differ in the last digits between machines (torch); all GP runs in a
   result set come from one machine.
-* HMM diagnostics figures (E5) still cover the original 10 LCBench instances.
+* HMM diagnostics figures (E5) cover all 26 LCBench instances (regenerated 2026-09-20).
+* 2026-09-20: the first E8 run was discarded (instance id not applied by the surrogate wrapper); fixed and rerun.

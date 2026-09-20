@@ -4,17 +4,18 @@
     "n_tasks": 20,
     "friedman_nemenyi": {
       "n_tasks": 20,
-      "n_methods": 6,
+      "n_methods": 7,
       "avg_ranks": {
-        "TPE": 1.45,
-        "CMAES": 3.2,
-        "FMP_DREAM": 3.3,
-        "GP": 3.45,
-        "FMP": 4.6,
-        "RS": 5.0
+        "TPE": 1.65,
+        "SMAC": 3.1,
+        "CMAES": 3.85,
+        "FMP_DREAM": 4.0,
+        "GP": 4.0,
+        "FMP": 5.5,
+        "RS": 5.9
       },
-      "friedman_p": 1.796951824066459e-08,
-      "cd": 1.6860827381833905
+      "friedman_p": 1.5857646786056068e-09,
+      "cd": 2.014550520587657
     },
     "wilcoxon_vs_ref": {
       "CMAES": {
@@ -56,6 +57,14 @@
         "p": 1.9073486328125e-06,
         "wins_a": 0,
         "wins_b": 20
+      },
+      "SMAC": {
+        "a": "SMAC",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.000209808349609375,
+        "wins_a": 4,
+        "wins_b": 16
       }
     }
   },
@@ -64,17 +73,18 @@
     "n_tasks": 20,
     "friedman_nemenyi": {
       "n_tasks": 20,
-      "n_methods": 6,
+      "n_methods": 7,
       "avg_ranks": {
-        "GP": 1.525,
-        "TPE": 3.025,
-        "CMAES": 3.05,
-        "FMP_DREAM": 3.825,
-        "RS": 4.725,
-        "FMP": 4.85
+        "GP": 1.675,
+        "SMAC": 2.8,
+        "TPE": 3.7,
+        "CMAES": 3.725,
+        "FMP_DREAM": 4.75,
+        "RS": 5.55,
+        "FMP": 5.8
       },
-      "friedman_p": 1.3039212727893813e-09,
-      "cd": 1.6860827381833905
+      "friedman_p": 6.069605964631947e-12,
+      "cd": 2.014550520587657
     },
     "wilcoxon_vs_ref": {
       "CMAES": {
@@ -116,6 +126,14 @@
         "p": 0.02168170376271011,
         "wins_a": 5,
         "wins_b": 12
+      },
+      "SMAC": {
+        "a": "SMAC",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.01682204067287556,
+        "wins_a": 12,
+        "wins_b": 5
       }
     }
   }

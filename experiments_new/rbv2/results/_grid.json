@@ -24,12 +24,7 @@
     19
   ],
   "methods": [
-    "RS",
-    "TPE",
-    "GP",
-    "CMAES",
-    "FMP",
-    "FMP_DREAM"
+    "SMAC"
   ],
   "tasks": [
     "rbv2_svm_11",
