@@ -1,0 +1,122 @@
+{
+  "rbv2_svm": {
+    "agg_col": "value",
+    "n_tasks": 20,
+    "friedman_nemenyi": {
+      "n_tasks": 20,
+      "n_methods": 6,
+      "avg_ranks": {
+        "TPE": 1.45,
+        "CMAES": 3.2,
+        "FMP_DREAM": 3.3,
+        "GP": 3.45,
+        "FMP": 4.6,
+        "RS": 5.0
+      },
+      "friedman_p": 1.796951824066459e-08,
+      "cd": 1.6860827381833905
+    },
+    "wilcoxon_vs_ref": {
+      "CMAES": {
+        "a": "CMAES",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.0001049041748046875,
+        "wins_a": 1,
+        "wins_b": 19
+      },
+      "FMP": {
+        "a": "FMP",
+        "b": "TPE",
+        "n": 20,
+        "p": 1.9073486328125e-06,
+        "wins_a": 0,
+        "wins_b": 20
+      },
+      "FMP_DREAM": {
+        "a": "FMP_DREAM",
+        "b": "TPE",
+        "n": 20,
+        "p": 1.9073486328125e-05,
+        "wins_a": 2,
+        "wins_b": 18
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.2942523956298828,
+        "wins_a": 6,
+        "wins_b": 14
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 20,
+        "p": 1.9073486328125e-06,
+        "wins_a": 0,
+        "wins_b": 20
+      }
+    }
+  },
+  "rbv2_xgboost": {
+    "agg_col": "value",
+    "n_tasks": 20,
+    "friedman_nemenyi": {
+      "n_tasks": 20,
+      "n_methods": 6,
+      "avg_ranks": {
+        "GP": 1.525,
+        "TPE": 3.025,
+        "CMAES": 3.05,
+        "FMP_DREAM": 3.825,
+        "RS": 4.725,
+        "FMP": 4.85
+      },
+      "friedman_p": 1.3039212727893813e-09,
+      "cd": 1.6860827381833905
+    },
+    "wilcoxon_vs_ref": {
+      "CMAES": {
+        "a": "CMAES",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.6529181068049057,
+        "wins_a": 7,
+        "wins_b": 10
+      },
+      "FMP": {
+        "a": "FMP",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.0008634758631167839,
+        "wins_a": 1,
+        "wins_b": 17
+      },
+      "FMP_DREAM": {
+        "a": "FMP_DREAM",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.06837655952437323,
+        "wins_a": 4,
+        "wins_b": 13
+      },
+      "GP": {
+        "a": "GP",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.00027641623202831126,
+        "wins_a": 17,
+        "wins_b": 1
+      },
+      "RS": {
+        "a": "RS",
+        "b": "TPE",
+        "n": 20,
+        "p": 0.02168170376271011,
+        "wins_a": 5,
+        "wins_b": 12
+      }
+    }
+  }
+}

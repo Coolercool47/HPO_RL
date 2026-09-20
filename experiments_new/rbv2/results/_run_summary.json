@@ -1,0 +1,30 @@
+[
+ {
+  "time": "2026-09-20 16:57:16",
+  "argv": [
+   "experiments_new/rbv2/run.py",
+   "--workers",
+   "8",
+   "--heavy-gb",
+   "1.0",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned"
+  ],
+  "n_jobs": 4800,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.5477867126464844,
+   "workers_rss_max_gb": 0.4261817932128906,
+   "used_gb": 12.22653579711914,
+   "swap_used_gb": 0.3478507995605469,
+   "min_available_gb": 3.5504798889160156
+  },
+  "workers": 8,
+  "heavy_gb": 1.0,
+  "n_run": 4800,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ }
+]

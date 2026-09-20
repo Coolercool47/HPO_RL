@@ -1,0 +1,113 @@
+{
+  "exp": "rbv2",
+  "budget": 200,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "methods": [
+    "RS",
+    "TPE",
+    "GP",
+    "CMAES",
+    "FMP",
+    "FMP_DREAM"
+  ],
+  "tasks": [
+    "rbv2_svm_11",
+    "rbv2_svm_18",
+    "rbv2_svm_24",
+    "rbv2_svm_37",
+    "rbv2_svm_44",
+    "rbv2_svm_375",
+    "rbv2_svm_458",
+    "rbv2_svm_469",
+    "rbv2_svm_1067",
+    "rbv2_svm_1486",
+    "rbv2_svm_1494",
+    "rbv2_svm_4134",
+    "rbv2_svm_4154",
+    "rbv2_svm_6332",
+    "rbv2_svm_40496",
+    "rbv2_svm_40536",
+    "rbv2_svm_40685",
+    "rbv2_svm_40982",
+    "rbv2_svm_40984",
+    "rbv2_svm_41143",
+    "rbv2_xgboost_6",
+    "rbv2_xgboost_23",
+    "rbv2_xgboost_44",
+    "rbv2_xgboost_60",
+    "rbv2_xgboost_307",
+    "rbv2_xgboost_1049",
+    "rbv2_xgboost_1053",
+    "rbv2_xgboost_1068",
+    "rbv2_xgboost_1462",
+    "rbv2_xgboost_1464",
+    "rbv2_xgboost_1468",
+    "rbv2_xgboost_1476",
+    "rbv2_xgboost_1478",
+    "rbv2_xgboost_4135",
+    "rbv2_xgboost_4154",
+    "rbv2_xgboost_40496",
+    "rbv2_xgboost_40900",
+    "rbv2_xgboost_40927",
+    "rbv2_xgboost_41162",
+    "rbv2_xgboost_41166"
+  ],
+  "fmp_base": {
+    "T_mcmc": 0.05021528037835243,
+    "sigma_fraction": 0.022095999012449814,
+    "wide_sigma_fraction": 0.3008503702038378,
+    "kde_tau": 0.006205167444665816,
+    "hmm_window": 12,
+    "rejection_streak": 24,
+    "bw_prior_strength": 89.80956876532602,
+    "burnin_fraction": 0.21939164151847443,
+    "n_init": 8,
+    "n_chains": 1,
+    "p_dream": 0.7412354684077219,
+    "emission_mu": [
+      -0.00946430696609267,
+      0.0946430696609267,
+      0.014196460449139003
+    ],
+    "emission_sigma": [
+      0.05678584179655601,
+      0.23660767415231673,
+      0.01892861393218534
+    ]
+  },
+  "baseline_params": {
+    "TPE": {
+      "n_startup_trials": 9,
+      "multivariate": true,
+      "n_ei_candidates": 63,
+      "consider_endpoints": true
+    },
+    "CMAES": {
+      "n_startup_trials": 5,
+      "sigma0": 0.990988592955792,
+      "popsize": 7
+    }
+  },
+  "overrides": null
+}
