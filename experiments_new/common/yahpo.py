@@ -187,6 +187,10 @@ def build_rbv2_task(spec: dict) -> Task:
                     continue
             spc = space[k]
             q[k] = str(v) if spc["type"] == "categorical" else (int(round(v)) if spc["type"] == "int" else float(v))
+        # rbv2: the surrogate takes the instance from BenchmarkSet.set_instance(); a task_id
+        # field in the query is overwritten by the constant of the active instance
+        if str(getattr(bench, "instance", None)) != instance:
+            bench.set_instance(instance)
         q["task_id"] = instance
         q["trainsize"] = 1.0
         q["repl"] = 10
