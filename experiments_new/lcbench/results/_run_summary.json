@@ -78,5 +78,35 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-20 16:44:52",
+  "argv": [
+   "experiments_new/lcbench/run.py",
+   "--methods",
+   "SMAC",
+   "--workers",
+   "6",
+   "--heavy-gb",
+   "1.0",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned"
+  ],
+  "n_jobs": 520,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.9817466735839844,
+   "workers_rss_max_gb": 0.5317802429199219,
+   "used_gb": 3.0851173400878906,
+   "swap_used_gb": 0.0,
+   "min_available_gb": 4.5566864013671875
+  },
+  "workers": 6,
+  "heavy_gb": 1.0,
+  "n_run": 516,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]
