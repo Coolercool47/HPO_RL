@@ -71,12 +71,16 @@ def spec_key(spec: dict) -> str:
         return f"{suite}__{spec['function']}_{spec['dims']}d"
     if spec["kind"] == "lcbench":
         return f"lcbench_{spec['instance']}"
+    if spec["kind"] == "rbv2":
+        return f"{spec['scenario']}_{spec['instance']}"
     raise ValueError(spec)
 
 
 def spec_suite(spec: dict) -> str:
     if spec["kind"] == "synthetic":
         return "cat" if spec["categorical"] else ("noisy" if spec["noise_std"] > 0 else "cont")
+    if spec["kind"] == "rbv2":
+        return spec["scenario"]
     return spec["kind"]
 
 
@@ -141,4 +145,8 @@ def build_task(spec: dict, seed: int = 0) -> Task:
         from experiments_new.common.yahpo import build_lcbench_task
 
         return build_lcbench_task(spec)
+    if spec["kind"] == "rbv2":
+        from experiments_new.common.yahpo import build_rbv2_task
+
+        return build_rbv2_task(spec)
     raise ValueError(f"unknown task kind {spec['kind']!r}")

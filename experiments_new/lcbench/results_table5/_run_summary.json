@@ -1,0 +1,36 @@
+[
+ {
+  "time": "2026-09-20 11:38:01",
+  "argv": [
+   "experiments_new/lcbench/run.py",
+   "--workers",
+   "8",
+   "--heavy-gb",
+   "1.0",
+   "--out",
+   "experiments_new/lcbench/results_table5",
+   "--methods",
+   "RS",
+   "TPE",
+   "GP",
+   "CMAES",
+   "TPE_HB",
+   "FMP_DREAM",
+   "L1_K1_VITERBI_SUB"
+  ],
+  "n_jobs": 3640,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 1.8274497985839844,
+   "workers_rss_max_gb": 0.3683586120605469,
+   "used_gb": 14.084938049316406,
+   "swap_used_gb": 0.3742942810058594,
+   "min_available_gb": 1.69207763671875
+  },
+  "workers": 8,
+  "heavy_gb": 1.0,
+  "n_run": 272,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ }
+]

@@ -120,3 +120,80 @@ def build_lcbench_task(spec: dict) -> Task:
         true_objective=None, maximize_raw=True, raw_of_loss=lambda v: -v, eval_cost=float(max_epoch_i),
         extra={"instance": instance, "min_epoch": int(round(min_epoch)), "max_epoch": max_epoch_i},
     )
+
+
+# ---------------------------------------------------------------------------
+# rbv2_* scenarios (SVM / XGBoost on OpenML tasks): real-data HPO with consequential
+# categorical and conditional hyperparameters (kernel, booster). Single fidelity:
+# trainsize = 1.0, repl = 10; objective = -accuracy.
+# ---------------------------------------------------------------------------
+_RBV2: dict = {}
+RBV2_TARGET = "acc"
+
+
+def _rbv2_bench(scenario: str):
+    if scenario not in _RBV2:
+        _init_yahpo()
+        import contextlib
+        import io
+
+        from yahpo_gym import benchmark_set
+
+        with warnings.catch_warnings(), contextlib.redirect_stdout(io.StringIO()):
+            warnings.simplefilter("ignore")
+            b = benchmark_set.BenchmarkSet(scenario, active_session=True, multithread=False)
+        b.check = False
+        b.set_instance(b.instances[0])
+        cs = b.get_opt_space(drop_fidelity_params=True)
+        # parent -> {child: set(values of parent for which child is active)}
+        conds: dict = {}
+        for c in cs.conditions:
+            vals = set(c.values) if hasattr(c, "values") else {c.value}
+            conds[c.child.name] = (c.parent.name, {str(v) for v in vals})
+        _RBV2[scenario] = (b, cs, conds)
+    return _RBV2[scenario]
+
+
+def rbv2_instances(scenario: str) -> list[str]:
+    return [str(i) for i in _rbv2_bench(scenario)[0].instances]
+
+
+def build_rbv2_task(spec: dict) -> Task:
+    """Flat search space over all hyperparameters; inactive (conditional) ones are dropped
+    before the surrogate is queried, so every optimizer sees the same space."""
+    import ConfigSpace.hyperparameters as CSH
+
+    scenario, instance = spec["scenario"], str(spec["instance"])
+    bench, cs, conds = _rbv2_bench(scenario)
+    space: dict = {}
+    for hp in list(cs.values()):
+        if isinstance(hp, CSH.Constant):
+            continue
+        if isinstance(hp, CSH.UniformFloatHyperparameter):
+            space[hp.name] = {"type": "float", "values": [float(hp.lower), float(hp.upper)], "log": bool(hp.log)}
+        elif isinstance(hp, CSH.UniformIntegerHyperparameter):
+            space[hp.name] = {"type": "int", "values": [int(hp.lower), int(hp.upper)], "log": bool(hp.log)}
+        elif isinstance(hp, CSH.CategoricalHyperparameter):
+            space[hp.name] = {"type": "categorical", "values": [str(c) for c in hp.choices]}
+        else:
+            raise TypeError(f"unsupported hyperparameter {hp}")
+
+    def objective(cfg: dict) -> float:
+        q = {}
+        for k, v in cfg.items():
+            if k in conds:
+                parent, active = conds[k]
+                if str(cfg[parent]) not in active:
+                    continue
+            spc = space[k]
+            q[k] = str(v) if spc["type"] == "categorical" else (int(round(v)) if spc["type"] == "int" else float(v))
+        q["task_id"] = instance
+        q["trainsize"] = 1.0
+        q["repl"] = 10
+        return -float(bench.objective_function(q)[0][RBV2_TARGET])
+
+    return Task(
+        key=spec_key(spec), spec=spec, space=space, objective=objective, f_star=None,
+        true_objective=None, maximize_raw=True, raw_of_loss=lambda v: -v, eval_cost=1.0,
+        extra={"scenario": scenario, "instance": instance},
+    )

@@ -66,7 +66,7 @@ def analyze(out_dir: Path, fig_dir: Path, ref_method: str = "TPE", methods: list
         # LaTeX table
         sum_s = summ[summ["suite"] == suite]
         lower_better = True
-        if suite == "lcbench":  # report accuracy = -value
+        if suite == "lcbench" or str(suite).startswith("rbv2"):  # report accuracy = -value
             sum_s = sum_s.copy()
             sum_s["mean"] = -sum_s["mean"]
             lower_better = False
@@ -99,7 +99,7 @@ def analyze(out_dir: Path, fig_dir: Path, ref_method: str = "TPE", methods: list
         curves = {k: v for k, v in curves.items() if v.shape[0] >= min_seeds}
         if not curves:
             continue
-        if suite == "lcbench":
+        if suite == "lcbench" or str(suite).startswith("rbv2"):
             total = {t: float(g[g["task"] == t]["cost_total"].max()) for t in tasks}
             P.plot_convergence(curves, tasks, methods, fig_dir / f"convergence_{suite}.png", band="sem",
                                ylabel="best validation accuracy", transform=lambda c, t: -c, ncols=curve_ncols,
