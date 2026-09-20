@@ -108,7 +108,7 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
     # paired differences
     p = df.pivot_table(index=["task", "seed"], columns="method", values="acc")
     for a_, b_, key in [("FMP_DREAM", "TPE", "LcDreamTpe"), ("FMP_DREAM", "CMAES", "LcDreamCma"), ("FMP_DREAM", "FMP", "LcDreamFmp"),
-                        ("GP", "FMP_DREAM", "LcGpDream"), ("FMP_DREAM", "RS", "LcDreamRs")]:
+                        ("GP", "FMP_DREAM", "LcGpDream"), ("FMP_DREAM", "RS", "LcDreamRs")] +             ([("SMAC", "FMP_DREAM", "LcSmacDream"), ("SMAC", "TPE", "LcSmacTpe")] if "SMAC" in methods else []):
         pt = (p[a_] - p[b_]).groupby(level=0).mean()
         m_, lo, hi = boot_ci(pt)
         macros[key] = f"{m_:+.2f}"
@@ -133,6 +133,9 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
     macros["LcDreamBetter"] = str(int(sc.loc["FMP_DREAM", "better"]))
     macros["LcCmaSigLoss"] = str(int(sc.loc["CMAES", "sl"]))
     macros["LcGpSigWin"] = str(int(sc.loc["GP", "sw"]))
+    if "SMAC" in methods:
+        macros["LcSmacSigWin"] = str(int(sc.loc["SMAC", "sw"]))
+        macros["LcSmacBetter"] = str(int(sc.loc["SMAC", "better"]))
 
 
 def table_rbv2(out: Path, methods: list[str], macros: dict):
@@ -147,7 +150,7 @@ def table_rbv2(out: Path, methods: list[str], macros: dict):
         blocks[suite] = (tab, ranks, sc, fn)
         p = g.pivot_table(index=["task", "seed"], columns="method", values="acc")
         tag = "Svm" if "svm" in suite else "Xgb"
-        for a_, b_, key in [("FMP_DREAM", "TPE", "DreamTpe"), ("FMP_DREAM", "CMAES", "DreamCma"), ("FMP_DREAM", "FMP", "DreamFmp"), ("FMP_DREAM", "RS", "DreamRs")]:
+        for a_, b_, key in [("FMP_DREAM", "TPE", "DreamTpe"), ("FMP_DREAM", "CMAES", "DreamCma"), ("FMP_DREAM", "FMP", "DreamFmp"), ("FMP_DREAM", "RS", "DreamRs")] +                 ([("SMAC", "FMP_DREAM", "SmacDream")] if "SMAC" in methods else []):
             pt = (p[a_] - p[b_]).groupby(level=0).mean()
             m_, lo, hi = boot_ci(pt)
             macros[tag + key] = f"{m_:+.2f}"
