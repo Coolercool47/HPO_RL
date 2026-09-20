@@ -1,0 +1,7 @@
+method,n_tasks,wins,sig_wins,sig_losses
+CMAES,26,9,1,9
+FMP,26,2,0,14
+FMP_DREAM,26,6,0,7
+GP,26,25,23,0
+RS,26,0,0,25
+TPE_HB,26,3,0,6

@@ -33,6 +33,9 @@ def _band(y, band):
     return mid, mid - half, mid + half
 
 
+LABELS: dict = {}   # optional display names for methods (set by the paper asset script)
+
+
 def plot_convergence(curves: dict, tasks: list[str], methods: list[str], path: Path, *, band: str = "sem",
                      ylabel: str = "best value so far", log_y: bool = False, transform=None, ncols: int = 3,
                      xlabel: str = "evaluation", title: str = "", x_of=None) -> None:
@@ -52,7 +55,7 @@ def plot_convergence(curves: dict, tasks: list[str], methods: list[str], path: P
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)   # all-NaN columns before the first full evaluation
                 mid, lo, hi = _band(y, band)
-            ax.plot(x, mid, label=f"{m} (n={y.shape[0]})", color=_color(m), lw=1.4)
+            ax.plot(x, mid, label=LABELS.get(m, f"{m} (n={y.shape[0]})"), color=_color(m), lw=1.4)
             ax.fill_between(x, lo, hi, alpha=0.15, color=_color(m))
         ax.set_title(task, fontsize=10)
         ax.set_xlabel(xlabel)
@@ -144,7 +147,7 @@ def plot_observation_histogram(records: list[dict], path: Path, emission_mu=(-0.
     x = np.linspace(xlim[0], xlim[1], 600)
     for s, mu, sd in zip(("EXPLOIT", "EXPLORE", "TRAPPED"), emission_mu, emission_sigma):
         ax.plot(x, np.exp(-0.5 * ((x - mu) / sd) ** 2) / (sd * math.sqrt(2 * math.pi)), color=STATE_COLORS[s], lw=1.5, ls="--",
-                label=f"hand-set b_{s.lower()} (mu={mu}, sigma={sd})")
+                label=f"hand-set b_{s.lower()} (mu={mu:.3g}, sigma={sd:.3g})")
     try:
         from sklearn.mixture import GaussianMixture
 
