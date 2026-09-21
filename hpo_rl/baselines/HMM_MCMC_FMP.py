@@ -549,6 +549,7 @@ class ProposalGenerator:
             pi["name"]: {v: [] for v in pi["values"]} for pi in params if pi["type"] == "categorical"
         }
         self._fi_indices = [i for i, pi in enumerate(params) if pi["type"] in ("float", "int")]
+        self.has_categorical = any(pi["type"] == "categorical" for pi in params)
         # coordinates the DE kernel may move in symmetric mode: float + log-int only
         self._de_sym = set(i for i in self._fi_indices if params[i]["type"] == "float" or params[i]["log"])
         self._z_archive: list[np.ndarray] = []
@@ -899,7 +900,10 @@ class Chain:
             x_prime = self.gen.propose_dream(self.current_x, weights[1])
         else:
             self.last_kernel = "factorized"
-            cat_only = self.rng.random() < self.p_cat_step
+            # categorical-only steps exist only if there is a categorical coordinate and something else
+            # to leave untouched; otherwise the step would re-propose the current configuration
+            cat_only = (self.gen.has_categorical and bool(self.gen._fi_indices)
+                        and self.rng.random() < self.p_cat_step)
             x_prime = self.gen.propose(self.current_x, weights, self.state, categorical_only=cat_only,
                                        explore_subsample=self.explore_subsample, explore_frac=self.explore_frac)
         loss_prime = float(objective(x_prime))
