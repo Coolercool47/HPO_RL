@@ -26,7 +26,7 @@ from experiments_new.common import io as IO  # noqa: E402
 from experiments_new.common import stats as S  # noqa: E402
 
 NAME = {"GP": "GP-BO", "SMAC": "SMAC", "TPE": "TPE", "CMAES": "CMA-ES", "TPE_HB": "TPE+HB", "RS": "Random search",
-        "FMP": "H-MCMC-FMP (ours)", "FMP_DREAM": "H-MCMC-FMP+DREAM (ours)", "L1_K1_VITERBI_SUB": "FMP-only (submitted)"}
+        "FMP": "H-MCMC-FMP", "FMP_DREAM": "H-MCMC-FMP+DREAM", "L1_K1_VITERBI_SUB": "FMP-only (submitted)"}
 OURS = {"FMP", "FMP_DREAM"}
 
 
@@ -89,9 +89,17 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
     t5 = d5.groupby(["task", "method"])["acc"].mean().groupby("method").mean()
     n = tab.shape[0]
     order = tab.mean().sort_values(ascending=False).index.tolist()
-    lines = [r"\begin{tabular}{@{}lccccccr@{}}", r"\hline",
-             r" & \multicolumn{3}{c}{\textbf{accuracy (\%) after $b$ evaluations}} & & \textbf{vs.\ TPE} & \textbf{untuned} & \textbf{overhead} \\",
-             r"\textbf{Method} & $b{=}50$ & $b{=}100$ & $b{=}200$ & \textbf{rank} & better / sig.$+$ / sig.$-$ & $b{=}200$ & ms / eval \\", r"\hline"]
+    pp = df.pivot_table(index=["task", "seed"], columns="method", values="acc")
+
+    def ci_cell(m, ref="TPE"):
+        if m == ref:
+            return "--"
+        mean_, lo_, hi_ = boot_ci((pp[m] - pp[ref]).groupby(level=0).mean())
+        return f"${mean_:+.2f}$ [${lo_:+.2f}$, ${hi_:+.2f}$]"
+
+    lines = [r"\begin{tabular}{@{}lcccclccr@{}}", r"\hline",
+             r" & \multicolumn{3}{c}{\textbf{accuracy (\%) after $b$ evaluations}} & & \multicolumn{2}{c}{\textbf{vs.\ TPE at $b{=}200$}} & \textbf{default} & \textbf{overhead} \\",
+             r"\textbf{Method} & $b{=}50$ & $b{=}100$ & $b{=}200$ & \textbf{rank} & difference [95\% CI] & sig.$+$ / sig.$-$ & $b{=}200$ & ms / eval \\", r"\hline"]
     best = {c: max(a.loc[m, c] for m in order) for c in (50, 100)}
     for m in order:
         cells = []
@@ -100,9 +108,9 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
             cells.append((r"\textbf{%.2f}" if abs(v - best[b]) < 1e-9 else "%.2f") % v)
         v = tab[m].mean()
         cells.append((r"\textbf{%.2f}" if m == order[0] else "%.2f") % v)
-        vs = "--" if m == "TPE" else f"{int(sc.loc[m, 'better'])} / {int(sc.loc[m, 'sw'])} / {int(sc.loc[m, 'sl'])}"
+        vs = "--" if m == "TPE" else f"{int(sc.loc[m, 'sw'])} / {int(sc.loc[m, 'sl'])}"
         un = f"{t5[m]:.2f}" if m in t5.index else "--"
-        lines.append(f"{fmt_name(m)} & {cells[0]} & {cells[1]} & {cells[2]} & {ranks[m]:.2f} & {vs} & {un} & {ov[m]:.1f} \\\\")
+        lines.append(f"{fmt_name(m)} & {cells[0]} & {cells[1]} & {cells[2]} & {ranks[m]:.2f} & {ci_cell(m)} & {vs} & {un} & {ov[m]:.1f} \\\\")
     lines += [r"\hline", r"\end{tabular}"]
     (out / "table_lcbench.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
     # paired differences
@@ -170,31 +178,35 @@ def table_rbv2(out: Path, methods: list[str], macros: dict):
             macros[tag + "Rank" + m.replace("_", "")] = f"{ranks[m]:.2f}"
     order = (blocks["rbv2_svm"][1] + blocks["rbv2_xgboost"][1]).sort_values().index.tolist()
     ov = pd.read_csv(E / "paper_assets/rbv2/overhead.csv").set_index("method")["overhead_per_eval_ms"]
-    lines = [r"\begin{tabular}{@{}lcccccccr@{}}", r"\hline",
-             r" & \multicolumn{3}{c}{\textbf{SVM} (kernel + 2 conditional)} & & \multicolumn{3}{c}{\textbf{XGBoost} (booster + 8 conditional)} & \\",
-             r"\cline{2-4}\cline{6-8}",
-             r"\textbf{Method} & acc.\ (\%) & rank & vs.\ TPE & & acc.\ (\%) & rank & vs.\ TPE & ms / eval \\", r"\hline"]
+    lines = [r"\begin{tabular}{@{}lcclccclcr@{}}", r"\hline",
+             r" & \multicolumn{4}{c}{\textbf{SVM} (kernel + 2 conditional)} & \multicolumn{4}{c}{\textbf{XGBoost} (booster + 8 conditional)} & \\",
+             r"\cline{2-5}\cline{6-9}",
+             r"\textbf{Method} & acc. & rank & diff.\ to TPE [95\% CI] & s$+$/s$-$ & acc. & rank & diff.\ to TPE [95\% CI] & s$+$/s$-$ & ms \\", r"\hline"]
+    piv = {su: g.pivot_table(index=["task", "seed"], columns="method", values="acc") for su, g in df.groupby("suite")}
     for m in order:
         cells = []
         for suite in ("rbv2_svm", "rbv2_xgboost"):
             tab, ranks, sc, _ = blocks[suite]
             bestm = tab.mean().idxmax()
             v = tab[m].mean()
-            vs = "--" if m == "TPE" else f"{int(sc.loc[m, 'better'])} / {int(sc.loc[m, 'sw'])} / {int(sc.loc[m, 'sl'])}"
-            cells.append(((r"\textbf{%.2f}" if m == bestm else "%.2f") % v) + f" & {ranks[m]:.2f} & {vs}")
-        lines.append(f"{fmt_name(m)} & {cells[0]} & & {cells[1]} & {ov[m]:.1f} \\\\")
+            if m == "TPE":
+                ci_, vs = "--", "--"
+            else:
+                mean_, lo_, hi_ = boot_ci((piv[suite][m] - piv[suite]["TPE"]).groupby(level=0).mean())
+                ci_ = f"${mean_:+.2f}$ [${lo_:+.2f}$, ${hi_:+.2f}$]"
+                vs = f"{int(sc.loc[m, 'sw'])}/{int(sc.loc[m, 'sl'])}"
+            cells.append(((r"\textbf{%.2f}" if m == bestm else "%.2f") % v) + f" & {ranks[m]:.2f} & {ci_} & {vs}")
+        lines.append(f"{fmt_name(m)} & {cells[0]} & {cells[1]} & {ov[m]:.1f} \\\\")
     lines += [r"\hline", r"\end{tabular}"]
     (out / "table_rbv2.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-LADDER = [("L1_K1_VITERBI_SUB", "(i) one chain, Viterbi decoding, coordinate subsampling in \\textsc{Explore}"),
-          ("L2_K4_ORCH", "(ii) $+$ four chains with orchestrator"), ("L3_NOSUB", "(iii) $-$ coordinate subsampling"),
-          ("L4_SOFT", "(iv) $+$ soft decoding"), ("L5_DREAM", "(v) $+$ DREAM kernel, $p_{\\mathrm{dream}} = 0.5$"),
-          ("L5_DREAM_LEGACYKERNEL", "(v') as (v), DE move also resamples integer and categorical coordinates")]
-CTRL = [("CTRL_HMM", "HMM, soft filter, Baum--Welch on $\\mA$ (= iv)"), ("CTRL_HMM_NOBW", "HMM without Baum--Welch"),
-        ("CTRL_HMM_LEARNEMIS", "HMM with learned emissions"), ("CTRL_HMM_VITERBI", "HMM with Viterbi decoding"),
-        ("CTRL_RANDOM", "uniformly random \\textsc{Exploit}/\\textsc{Explore}"), ("CTRL_RULE", "rule on the mean of $O_t$"),
-        ("CTRL_FIXED", "always \\textsc{Exploit}")]
+LADDER = [("L1_K1_VITERBI_SUB", "(i) one chain, Viterbi, subsampling"), ("L2_K4_ORCH", "(ii) $+$ four chains, orchestrator"),
+          ("L3_NOSUB", "(iii) $-$ subsampling"), ("L4_SOFT", "(iv) $+$ soft decoding"),
+          ("L5_DREAM", "(v) $+$ DREAM, $p_{\\mathrm{dream}} = 0.5$"), ("L5_DREAM_LEGACYKERNEL", "(v') (v) with asymmetric DE move")]
+CTRL = [("CTRL_HMM", "HMM (= iv)"), ("CTRL_HMM_NOBW", "HMM, no Baum--Welch"), ("CTRL_HMM_LEARNEMIS", "HMM, learned emissions"),
+        ("CTRL_HMM_VITERBI", "HMM, Viterbi decoding"), ("CTRL_RULE", "threshold rule on $O_t$"),
+        ("CTRL_RANDOM", "random switching"), ("CTRL_FIXED", "always \\textsc{Exploit}")]
 
 
 def table_ablation(out: Path, macros: dict):
@@ -229,6 +241,31 @@ def table_ablation(out: Path, macros: dict):
         lines.append(r"\hline")
     lines.append(r"\end{tabular}")
     (out / "table_ablation.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # compact side-by-side version for the main text: variant, LCBench accuracy, Wilcoxon p vs the block reference
+    blocks = []
+    for exp, rows, ref in (("ablation_ladder", LADDER, "L1_K1_VITERBI_SUB"), ("ablation_controller", CTRL, "CTRL_HMM")):
+        df = IO.load_results(E / exp / "results")
+        lc = df[df["suite"] == "lcbench"].copy()
+        lc["acc"] = -lc["best_true_value"]
+        tab = lc.groupby(["task", "method"])["acc"].mean().unstack()
+        cells = []
+        for m, label in rows:
+            if m == ref:
+                pv = "ref."
+            else:
+                pr = S.cross_task_wilcoxon(tab, m, ref)["p"]
+                pv = "$<0.001$" if pr < 0.001 else (f"${pr:.3f}$" if pr < 0.01 else f"${pr:.2f}$")
+            cells.append(f"{label} & {tab[m].mean():.2f} & {pv}")
+        blocks.append(cells)
+    n_rows = max(len(b) for b in blocks)
+    comp = [r"\begin{tabular}{@{}lcc@{\hspace{1.5em}}lcc@{}}", r"\hline",
+            r"\textbf{Component ladder} & acc.\ (\%) & $p$ vs (i) & \textbf{Controller, on variant (iv)} & acc.\ (\%) & $p$ vs HMM \\", r"\hline"]
+    for i in range(n_rows):
+        left = blocks[0][i] if i < len(blocks[0]) else " & & "
+        right = blocks[1][i] if i < len(blocks[1]) else " & & "
+        comp.append(f"{left} & {right} \\\\")
+    comp += [r"\hline", r"\end{tabular}"]
+    (out / "table_ablation_compact.tex").write_text("\n".join(comp) + "\n", encoding="utf-8")
 
 
 def table_synth(out: Path, macros: dict):
