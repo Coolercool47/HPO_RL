@@ -97,9 +97,13 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
         mean_, lo_, hi_ = boot_ci((pp[m] - pp[ref]).groupby(level=0).mean())
         return f"${mean_:+.2f}$ [${lo_:+.2f}$, ${hi_:+.2f}$]"
 
-    lines = [r"\begin{tabular}{@{}lcccclccr@{}}", r"\hline",
-             r" & \multicolumn{3}{c}{\textbf{accuracy (\%) after $b$ evaluations}} & & \multicolumn{2}{c}{\textbf{vs.\ TPE at $b{=}200$}} & \textbf{default} & \textbf{overhead} \\",
-             r"\textbf{Method} & $b{=}50$ & $b{=}100$ & $b{=}200$ & \textbf{rank} & difference [95\% CI] & sig.$+$ / sig.$-$ & $b{=}200$ & ms / eval \\", r"\hline"]
+    seedstat = df.groupby(["task", "method"])["acc"].agg(["min", "max"]).groupby("method").mean()
+    lines = [r"\begin{tabular}{@{}lcccccclccr@{}}", r"\hline",
+             r" & \multicolumn{3}{c}{\textbf{mean accuracy (\%) at $b$}} & \multicolumn{2}{c}{\textbf{seeds, $b{=}200$}} & & \multicolumn{2}{c}{\textbf{vs.\ TPE at $b{=}200$}} & \textbf{default} & \textbf{ms /} \\",
+             r"\textbf{Method} & $50$ & $100$ & $200$ & worst & best & \textbf{rank} & difference [95\% CI] & s$+$ / s$-$ & $b{=}200$ & eval \\", r"\hline"]
+    for m in methods:
+        macros["LcWorst" + m.replace("_", "")] = f"{seedstat.loc[m, 'min']:.2f}"
+        macros["LcBest" + m.replace("_", "")] = f"{seedstat.loc[m, 'max']:.2f}"
     best = {c: max(a.loc[m, c] for m in order) for c in (50, 100)}
     for m in order:
         cells = []
@@ -110,7 +114,8 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
         cells.append((r"\textbf{%.2f}" if m == order[0] else "%.2f") % v)
         vs = "--" if m == "TPE" else f"{int(sc.loc[m, 'sw'])} / {int(sc.loc[m, 'sl'])}"
         un = f"{t5[m]:.2f}" if m in t5.index else "--"
-        lines.append(f"{fmt_name(m)} & {cells[0]} & {cells[1]} & {cells[2]} & {ranks[m]:.2f} & {ci_cell(m)} & {vs} & {un} & {ov[m]:.1f} \\\\")
+        wb = " & ".join((r"\textbf{%.2f}" if abs(seedstat.loc[m, c] - seedstat[c].max()) < 1e-9 else "%.2f") % seedstat.loc[m, c] for c in ("min", "max"))
+        lines.append(f"{fmt_name(m)} & {cells[0]} & {cells[1]} & {cells[2]} & {wb} & {ranks[m]:.2f} & {ci_cell(m)} & {vs} & {un} & {ov[m]:.1f} \\\\")
     lines += [r"\hline", r"\end{tabular}"]
     (out / "table_lcbench.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
     # paired differences
@@ -178,10 +183,15 @@ def table_rbv2(out: Path, methods: list[str], macros: dict):
             macros[tag + "Rank" + m.replace("_", "")] = f"{ranks[m]:.2f}"
     order = (blocks["rbv2_svm"][1] + blocks["rbv2_xgboost"][1]).sort_values().index.tolist()
     ov = pd.read_csv(E / "paper_assets/rbv2/overhead.csv").set_index("method")["overhead_per_eval_ms"]
-    lines = [r"\begin{tabular}{@{}lcclccclcr@{}}", r"\hline",
-             r" & \multicolumn{4}{c}{\textbf{SVM} (kernel + 2 conditional)} & \multicolumn{4}{c}{\textbf{XGBoost} (booster + 8 conditional)} & \\",
-             r"\cline{2-5}\cline{6-9}",
-             r"\textbf{Method} & acc. & rank & diff.\ to TPE [95\% CI] & s$+$/s$-$ & acc. & rank & diff.\ to TPE [95\% CI] & s$+$/s$-$ & ms \\", r"\hline"]
+    lines = [r"\begin{tabular}{@{}lccclcccclc@{}}", r"\hline",
+             r" & \multicolumn{5}{c}{\textbf{SVM} (kernel + 2 conditional)} & \multicolumn{5}{c}{\textbf{XGBoost} (booster + 8 conditional)} \\",
+             r"\cline{2-6}\cline{7-11}",
+             r"\textbf{Method} & mean & worst & best & diff.\ to TPE [95\% CI] & s$+$/s$-$ & mean & worst & best & diff.\ to TPE [95\% CI] & s$+$/s$-$ \\", r"\hline"]
+    seedstat = {su: g.groupby(["task", "method"])["acc"].agg(["min", "max"]).groupby("method").mean() for su, g in df.groupby("suite")}
+    for su, tag_ in (("rbv2_svm", "Svm"), ("rbv2_xgboost", "Xgb")):
+        for m in methods:
+            macros[tag_ + "Worst" + m.replace("_", "")] = f"{seedstat[su].loc[m, 'min']:.2f}"
+            macros[tag_ + "Best" + m.replace("_", "")] = f"{seedstat[su].loc[m, 'max']:.2f}"
     piv = {su: g.pivot_table(index=["task", "seed"], columns="method", values="acc") for su, g in df.groupby("suite")}
     for m in order:
         cells = []
@@ -195,8 +205,10 @@ def table_rbv2(out: Path, methods: list[str], macros: dict):
                 mean_, lo_, hi_ = boot_ci((piv[suite][m] - piv[suite]["TPE"]).groupby(level=0).mean())
                 ci_ = f"${mean_:+.2f}$ [${lo_:+.2f}$, ${hi_:+.2f}$]"
                 vs = f"{int(sc.loc[m, 'sw'])}/{int(sc.loc[m, 'sl'])}"
-            cells.append(((r"\textbf{%.2f}" if m == bestm else "%.2f") % v) + f" & {ranks[m]:.2f} & {ci_} & {vs}")
-        lines.append(f"{fmt_name(m)} & {cells[0]} & {cells[1]} & {ov[m]:.1f} \\\\")
+            st = seedstat[suite]
+            wb = " & ".join((r"\textbf{%.2f}" if abs(st.loc[m, c] - st[c].max()) < 1e-9 else "%.2f") % st.loc[m, c] for c in ("min", "max"))
+            cells.append(((r"\textbf{%.2f}" if m == bestm else "%.2f") % v) + f" & {wb} & {ci_} & {vs}")
+        lines.append(f"{fmt_name(m)} & {cells[0]} & {cells[1]} \\\\")
     lines += [r"\hline", r"\end{tabular}"]
     (out / "table_rbv2.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
