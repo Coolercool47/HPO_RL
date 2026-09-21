@@ -360,6 +360,133 @@ def fig_cd(tab: pd.DataFrame, path: Path, width: float = 6.0):
     plt.close(fig)
 
 
+def _curves(res: Path, methods, on_cost: bool):
+    """{(task, method): seeds x T} of best-so-far accuracy; on_cost resamples on an epoch grid (LCBench, TPE_HB)."""
+    c = IO.best_so_far_curves(res, methods=methods, on_cost=on_cost, grid=200 if on_cost else None)
+    return {k: -v for k, v in c.items() if v.shape[0] >= 3}
+
+
+def fig_rank_over_budget(figdir: Path, lc_methods, rb_methods):
+    """Average rank (over tasks) of the mean best accuracy as a function of the budget spent."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from experiments_new.common.plots import METHOD_COLORS
+
+    panels = [("LCBench (26 tasks)", E / "lcbench/results", lc_methods, True, None),
+              ("SVM (20 tasks)", E / "rbv2/results", rb_methods, False, "rbv2_svm"),
+              ("XGBoost (20 tasks)", E / "rbv2/results", rb_methods, False, "rbv2_xgboost")]
+    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.0), sharey=False)
+    for ax, (title, res, methods, on_cost, prefix) in zip(axes, panels):
+        cur = _curves(res, methods, on_cost)
+        tasks = sorted({t for t, _ in cur if prefix is None or t.startswith(prefix)})
+        T = min(v.shape[1] for (t, _), v in cur.items() if t in tasks)
+        ranks = {m: np.zeros(T) for m in methods}
+        for t in tasks:
+            mat = np.vstack([np.nanmean(cur[(t, m)][:, :T], axis=0) for m in methods])      # methods x T
+            mat = np.where(np.isnan(mat), -np.inf, mat)
+            order = (-mat).argsort(axis=0).argsort(axis=0) + 1.0
+            # average ranks for ties
+            for j in range(T):
+                col = mat[:, j]
+                for v in np.unique(col):
+                    idx = np.where(col == v)[0]
+                    if len(idx) > 1:
+                        order[idx, j] = order[idx, j].mean()
+            for i, m in enumerate(methods):
+                ranks[m] += order[i] / len(tasks)
+        x = np.linspace(1, 200, T)
+        for m in methods:
+            ax.plot(x, ranks[m], color=METHOD_COLORS.get(m), lw=2.2 if m in OURS else 1.4, label=SHORT[m])
+        ax.set_title(title, fontsize=11)
+        ax.set_xlabel("evaluations" + (" (epochs / 52)" if on_cost else ""), fontsize=10)
+        ax.set_xlim(8, 200)
+        ax.invert_yaxis()
+        ax.grid(alpha=0.3)
+        ax.tick_params(labelsize=9)
+    axes[0].set_ylabel("average rank (1 = best)", fontsize=10)
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=len(l), fontsize=9, frameon=False, bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    fig.savefig(figdir / "rank_over_budget.pdf")
+    plt.close(fig)
+
+
+def fig_per_task(figdir: Path, res: Path, methods, prefix, fname, on_cost: bool, ncols: int = 4):
+    """Readable per-task grid: mean best accuracy per method, one legend, y-range zoomed to the informative part."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from experiments_new.common.plots import METHOD_COLORS
+
+    cur = _curves(res, methods, on_cost)
+    tasks = sorted({t for t, _ in cur if t.startswith(prefix)}, key=lambda t: int(t.split("_")[-1]))
+    nrows = int(np.ceil(len(tasks) / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(2.6 * ncols, 1.75 * nrows), squeeze=False)
+    scale = 1.0 if prefix.startswith("lcbench") else 100.0
+    for ax, t in zip(axes.ravel(), tasks):
+        finals = []
+        for m in methods:
+            y = np.nanmean(cur[(t, m)], axis=0) * scale
+            x = np.linspace(1, 200, len(y))
+            ax.plot(x, y, color=METHOD_COLORS.get(m), lw=1.8 if m in OURS else 1.0, label=SHORT[m])
+            finals.append(y[-1])
+            if m == "RS":
+                lo_ref = y[min(len(y) - 1, int(0.15 * len(y)))]
+        top = max(finals)
+        ax.set_ylim(min(lo_ref, min(finals)) - 0.05 * (top - min(finals) + 1e-9), top + 0.08 * (top - min(lo_ref, min(finals)) + 1e-9))
+        ax.set_xlim(1, 200)
+        ax.set_title(t.split("_")[-1], fontsize=9, pad=2)
+        ax.tick_params(labelsize=7, pad=1)
+        ax.grid(alpha=0.3)
+    for ax in axes.ravel()[len(tasks):]:
+        ax.axis("off")
+    for r in range(nrows):
+        axes[r, 0].set_ylabel("accuracy (%)", fontsize=8)
+    for c in range(ncols):
+        axes[nrows - 1, c].set_xlabel("evaluations", fontsize=8)
+    h, l = axes[0, 0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=min(len(l), 8), fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.0))
+    fig.tight_layout(rect=(0, 0.035, 1, 1), h_pad=0.6, w_pad=0.5)
+    fig.savefig(figdir / fname)
+    plt.close(fig)
+
+
+def fig_synth(figdir: Path):
+    """Log regret on the nine continuous synthetic functions with display names."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from experiments_new.common.plots import METHOD_COLORS
+
+    methods = ["GP", "CMAES", "FMP", "FMP_DREAM", "TPE", "RS"]
+    res = E / "synt_functions/results"
+    cur = IO.best_so_far_curves(res, methods=methods)
+    df = IO.load_results(res, methods=["RS"])
+    fstar = df.groupby("task")["f_star"].first().to_dict()
+    tasks = sorted(t for t in {k[0] for k in cur} if t.startswith("cont__"))
+    fig, axes = plt.subplots(3, 3, figsize=(9.5, 6.4), squeeze=False)
+    for ax, t in zip(axes.ravel(), tasks):
+        for m in methods:
+            y = np.log10(np.maximum(np.nanmean(cur[(t, m)], axis=0) - fstar[t], 1e-12))
+            ax.plot(np.arange(1, len(y) + 1), y, color=METHOD_COLORS.get(m), lw=2.0 if m in OURS else 1.2, label=SHORT[m])
+        ax.set_title(t.split("__")[1].replace("_10d", "").replace("_", "-").title(), fontsize=10, pad=3)
+        ax.tick_params(labelsize=8)
+        ax.grid(alpha=0.3)
+    for r in range(3):
+        axes[r, 0].set_ylabel(r"$\log_{10}$ regret", fontsize=9)
+    for c in range(3):
+        axes[2, c].set_xlabel("evaluations", fontsize=9)
+    h, l = axes[0, 0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=len(l), fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.0))
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.savefig(figdir / "convergence_synth_cont.pdf")
+    plt.close(fig)
+
+
 def fig_sensitivity(figdir: Path, macros: dict):
     import matplotlib
 
@@ -388,6 +515,31 @@ def fig_sensitivity(figdir: Path, macros: dict):
         axes[r, 0].set_ylabel("accuracy $-$ tuned (points)", fontsize=9)
     fig.tight_layout(pad=0.4)
     fig.savefig(figdir / "sensitivity_lcbench.pdf")
+    plt.close(fig)
+    all_knobs = [("T_mcmc", r"temperature $T_0$", True), ("burnin_fraction", r"burn-in fraction $\beta$", False),
+                 ("rejection_streak", r"stagnation threshold $L_{\mathrm{stag}}$", True), ("n_init", r"initial points $n_{\mathrm{init}}$", True),
+                 ("sigma_fraction", r"local step $\sigma_{\mathrm{frac}}$", True), ("wide_sigma_fraction", r"wide step $\sigma_{w,\mathrm{frac}}$", True),
+                 ("kde_tau", r"archive temperature $\tau_{\mathrm{kde}}$", True), ("n_chains", r"chains $K$", True),
+                 ("hmm_window", r"HMM window $W$", True), ("bw_prior_strength", r"Baum--Welch prior strength $\rho$", True),
+                 ("emission_scale", r"emission scale", True), ("p_dream", r"$p_{\mathrm{dream}}$", False)]
+    fig, axes = plt.subplots(3, 4, figsize=(10.5, 6.6), sharey=True)
+    for ax, (k, label, logx) in zip(axes.ravel(), all_knobs):
+        g = d[d["knob"] == k]
+        for _, gt in g.groupby("task"):
+            ax.plot(gt["level"], gt["mean"], color="0.75", lw=0.8)
+        m = g.groupby("level")["mean"].mean()
+        ax.plot(m.index, m.values, color="C3", lw=2, marker="o", ms=3)
+        ax.axhline(0, color="k", lw=0.6, ls="--")
+        if logx:
+            ax.set_xscale("log")
+        ax.set_xlabel(label.replace("--", "-"), fontsize=10)
+        ax.tick_params(labelsize=8)
+        ax.grid(alpha=0.3)
+        ax.set_ylim(-6.5, 2.5)
+    for r in range(3):
+        axes[r, 0].set_ylabel("accuracy $-$ tuned (points)", fontsize=9)
+    fig.tight_layout(pad=0.5)
+    fig.savefig(figdir / "sensitivity_lcbench_all.pdf")
     plt.close(fig)
     inf = pd.read_csv(E / "sensitivity/figures_tuned/oat_influence.csv")
     inf = inf[inf["suite"] == "lcbench"].set_index("knob")["range"]
@@ -446,6 +598,11 @@ def main():
     rbd = accdf(E / "rbv2/results", rb_methods)
     for sc in ("rbv2_svm", "rbv2_xgboost"):
         fig_cd(rbd[rbd["suite"] == sc].groupby(["task", "method"])["acc"].mean().unstack(), figdir / f"cd_{sc}.pdf", width=4.6)
+    fig_rank_over_budget(figdir, lc_methods, rb_methods)
+    fig_per_task(figdir, E / "lcbench/results", lc_methods, "lcbench_", "per_task_lcbench.pdf", on_cost=True)
+    fig_per_task(figdir, E / "rbv2/results", rb_methods, "rbv2_svm_", "per_task_rbv2_svm.pdf", on_cost=False)
+    fig_per_task(figdir, E / "rbv2/results", rb_methods, "rbv2_xgboost_", "per_task_rbv2_xgboost.pdf", on_cost=False)
+    fig_synth(figdir)
     table_lcbench(out, lc_methods, macros)
     table_rbv2(out, rb_methods, macros)
     table_ablation(out, macros)
