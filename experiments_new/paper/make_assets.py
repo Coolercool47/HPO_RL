@@ -413,7 +413,7 @@ def fig_rank_over_budget(figdir: Path, lc_methods, rb_methods):
     plt.close(fig)
 
 
-def fig_per_task(figdir: Path, res: Path, methods, prefix, fname, on_cost: bool, ncols: int = 4):
+def fig_per_task(figdir: Path, res: Path, methods, prefix, fname, on_cost: bool, ncols: int = 3):
     """Readable per-task grid: mean best accuracy per method, one legend, y-range zoomed to the informative part."""
     import matplotlib
 
@@ -424,7 +424,7 @@ def fig_per_task(figdir: Path, res: Path, methods, prefix, fname, on_cost: bool,
     cur = _curves(res, methods, on_cost)
     tasks = sorted({t for t, _ in cur if t.startswith(prefix)}, key=lambda t: int(t.split("_")[-1]))
     nrows = int(np.ceil(len(tasks) / ncols))
-    fig, axes = plt.subplots(nrows, ncols, figsize=(2.6 * ncols, 1.75 * nrows), squeeze=False)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(2.75 * ncols, 1.3 * nrows + 0.4), squeeze=False)
     scale = 1.0 if prefix.startswith("lcbench") else 100.0
     for ax, t in zip(axes.ravel(), tasks):
         finals = []
@@ -448,8 +448,8 @@ def fig_per_task(figdir: Path, res: Path, methods, prefix, fname, on_cost: bool,
     for c in range(ncols):
         axes[nrows - 1, c].set_xlabel("evaluations", fontsize=8)
     h, l = axes[0, 0].get_legend_handles_labels()
-    fig.legend(h, l, loc="lower center", ncol=min(len(l), 8), fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.0))
-    fig.tight_layout(rect=(0, 0.035, 1, 1), h_pad=0.6, w_pad=0.5)
+    fig.legend(h, l, loc="lower center", ncol=4, fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.0))
+    fig.tight_layout(rect=(0, 0.05, 1, 1), h_pad=0.5, w_pad=0.5)
     fig.savefig(figdir / fname)
     plt.close(fig)
 
