@@ -622,8 +622,8 @@ def main():
     fig_sensitivity(figdir, macros)
     occ = pd.read_csv(E / "diagnostics/figures/lcbench/occupancy_FMP.csv")
     lc = occ[occ["suite"] == "lcbench"].mean(numeric_only=True)
-    macros["OccExploit"] = f"{100 * lc['frac_exploit']:.0f}"
-    macros["OccExplore"] = f"{100 * lc['frac_explore']:.0f}"
+    macros["OccExploit"] = f"{100 * lc['frac_exploit']:.1f}"
+    macros["OccExplore"] = f"{100 * lc['frac_explore']:.1f}"
     macros["OccTrapped"] = f"{100 * lc['frac_trapped']:.1f}"
     macros["AccRate"] = f"{lc['acceptance_rate']:.2f}"
     for src, dst in [(E / "paper_assets/lcbench/convergence_lcbench.png", "convergence_lcbench.png"),
