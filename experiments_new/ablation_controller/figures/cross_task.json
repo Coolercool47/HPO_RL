@@ -6,15 +6,15 @@
       "n_tasks": 5,
       "n_methods": 7,
       "avg_ranks": {
-        "CTRL_HMM_NOBW": 2.6,
-        "CTRL_HMM_LEARNEMIS": 2.6,
-        "CTRL_RANDOM": 3.0,
-        "CTRL_HMM": 3.4,
-        "CTRL_HMM_VITERBI": 3.4,
-        "CTRL_RULE": 6.2,
-        "CTRL_FIXED": 6.8
+        "CTRL_RULE": 1.4,
+        "CTRL_HMM_VITERBI": 2.0,
+        "CTRL_HMM": 3.8,
+        "CTRL_HMM_NOBW": 4.2,
+        "CTRL_RANDOM": 4.6,
+        "CTRL_HMM_LEARNEMIS": 5.0,
+        "CTRL_FIXED": 7.0
       },
-      "friedman_p": 0.003223838751999786,
+      "friedman_p": 0.0008980417252118359,
       "cd": 4.029101041175314
     },
     "wilcoxon_vs_ref": {
@@ -30,41 +30,41 @@
         "a": "CTRL_HMM_LEARNEMIS",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 3,
-        "wins_b": 2
+        "p": 0.3125,
+        "wins_a": 2,
+        "wins_b": 3
       },
       "CTRL_HMM_NOBW": {
         "a": "CTRL_HMM_NOBW",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 3,
-        "wins_b": 2
+        "p": 0.4375,
+        "wins_a": 2,
+        "wins_b": 3
       },
       "CTRL_HMM_VITERBI": {
         "a": "CTRL_HMM_VITERBI",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 3,
-        "wins_b": 2
+        "p": 0.125,
+        "wins_a": 4,
+        "wins_b": 1
       },
       "CTRL_RANDOM": {
         "a": "CTRL_RANDOM",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 3,
-        "wins_b": 2
+        "p": 0.3125,
+        "wins_a": 2,
+        "wins_b": 3
       },
       "CTRL_RULE": {
         "a": "CTRL_RULE",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 0.0625,
-        "wins_a": 0,
-        "wins_b": 5
+        "p": 0.125,
+        "wins_a": 4,
+        "wins_b": 1
       }
     }
   },
@@ -75,15 +75,15 @@
       "n_tasks": 9,
       "n_methods": 7,
       "avg_ranks": {
-        "CTRL_HMM_LEARNEMIS": 1.8888888888888888,
-        "CTRL_HMM_NOBW": 2.4444444444444446,
-        "CTRL_HMM": 2.888888888888889,
-        "CTRL_RANDOM": 3.7777777777777777,
-        "CTRL_HMM_VITERBI": 4.555555555555555,
-        "CTRL_FIXED": 5.888888888888889,
-        "CTRL_RULE": 6.555555555555555
+        "CTRL_RULE": 2.2222222222222223,
+        "CTRL_HMM": 2.6666666666666665,
+        "CTRL_HMM_NOBW": 3.4444444444444446,
+        "CTRL_HMM_VITERBI": 3.888888888888889,
+        "CTRL_RANDOM": 4.111111111111111,
+        "CTRL_HMM_LEARNEMIS": 4.666666666666667,
+        "CTRL_FIXED": 7.0
       },
-      "friedman_p": 3.0018336386572692e-06,
+      "friedman_p": 7.964257705807494e-05,
       "cd": 3.003114605427727
     },
     "wilcoxon_vs_ref": {
@@ -99,31 +99,31 @@
         "a": "CTRL_HMM_LEARNEMIS",
         "b": "CTRL_HMM",
         "n": 9,
-        "p": 0.12890625,
-        "wins_a": 6,
-        "wins_b": 3
+        "p": 0.0078125,
+        "wins_a": 1,
+        "wins_b": 8
       },
       "CTRL_HMM_NOBW": {
         "a": "CTRL_HMM_NOBW",
         "b": "CTRL_HMM",
         "n": 9,
-        "p": 0.30078125,
-        "wins_a": 6,
-        "wins_b": 3
+        "p": 0.1640625,
+        "wins_a": 3,
+        "wins_b": 6
       },
       "CTRL_HMM_VITERBI": {
         "a": "CTRL_HMM_VITERBI",
         "b": "CTRL_HMM",
         "n": 9,
-        "p": 0.42578125,
-        "wins_a": 2,
-        "wins_b": 7
+        "p": 0.203125,
+        "wins_a": 3,
+        "wins_b": 6
       },
       "CTRL_RANDOM": {
         "a": "CTRL_RANDOM",
         "b": "CTRL_HMM",
         "n": 9,
-        "p": 0.8203125,
+        "p": 0.12890625,
         "wins_a": 3,
         "wins_b": 6
       },
@@ -131,9 +131,9 @@
         "a": "CTRL_RULE",
         "b": "CTRL_HMM",
         "n": 9,
-        "p": 0.00390625,
-        "wins_a": 0,
-        "wins_b": 9
+        "p": 0.8203125,
+        "wins_a": 5,
+        "wins_b": 4
       }
     }
   },
@@ -144,15 +144,15 @@
       "n_tasks": 26,
       "n_methods": 7,
       "avg_ranks": {
-        "CTRL_HMM": 2.6153846153846154,
-        "CTRL_HMM_NOBW": 2.6538461538461537,
-        "CTRL_HMM_LEARNEMIS": 2.8461538461538463,
-        "CTRL_RANDOM": 3.0384615384615383,
-        "CTRL_HMM_VITERBI": 4.846153846153846,
-        "CTRL_RULE": 5.3076923076923075,
-        "CTRL_FIXED": 6.6923076923076925
+        "CTRL_RULE": 2.8461538461538463,
+        "CTRL_HMM": 3.5,
+        "CTRL_HMM_NOBW": 3.5,
+        "CTRL_HMM_VITERBI": 3.5384615384615383,
+        "CTRL_HMM_LEARNEMIS": 3.769230769230769,
+        "CTRL_RANDOM": 4.115384615384615,
+        "CTRL_FIXED": 6.730769230769231
       },
-      "friedman_p": 1.1293213943899753e-16,
+      "friedman_p": 1.0172561258805413e-09,
       "cd": 1.7668776893805551
     },
     "wilcoxon_vs_ref": {
@@ -160,23 +160,23 @@
         "a": "CTRL_FIXED",
         "b": "CTRL_HMM",
         "n": 26,
-        "p": 5.960464477539063e-08,
-        "wins_a": 1,
-        "wins_b": 25
+        "p": 2.9802322387695312e-08,
+        "wins_a": 0,
+        "wins_b": 26
       },
       "CTRL_HMM_LEARNEMIS": {
         "a": "CTRL_HMM_LEARNEMIS",
         "b": "CTRL_HMM",
         "n": 26,
-        "p": 0.6893201172351837,
-        "wins_a": 12,
-        "wins_b": 14
+        "p": 0.8612560033798218,
+        "wins_a": 14,
+        "wins_b": 12
       },
       "CTRL_HMM_NOBW": {
         "a": "CTRL_HMM_NOBW",
         "b": "CTRL_HMM",
         "n": 26,
-        "p": 0.6528128087520599,
+        "p": 0.7835337817668915,
         "wins_a": 13,
         "wins_b": 13
       },
@@ -184,15 +184,15 @@
         "a": "CTRL_HMM_VITERBI",
         "b": "CTRL_HMM",
         "n": 26,
-        "p": 2.2709369659423828e-05,
-        "wins_a": 4,
-        "wins_b": 22
+        "p": 0.5316631495952606,
+        "wins_a": 11,
+        "wins_b": 15
       },
       "CTRL_RANDOM": {
         "a": "CTRL_RANDOM",
         "b": "CTRL_HMM",
         "n": 26,
-        "p": 0.4082431197166443,
+        "p": 0.05251908302307129,
         "wins_a": 11,
         "wins_b": 15
       },
@@ -200,9 +200,9 @@
         "a": "CTRL_RULE",
         "b": "CTRL_HMM",
         "n": 26,
-        "p": 2.086162567138672e-06,
-        "wins_a": 1,
-        "wins_b": 25
+        "p": 0.8416728973388672,
+        "wins_a": 16,
+        "wins_b": 10
       }
     }
   },
@@ -213,15 +213,15 @@
       "n_tasks": 5,
       "n_methods": 7,
       "avg_ranks": {
-        "CTRL_HMM_LEARNEMIS": 1.8,
-        "CTRL_HMM": 3.0,
-        "CTRL_HMM_NOBW": 3.0,
-        "CTRL_HMM_VITERBI": 3.4,
-        "CTRL_RANDOM": 5.0,
-        "CTRL_RULE": 5.6,
+        "CTRL_HMM": 2.6,
+        "CTRL_RANDOM": 3.0,
+        "CTRL_HMM_LEARNEMIS": 3.4,
+        "CTRL_HMM_VITERBI": 3.6,
+        "CTRL_HMM_NOBW": 4.0,
+        "CTRL_RULE": 5.2,
         "CTRL_FIXED": 6.2
       },
-      "friedman_p": 0.010392680333524062,
+      "friedman_p": 0.10667432594338887,
       "cd": 4.029101041175314
     },
     "wilcoxon_vs_ref": {
@@ -237,41 +237,41 @@
         "a": "CTRL_HMM_LEARNEMIS",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 0.0625,
-        "wins_a": 5,
-        "wins_b": 0
+        "p": 0.125,
+        "wins_a": 1,
+        "wins_b": 4
       },
       "CTRL_HMM_NOBW": {
         "a": "CTRL_HMM_NOBW",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 2,
-        "wins_b": 3
+        "p": 0.1875,
+        "wins_a": 1,
+        "wins_b": 4
       },
       "CTRL_HMM_VITERBI": {
         "a": "CTRL_HMM_VITERBI",
         "b": "CTRL_HMM",
         "n": 5,
         "p": 0.8125,
-        "wins_a": 3,
-        "wins_b": 2
+        "wins_a": 2,
+        "wins_b": 3
       },
       "CTRL_RANDOM": {
         "a": "CTRL_RANDOM",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 0.0625,
-        "wins_a": 0,
-        "wins_b": 5
+        "p": 0.8125,
+        "wins_a": 3,
+        "wins_b": 2
       },
       "CTRL_RULE": {
         "a": "CTRL_RULE",
         "b": "CTRL_HMM",
         "n": 5,
-        "p": 0.0625,
-        "wins_a": 0,
-        "wins_b": 5
+        "p": 0.125,
+        "wins_a": 1,
+        "wins_b": 4
       }
     }
   }

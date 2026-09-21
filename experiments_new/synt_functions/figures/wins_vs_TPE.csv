@@ -1,6 +1,6 @@
 method,n_tasks,wins,sig_wins,sig_losses
 CMAES,19,16,15,3
-FMP,19,14,8,4
-FMP_DREAM,19,10,7,5
+FMP,19,12,8,5
+FMP_DREAM,19,11,7,5
 GP,19,16,15,1
 RS,19,1,1,14

@@ -88,5 +88,34 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-21 18:16:36",
+  "argv": [
+   "experiments_new/synt_functions/run.py",
+   "--workers",
+   "8",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned",
+   "--methods",
+   "FMP",
+   "FMP_DREAM"
+  ],
+  "n_jobs": 760,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.035919189453125,
+   "workers_rss_max_gb": 0.24963760375976562,
+   "used_gb": 13.753551483154297,
+   "swap_used_gb": 0.5698280334472656,
+   "min_available_gb": 2.0234642028808594
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 760,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]

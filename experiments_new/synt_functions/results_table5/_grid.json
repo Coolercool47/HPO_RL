@@ -24,6 +24,7 @@
     19
   ],
   "methods": [
+    "FMP",
     "FMP_DREAM",
     "L1_K1_VITERBI_SUB"
   ],

@@ -56,5 +56,91 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-21 18:12:54",
+  "argv": [
+   "experiments_new/rbv2/run.py",
+   "--workers",
+   "8",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned",
+   "--methods",
+   "FMP",
+   "FMP_DREAM"
+  ],
+  "n_jobs": 1600,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.4802627563476562,
+   "workers_rss_max_gb": 0.3057861328125,
+   "used_gb": 13.930923461914062,
+   "swap_used_gb": 0.5723037719726562,
+   "min_available_gb": 1.8460922241210938
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 1600,
+  "n_errors": 3,
+  "errors": [
+   {
+    "ok": false,
+    "task": "rbv2_xgboost_1053",
+    "method": "FMP",
+    "seed": 17,
+    "error": "ValueError: Probabilities contain NaN",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\runner.py\", line 169, in run_job\n    rec = M.run_method(job[\"method\"], job[\"method_spec\"], task, job[\"seed\"], job[\"budget\"],\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\methods.py\", line 384, in run_method\n    return run_fmp(task, seed, budget, spec, keep_history=keep_history)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\methods.py\", line 321, in run_fmp\n    alg.main_loop()\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 1292, in main_loop\n    cfg, loss, acc, alpha, forced = chain.step(self._objective, progress, is_burnin)\n                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 910, in step\n    x_prime = self.gen.propose(self.current_x, weights, self.state, categorical_only=cat_only,\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 650, in propose\n    out[name] = self._sample_cont(float(xj), pi, fw)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 677, in _sample_cont\n    idx = int(self.rng.choice(len(self._archive), p=aw))\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"numpy/random/_generator.pyx\", line 887, in numpy.random._generator.Generator.choice\nValueError: Probabilities contain NaN\n",
+    "rss_gb": 0.3028297424316406
+   },
+   {
+    "ok": false,
+    "task": "rbv2_xgboost_1476",
+    "method": "FMP",
+    "seed": 12,
+    "error": "ValueError: Probabilities contain NaN",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\runner.py\", line 169, in run_job\n    rec = M.run_method(job[\"method\"], job[\"method_spec\"], task, job[\"seed\"], job[\"budget\"],\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\methods.py\", line 384, in run_method\n    return run_fmp(task, seed, budget, spec, keep_history=keep_history)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\methods.py\", line 321, in run_fmp\n    alg.main_loop()\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 1292, in main_loop\n    cfg, loss, acc, alpha, forced = chain.step(self._objective, progress, is_burnin)\n                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 910, in step\n    x_prime = self.gen.propose(self.current_x, weights, self.state, categorical_only=cat_only,\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 646, in propose\n    out[name] = self._sample_cat(xj, pi, cw)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 709, in _sample_cat\n    return cats[int(self.rng.choice(C, p=pmf))]\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"numpy/random/_generator.pyx\", line 887, in numpy.random._generator.Generator.choice\nValueError: Probabilities contain NaN\n",
+    "rss_gb": 0.3022804260253906
+   },
+   {
+    "ok": false,
+    "task": "rbv2_xgboost_1476",
+    "method": "FMP",
+    "seed": 17,
+    "error": "ValueError: Probabilities contain NaN",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\runner.py\", line 169, in run_job\n    rec = M.run_method(job[\"method\"], job[\"method_spec\"], task, job[\"seed\"], job[\"budget\"],\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\methods.py\", line 384, in run_method\n    return run_fmp(task, seed, budget, spec, keep_history=keep_history)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\experiments_new\\common\\methods.py\", line 321, in run_fmp\n    alg.main_loop()\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 1292, in main_loop\n    cfg, loss, acc, alpha, forced = chain.step(self._objective, progress, is_burnin)\n                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 910, in step\n    x_prime = self.gen.propose(self.current_x, weights, self.state, categorical_only=cat_only,\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 646, in propose\n    out[name] = self._sample_cat(xj, pi, cw)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\cool4\\projects\\HPO_RL\\HPO_RL\\hpo_rl\\baselines\\HMM_MCMC_FMP.py\", line 709, in _sample_cat\n    return cats[int(self.rng.choice(C, p=pmf))]\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"numpy/random/_generator.pyx\", line 887, in numpy.random._generator.Generator.choice\nValueError: Probabilities contain NaN\n",
+    "rss_gb": 0.3022804260253906
+   }
+  ],
+  "pending_after": 3
+ },
+ {
+  "time": "2026-09-21 18:48:45",
+  "argv": [
+   "experiments_new/rbv2/run.py",
+   "--workers",
+   "2",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned",
+   "--methods",
+   "FMP",
+   "FMP_DREAM"
+  ],
+  "n_jobs": 1600,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 0.041477203369140625,
+   "workers_rss_max_gb": 0.03694915771484375,
+   "used_gb": 14.050125122070312,
+   "swap_used_gb": 0.5476837158203125,
+   "min_available_gb": 1.7268905639648438
+  },
+  "workers": 2,
+  "heavy_gb": 2.0,
+  "n_run": 3,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]

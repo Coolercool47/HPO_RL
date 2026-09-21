@@ -6,14 +6,14 @@
       "n_tasks": 5,
       "n_methods": 6,
       "avg_ranks": {
-        "L1_K1_VITERBI_SUB": 2.8,
-        "L3_NOSUB": 2.8,
-        "L4_SOFT": 2.8,
-        "L2_K4_ORCH": 3.0,
-        "L5_DREAM": 4.6,
-        "L5_DREAM_LEGACYKERNEL": 5.0
+        "L3_NOSUB": 1.8,
+        "L1_K1_VITERBI_SUB": 2.2,
+        "L4_SOFT": 3.0,
+        "L5_DREAM_LEGACYKERNEL": 4.4,
+        "L2_K4_ORCH": 4.8,
+        "L5_DREAM": 4.8
       },
-      "friedman_p": 0.19255043307939615,
+      "friedman_p": 0.024473614086877135,
       "cd": 3.372165476366781
     },
     "wilcoxon_vs_ref": {
@@ -21,31 +21,31 @@
         "a": "L2_K4_ORCH",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 2,
-        "wins_b": 3
+        "p": 0.0625,
+        "wins_a": 0,
+        "wins_b": 5
       },
       "L3_NOSUB": {
         "a": "L3_NOSUB",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
-        "p": 0.4375,
-        "wins_a": 2,
-        "wins_b": 3
+        "p": 0.8125,
+        "wins_a": 3,
+        "wins_b": 2
       },
       "L4_SOFT": {
         "a": "L4_SOFT",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 3,
-        "wins_b": 2
+        "p": 0.3125,
+        "wins_a": 1,
+        "wins_b": 4
       },
       "L5_DREAM": {
         "a": "L5_DREAM",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
-        "p": 0.3125,
+        "p": 0.1875,
         "wins_a": 1,
         "wins_b": 4
       },
@@ -66,14 +66,14 @@
       "n_tasks": 9,
       "n_methods": 6,
       "avg_ranks": {
-        "L4_SOFT": 2.3333333333333335,
-        "L2_K4_ORCH": 2.7777777777777777,
-        "L1_K1_VITERBI_SUB": 3.2222222222222223,
-        "L3_NOSUB": 3.2222222222222223,
-        "L5_DREAM": 4.722222222222222,
-        "L5_DREAM_LEGACYKERNEL": 4.722222222222222
+        "L4_SOFT": 2.4444444444444446,
+        "L3_NOSUB": 2.5555555555555554,
+        "L1_K1_VITERBI_SUB": 3.6666666666666665,
+        "L2_K4_ORCH": 3.7777777777777777,
+        "L5_DREAM": 4.277777777777778,
+        "L5_DREAM_LEGACYKERNEL": 4.277777777777778
       },
-      "friedman_p": 0.020718458061035536,
+      "friedman_p": 0.11770293661628355,
       "cd": 2.5134637455113613
     },
     "wilcoxon_vs_ref": {
@@ -81,7 +81,7 @@
         "a": "L2_K4_ORCH",
         "b": "L1_K1_VITERBI_SUB",
         "n": 9,
-        "p": 0.91015625,
+        "p": 0.8203125,
         "wins_a": 4,
         "wins_b": 5
       },
@@ -89,33 +89,33 @@
         "a": "L3_NOSUB",
         "b": "L1_K1_VITERBI_SUB",
         "n": 9,
-        "p": 0.734375,
-        "wins_a": 4,
-        "wins_b": 5
+        "p": 0.91015625,
+        "wins_a": 5,
+        "wins_b": 4
       },
       "L4_SOFT": {
         "a": "L4_SOFT",
         "b": "L1_K1_VITERBI_SUB",
         "n": 9,
-        "p": 0.91015625,
-        "wins_a": 6,
-        "wins_b": 3
+        "p": 0.65234375,
+        "wins_a": 5,
+        "wins_b": 4
       },
       "L5_DREAM": {
         "a": "L5_DREAM",
         "b": "L1_K1_VITERBI_SUB",
         "n": 9,
-        "p": 0.65234375,
-        "wins_a": 3,
-        "wins_b": 6
+        "p": 1.0,
+        "wins_a": 5,
+        "wins_b": 4
       },
       "L5_DREAM_LEGACYKERNEL": {
         "a": "L5_DREAM_LEGACYKERNEL",
         "b": "L1_K1_VITERBI_SUB",
         "n": 9,
-        "p": 0.65234375,
-        "wins_a": 3,
-        "wins_b": 6
+        "p": 1.0,
+        "wins_a": 5,
+        "wins_b": 4
       }
     }
   },
@@ -126,14 +126,14 @@
       "n_tasks": 26,
       "n_methods": 6,
       "avg_ranks": {
-        "L5_DREAM": 1.6153846153846154,
-        "L5_DREAM_LEGACYKERNEL": 2.076923076923077,
-        "L4_SOFT": 3.0,
-        "L3_NOSUB": 4.1923076923076925,
-        "L2_K4_ORCH": 4.346153846153846,
-        "L1_K1_VITERBI_SUB": 5.769230769230769
+        "L4_SOFT": 2.730769230769231,
+        "L3_NOSUB": 2.923076923076923,
+        "L5_DREAM": 3.0384615384615383,
+        "L5_DREAM_LEGACYKERNEL": 3.576923076923077,
+        "L1_K1_VITERBI_SUB": 3.8846153846153846,
+        "L2_K4_ORCH": 4.846153846153846
       },
-      "friedman_p": 5.490322948368559e-18,
+      "friedman_p": 0.00032949844784678495,
       "cd": 1.4787923867388968
     },
     "wilcoxon_vs_ref": {
@@ -141,41 +141,41 @@
         "a": "L2_K4_ORCH",
         "b": "L1_K1_VITERBI_SUB",
         "n": 26,
-        "p": 4.410743713378906e-05,
-        "wins_a": 24,
-        "wins_b": 2
+        "p": 0.13578131794929504,
+        "wins_a": 7,
+        "wins_b": 19
       },
       "L3_NOSUB": {
         "a": "L3_NOSUB",
         "b": "L1_K1_VITERBI_SUB",
         "n": 26,
-        "p": 2.2709369659423828e-05,
-        "wins_a": 25,
-        "wins_b": 1
+        "p": 0.001971602439880371,
+        "wins_a": 19,
+        "wins_b": 7
       },
       "L4_SOFT": {
         "a": "L4_SOFT",
         "b": "L1_K1_VITERBI_SUB",
         "n": 26,
-        "p": 6.16908073425293e-06,
-        "wins_a": 25,
-        "wins_b": 1
+        "p": 0.015132129192352295,
+        "wins_a": 19,
+        "wins_b": 7
       },
       "L5_DREAM": {
         "a": "L5_DREAM",
         "b": "L1_K1_VITERBI_SUB",
         "n": 26,
-        "p": 7.450580596923828e-07,
-        "wins_a": 25,
-        "wins_b": 1
+        "p": 0.07514902949333191,
+        "wins_a": 16,
+        "wins_b": 10
       },
       "L5_DREAM_LEGACYKERNEL": {
         "a": "L5_DREAM_LEGACYKERNEL",
         "b": "L1_K1_VITERBI_SUB",
         "n": 26,
-        "p": 2.086162567138672e-06,
-        "wins_a": 25,
-        "wins_b": 1
+        "p": 0.12910079956054688,
+        "wins_a": 14,
+        "wins_b": 12
       }
     }
   },
@@ -186,14 +186,14 @@
       "n_tasks": 5,
       "n_methods": 6,
       "avg_ranks": {
-        "L5_DREAM_LEGACYKERNEL": 2.9,
-        "L5_DREAM": 2.9,
+        "L4_SOFT": 2.0,
+        "L2_K4_ORCH": 3.2,
         "L3_NOSUB": 3.2,
-        "L4_SOFT": 3.4,
         "L1_K1_VITERBI_SUB": 4.0,
-        "L2_K4_ORCH": 4.6
+        "L5_DREAM": 4.3,
+        "L5_DREAM_LEGACYKERNEL": 4.3
       },
-      "friedman_p": 0.6457466746705083,
+      "friedman_p": 0.3237707904613776,
       "cd": 3.372165476366781
     },
     "wilcoxon_vs_ref": {
@@ -201,15 +201,15 @@
         "a": "L2_K4_ORCH",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
-        "p": 1.0,
-        "wins_a": 3,
-        "wins_b": 2
+        "p": 0.4375,
+        "wins_a": 4,
+        "wins_b": 1
       },
       "L3_NOSUB": {
         "a": "L3_NOSUB",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
-        "p": 0.4375,
+        "p": 0.625,
         "wins_a": 3,
         "wins_b": 2
       },
@@ -217,25 +217,25 @@
         "a": "L4_SOFT",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
-        "p": 0.625,
-        "wins_a": 3,
-        "wins_b": 2
+        "p": 0.4375,
+        "wins_a": 4,
+        "wins_b": 1
       },
       "L5_DREAM": {
         "a": "L5_DREAM",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
         "p": 0.625,
-        "wins_a": 3,
-        "wins_b": 2
+        "wins_a": 2,
+        "wins_b": 3
       },
       "L5_DREAM_LEGACYKERNEL": {
         "a": "L5_DREAM_LEGACYKERNEL",
         "b": "L1_K1_VITERBI_SUB",
         "n": 5,
         "p": 0.625,
-        "wins_a": 3,
-        "wins_b": 2
+        "wins_a": 2,
+        "wins_b": 3
       }
     }
   }

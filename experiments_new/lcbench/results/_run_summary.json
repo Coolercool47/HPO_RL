@@ -108,5 +108,63 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-21 17:58:44",
+  "argv": [
+   "experiments_new/lcbench/run.py",
+   "--workers",
+   "8",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned",
+   "--methods",
+   "FMP",
+   "FMP_DREAM"
+  ],
+  "n_jobs": 1040,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.445911407470703,
+   "workers_rss_max_gb": 0.3011436462402344,
+   "used_gb": 13.732261657714844,
+   "swap_used_gb": 0.5103225708007812,
+   "min_available_gb": 2.0447540283203125
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 1040,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
+ },
+ {
+  "time": "2026-09-21 18:06:47",
+  "argv": [
+   "experiments_new/lcbench/run.py",
+   "--workers",
+   "8",
+   "--fmp-config",
+   "tuned",
+   "--baseline-config",
+   "tuned",
+   "--methods",
+   "FMP",
+   "FMP_DREAM"
+  ],
+  "n_jobs": 1040,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.4451026916503906,
+   "workers_rss_max_gb": 0.3013801574707031,
+   "used_gb": 13.846752166748047,
+   "swap_used_gb": 0.4895172119140625,
+   "min_available_gb": 1.9302635192871094
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 1040,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]

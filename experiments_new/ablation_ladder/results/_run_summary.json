@@ -1,21 +1,6 @@
 [
  {
-  "time": "2026-09-13 19:58:18",
-  "argv": [
-   "experiments_new/ablation_ladder/run.py",
-   "--workers",
-   "12",
-   "--fmp-config",
-   "tuned"
-  ],
-  "n_jobs": 1740,
-  "n_run": 1740,
-  "n_errors": 0,
-  "errors": [],
-  "pending_after": 0
- },
- {
-  "time": "2026-09-19 22:41:19",
+  "time": "2026-09-21 18:30:25",
   "argv": [
    "experiments_new/ablation_ladder/run.py",
    "--workers",
@@ -25,15 +10,15 @@
   ],
   "n_jobs": 2700,
   "memory_peaks": {
-   "workers_rss_sum_gb": 2.4408912658691406,
-   "workers_rss_max_gb": 0.30091094970703125,
-   "used_gb": 11.258228302001953,
-   "swap_used_gb": 1.0617485046386719,
-   "min_available_gb": 4.518787384033203
+   "workers_rss_sum_gb": 2.4462852478027344,
+   "workers_rss_max_gb": 0.300994873046875,
+   "used_gb": 13.900630950927734,
+   "swap_used_gb": 0.566741943359375,
+   "min_available_gb": 1.8763847351074219
   },
   "workers": 8,
   "heavy_gb": 2.0,
-  "n_run": 960,
+  "n_run": 2700,
   "n_errors": 0,
   "errors": [],
   "pending_after": 0

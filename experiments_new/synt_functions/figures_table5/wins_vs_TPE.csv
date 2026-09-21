@@ -1,7 +1,7 @@
 method,n_tasks,wins,sig_wins,sig_losses
 CMAES,19,16,11,3
-FMP,19,4,0,3
-FMP_DREAM,19,0,0,9
+FMP,19,7,3,3
+FMP_DREAM,19,3,0,5
 GP,19,16,15,2
-L1_K1_VITERBI_SUB,19,0,0,17
+L1_K1_VITERBI_SUB,19,1,0,15
 RS,19,0,0,19

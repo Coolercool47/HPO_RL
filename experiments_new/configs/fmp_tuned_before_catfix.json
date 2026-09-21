@@ -1,0 +1,43 @@
+{
+  "T_mcmc": 0.05021528037835243,
+  "sigma_fraction": 0.022095999012449814,
+  "wide_sigma_fraction": 0.3008503702038378,
+  "kde_tau": 0.006205167444665816,
+  "hmm_window": 12,
+  "rejection_streak": 24,
+  "bw_prior_strength": 89.80956876532602,
+  "burnin_fraction": 0.21939164151847443,
+  "n_init": 8,
+  "n_chains": 1,
+  "p_dream": 0.7412354684077219,
+  "emission_mu": [
+    -0.00946430696609267,
+    0.0946430696609267,
+    0.014196460449139003
+  ],
+  "emission_sigma": [
+    0.05678584179655601,
+    0.23660767415231673,
+    0.01892861393218534
+  ],
+  "_meta": {
+    "score": 1.3484534760141542,
+    "instances": [
+      "189905",
+      "167201",
+      "189354",
+      "189866",
+      "167200",
+      "167184",
+      "189909",
+      "167161"
+    ],
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "n_trials": 100,
+    "note": "regenerated from meta_study.db; n_chains and p_dream kept (were dropped in the first export)"
+  }
+}

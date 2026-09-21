@@ -24,11 +24,6 @@
     19
   ],
   "methods": [
-    "RS",
-    "TPE",
-    "GP",
-    "CMAES",
-    "TPE_HB",
     "FMP_DREAM",
     "L1_K1_VITERBI_SUB"
   ],

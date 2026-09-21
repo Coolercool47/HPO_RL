@@ -194,7 +194,10 @@ def build_rbv2_task(spec: dict) -> Task:
         q["task_id"] = instance
         q["trainsize"] = 1.0
         q["repl"] = 10
-        return -float(bench.objective_function(q)[0][RBV2_TARGET])
+        acc = float(bench.objective_function(q)[0][RBV2_TARGET])
+        # the rbv2 surrogate returns NaN for a few extreme configurations; score them as a failed
+        # training run (accuracy 0) for every optimizer alike
+        return -acc if acc == acc else 0.0
 
     return Task(
         key=spec_key(spec), spec=spec, space=space, objective=objective, f_star=None,
