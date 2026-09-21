@@ -1,7 +1,7 @@
 method,n_tasks,wins,sig_wins,sig_losses
 CMAES,40,6,1,12
-FMP,40,3,0,18
-FMP_DREAM,40,3,0,10
+FMP,40,7,0,10
+FMP_DREAM,40,6,0,9
 GP,40,25,16,2
 RS,40,1,1,30
 SMAC,40,19,5,1
