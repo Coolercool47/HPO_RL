@@ -24,8 +24,7 @@
     19
   ],
   "methods": [
-    "FMP_DREAM",
-    "L1_K1_VITERBI_SUB"
+    "FMP"
   ],
   "tasks": [
     "lcbench_7593",

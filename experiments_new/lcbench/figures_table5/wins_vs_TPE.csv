@@ -1,5 +1,6 @@
 method,n_tasks,wins,sig_wins,sig_losses
 CMAES,26,2,0,6
+FMP,26,4,2,11
 FMP_DREAM,26,3,0,12
 GP,26,26,25,0
 L1_K1_VITERBI_SUB,26,1,0,22

@@ -108,7 +108,7 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
     # paired differences
     p = df.pivot_table(index=["task", "seed"], columns="method", values="acc")
     for a_, b_, key in [("FMP_DREAM", "TPE", "LcDreamTpe"), ("FMP_DREAM", "CMAES", "LcDreamCma"), ("FMP_DREAM", "FMP", "LcDreamFmp"),
-                        ("GP", "FMP_DREAM", "LcGpDream"), ("FMP_DREAM", "RS", "LcDreamRs")] +             ([("SMAC", "FMP_DREAM", "LcSmacDream"), ("SMAC", "TPE", "LcSmacTpe")] if "SMAC" in methods else []):
+                        ("GP", "FMP_DREAM", "LcGpDream"), ("FMP_DREAM", "RS", "LcDreamRs"), ("FMP", "TPE", "LcFmpTpe"), ("FMP", "CMAES", "LcFmpCma"), ("GP", "FMP", "LcGpFmp"), ("FMP", "RS", "LcFmpRs")] +             ([("SMAC", "FMP_DREAM", "LcSmacDream"), ("SMAC", "TPE", "LcSmacTpe"), ("SMAC", "FMP", "LcSmacFmp")] if "SMAC" in methods else []):
         pt = (p[a_] - p[b_]).groupby(level=0).mean()
         m_, lo, hi = boot_ci(pt)
         macros[key] = f"{m_:+.2f}"
@@ -130,6 +130,11 @@ def table_lcbench(out: Path, methods: list[str], macros: dict):
     macros["LcUntunedDreamSigLoss"] = str(int(sc5.loc["FMP_DREAM", "sl"]))
     macros["LcUntunedLoneSigLoss"] = str(int(sc5.loc["L1_K1_VITERBI_SUB", "sl"]))
     macros["LcDreamSigLoss"] = str(int(sc.loc["FMP_DREAM", "sl"]))
+    macros["LcFmpSigLoss"] = str(int(sc.loc["FMP", "sl"]))
+    macros["LcFmpSigWin"] = str(int(sc.loc["FMP", "sw"]))
+    macros["LcFmpBetter"] = str(int(sc.loc["FMP", "better"]))
+    macros["LcUntunedFmpSigLoss"] = str(int(sc5.loc["FMP", "sl"])) if "FMP" in sc5.index else "--"
+    macros["LcTpeBetterThanFmp"] = str(int(n - sc.loc["FMP", "better"]))
     macros["LcDreamBetter"] = str(int(sc.loc["FMP_DREAM", "better"]))
     macros["LcCmaSigLoss"] = str(int(sc.loc["CMAES", "sl"]))
     macros["LcGpSigWin"] = str(int(sc.loc["GP", "sw"]))
@@ -150,7 +155,7 @@ def table_rbv2(out: Path, methods: list[str], macros: dict):
         blocks[suite] = (tab, ranks, sc, fn)
         p = g.pivot_table(index=["task", "seed"], columns="method", values="acc")
         tag = "Svm" if "svm" in suite else "Xgb"
-        for a_, b_, key in [("FMP_DREAM", "TPE", "DreamTpe"), ("FMP_DREAM", "CMAES", "DreamCma"), ("FMP_DREAM", "FMP", "DreamFmp"), ("FMP_DREAM", "RS", "DreamRs")] +                 ([("SMAC", "FMP_DREAM", "SmacDream")] if "SMAC" in methods else []):
+        for a_, b_, key in [("FMP_DREAM", "TPE", "DreamTpe"), ("FMP_DREAM", "CMAES", "DreamCma"), ("FMP_DREAM", "FMP", "DreamFmp"), ("FMP_DREAM", "RS", "DreamRs"), ("FMP", "TPE", "FmpTpe"), ("FMP", "CMAES", "FmpCma"), ("FMP", "RS", "FmpRs")] +                 ([("SMAC", "FMP_DREAM", "SmacDream"), ("SMAC", "FMP", "SmacFmp")] if "SMAC" in methods else []):
             pt = (p[a_] - p[b_]).groupby(level=0).mean()
             m_, lo, hi = boot_ci(pt)
             macros[tag + key] = f"{m_:+.2f}"
@@ -158,6 +163,8 @@ def table_rbv2(out: Path, methods: list[str], macros: dict):
             macros[tag + key + "Wins"] = str(int((pt > 0).sum()))
         macros[tag + "CD"] = f"{fn['cd']:.2f}"
         macros[tag + "DreamSigLoss"] = str(int(sc.loc["FMP_DREAM", "sl"]))
+        macros[tag + "FmpSigLoss"] = str(int(sc.loc["FMP", "sl"]))
+        macros[tag + "FmpSigWin"] = str(int(sc.loc["FMP", "sw"]))
         for m in methods:
             macros[tag + "Acc" + m.replace("_", "")] = f"{tab[m].mean():.2f}"
             macros[tag + "Rank" + m.replace("_", "")] = f"{ranks[m]:.2f}"
@@ -180,10 +187,10 @@ def table_rbv2(out: Path, methods: list[str], macros: dict):
     (out / "table_rbv2.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-LADDER = [("L1_K1_VITERBI_SUB", "(i) one chain, Viterbi, coordinate subsampling (``FMP-only'')"),
-          ("L2_K4_ORCH", "(ii) $+$ four chains and orchestrator"), ("L3_NOSUB", "(iii) $-$ coordinate subsampling"),
-          ("L4_SOFT", "(iv) $+$ soft forward-filter mixing"), ("L5_DREAM", "(v) $+$ DREAM kernel (symmetric)"),
-          ("L5_DREAM_LEGACYKERNEL", "(v') $+$ DREAM kernel of the submission (asymmetric)")]
+LADDER = [("L1_K1_VITERBI_SUB", "(i) one chain, Viterbi decoding, coordinate subsampling in \\textsc{Explore}"),
+          ("L2_K4_ORCH", "(ii) $+$ four chains with orchestrator"), ("L3_NOSUB", "(iii) $-$ coordinate subsampling"),
+          ("L4_SOFT", "(iv) $+$ soft decoding"), ("L5_DREAM", "(v) $+$ DREAM kernel, $p_{\\mathrm{dream}} = 0.5$"),
+          ("L5_DREAM_LEGACYKERNEL", "(v') as (v), DE move also resamples integer and categorical coordinates")]
 CTRL = [("CTRL_HMM", "HMM, soft filter, Baum--Welch on $\\mA$ (= iv)"), ("CTRL_HMM_NOBW", "HMM without Baum--Welch"),
         ("CTRL_HMM_LEARNEMIS", "HMM with learned emissions"), ("CTRL_HMM_VITERBI", "HMM with Viterbi decoding"),
         ("CTRL_RANDOM", "uniformly random \\textsc{Exploit}/\\textsc{Explore}"), ("CTRL_RULE", "rule on the mean of $O_t$"),
@@ -209,11 +216,16 @@ def table_ablation(out: Path, macros: dict):
             else:
                 r = S.cross_task_wilcoxon(tab, m, ref)
                 w = f"{int((tab[m] > tab[ref]).sum())} / {tab.shape[0]}"
-                pv = f"{r['p']:.1e}" if r["p"] < 0.001 else f"{r['p']:.2f}"
+                pv = f"{r['p']:.1e}" if r["p"] < 0.001 else (f"{r['p']:.3f}" if r["p"] < 0.01 else f"{r['p']:.2f}")
                 pv = pv.replace("e-0", r"{\times}10^{-").replace("e-", r"{\times}10^{-")
                 pv = f"${pv}" + ("}$" if "times" in pv else "$")
             lines.append(f"\\quad {label} & {tab[m].mean():.2f} & {w} & {pv} & {clr[m]:.2f} \\\\")
-            macros["Abl" + "".join(ch for ch in m.title() if ch.isalpha())] = f"{tab[m].mean():.2f}"
+            key = "Abl" + "".join(ch for ch in m.title() if ch.isalpha())
+            macros[key] = f"{tab[m].mean():.2f}"
+            if m != ref:
+                macros[key + "P"] = f"{r['p']:.3f}" if r["p"] >= 0.001 else "<0.001"
+                macros[key + "Wins"] = str(int((tab[m] > tab[ref]).sum()))
+                macros[key + "Diff"] = f"{tab[m].mean() - tab[ref].mean():+.2f}"
         lines.append(r"\hline")
     lines.append(r"\end{tabular}")
     (out / "table_ablation.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -319,10 +331,9 @@ def fig_sensitivity(figdir: Path, macros: dict):
 
     d = pd.read_csv(E / "sensitivity/figures_tuned/oat_summary.csv")
     d = d[d["task"].str.startswith("lcbench")]
-    knobs = [("p_dream", r"$p_{\mathrm{dream}}$", False), ("n_chains", r"chains $K$", True), ("T_mcmc", r"temperature $T_0$", True),
-             ("sigma_fraction", r"local step $\sigma_{\mathrm{frac}}$", True), ("kde_tau", r"archive temp. $\tau_{\mathrm{kde}}$", True),
-             ("hmm_window", r"HMM window $W$", True)]
-    fig, axes = plt.subplots(2, 3, figsize=(8.2, 3.9), sharey=True)
+    knobs = [("p_dream", r"$p_{\mathrm{dream}}$", False), ("emission_scale", r"emission scale", True), ("T_mcmc", r"temperature $T_0$", True),
+             ("n_chains", r"chains $K$", True), ("rejection_streak", r"$L_{\mathrm{stag}}$", True), ("kde_tau", r"$\tau_{\mathrm{kde}}$", True)]
+    fig, axes = plt.subplots(2, 3, figsize=(6.4, 3.5), sharey=True)
     for ax, (k, label, logx) in zip(axes.ravel(), knobs):
         g = d[d["knob"] == k]
         for _, gt in g.groupby("task"):
@@ -335,7 +346,7 @@ def fig_sensitivity(figdir: Path, macros: dict):
         ax.set_xlabel(label, fontsize=10)
         ax.tick_params(labelsize=8)
         ax.grid(alpha=0.3)
-        ax.set_ylim(-9, 3)
+        ax.set_ylim(-6.5, 2.5)
     for r in range(2):
         axes[r, 0].set_ylabel("accuracy $-$ tuned (points)", fontsize=9)
     fig.tight_layout(pad=0.4)
@@ -345,6 +356,32 @@ def fig_sensitivity(figdir: Path, macros: dict):
     inf = inf[inf["suite"] == "lcbench"].set_index("knob")["range"]
     for k in inf.index:
         macros["Sens" + "".join(ch for ch in k.title() if ch.isalpha())] = f"{inf[k]:.2f}"
+    lv = d.groupby(["knob", "level"])["mean"].mean()
+    macros["SensPdreamZero"] = f"{lv[('p_dream', 0.0)]:+.2f}"
+    macros["SensPdreamHalf"] = f"{lv[('p_dream', 0.5)]:+.2f}"
+    macros["SensPdreamOne"] = f"{lv[('p_dream', 1.0)]:+.2f}"
+    macros["SensEmisTen"] = f"{lv[('emission_scale', 10.0)]:+.2f}"
+    t_levels = sorted(l for k_, l in lv.index if k_ == "T_mcmc")
+    macros["SensTHot"] = f"{lv[('T_mcmc', t_levels[-1])]:+.2f}"
+    r_levels = sorted(l for k_, l in lv.index if k_ == "rejection_streak")
+    macros["SensStreakLow"] = f"{lv[('rejection_streak', r_levels[0])]:+.2f}"
+    macros["SensStreakHigh"] = f"{lv[('rejection_streak', r_levels[-1])]:+.2f}"
+    macros["SensStreakLowLevel"] = f"{r_levels[0]:g}"
+    macros["SensStreakHighLevel"] = f"{r_levels[-1]:g}"
+    others = inf.drop(["p_dream", "emission_scale"])
+    macros["SensOthersMax"] = f"{others.max():.2f}"
+    sp = pd.read_csv(E / "sensitivity/figures_tuned/random_config_spread.csv", index_col=0)
+    sp = sp[sp.index.str.startswith("lcbench")]
+    med = sp["50%"].sort_values()
+    macros["RandMedEasyLo"] = f"{-med.iloc[2:].max():.1f}"
+    macros["RandMedEasyHi"] = f"{-med.iloc[2:].min():.1f}"
+    macros["RandMedHardA"] = f"{-med.iloc[1]:.1f}"
+    macros["RandMedHardB"] = f"{-med.iloc[0]:.1f}"
+    macros["RandWorst"] = f"{-sp['min'].min():.0f}"
+    fa = pd.read_csv(E / "sensitivity/figures_tuned/fanova_importance.csv", index_col=0)["mean_lcbench"].sort_values(ascending=False)
+    for i_, name_ in enumerate(("FanovaFirst", "FanovaSecond", "FanovaThird")):
+        macros[name_] = f"{fa.iloc[i_]:.2f}"
+        macros[name_ + "Name"] = fa.index[i_].replace("_", "-")
 
 
 def main():
@@ -368,7 +405,7 @@ def main():
         analyze(E / "lcbench/results", E / "paper_assets/lcbench", ref_method="TPE", methods=lc_methods, exp_name="", curve_ncols=6)
         analyze(E / "rbv2/results", E / "paper_assets/rbv2", ref_method="TPE", methods=rb_methods, exp_name="", curve_ncols=5)
     lcd = accdf(E / "lcbench/results", lc_methods)
-    fig_cd(lcd.groupby(["task", "method"])["acc"].mean().unstack(), figdir / "cd_lcbench.pdf")
+    fig_cd(lcd.groupby(["task", "method"])["acc"].mean().unstack(), figdir / "cd_lcbench.pdf", width=4.4)
     rbd = accdf(E / "rbv2/results", rb_methods)
     for sc in ("rbv2_svm", "rbv2_xgboost"):
         fig_cd(rbd[rbd["suite"] == sc].groupby(["task", "method"])["acc"].mean().unstack(), figdir / f"cd_{sc}.pdf", width=4.6)
@@ -377,29 +414,44 @@ def main():
     table_ablation(out, macros)
     table_synth(out, macros)
     fig_sensitivity(figdir, macros)
-    occ = pd.read_csv(E / "diagnostics/figures/lcbench/occupancy_FMP_DREAM.csv")
+    occ = pd.read_csv(E / "diagnostics/figures/lcbench/occupancy_FMP.csv")
     lc = occ[occ["suite"] == "lcbench"].mean(numeric_only=True)
     macros["OccExploit"] = f"{100 * lc['frac_exploit']:.0f}"
-    macros["DreamFrac"] = f"{100 * lc['kernel_fraction_dream']:.0f}"
     macros["OccExplore"] = f"{100 * lc['frac_explore']:.0f}"
     macros["OccTrapped"] = f"{100 * lc['frac_trapped']:.1f}"
     macros["AccRate"] = f"{lc['acceptance_rate']:.2f}"
     for src, dst in [(E / "paper_assets/lcbench/convergence_lcbench.png", "convergence_lcbench.png"),
                      (E / "paper_assets/rbv2/convergence_rbv2_svm.png", "convergence_rbv2_svm.png"),
                      (E / "paper_assets/rbv2/convergence_rbv2_xgboost.png", "convergence_rbv2_xgboost.png"),
-                     (E / "diagnostics/figures/lcbench/obs_hist_lcbench_FMP_DREAM.png", "hmm_obs_hist_lcbench.png"),
-                     (E / "diagnostics/figures/lcbench/states_lcbench_7593_FMP_DREAM_seed0.png", "hmm_states_lcbench_7593.png"),
-                     (E / "diagnostics/figures/lcbench/A_evolution_lcbench_FMP_DREAM.png", "hmm_A_evolution_lcbench.png"),
+                     (E / "diagnostics/figures/lcbench/obs_hist_lcbench_FMP.png", "hmm_obs_hist_lcbench.png"),
+                     (E / "diagnostics/figures/lcbench/states_lcbench_7593_FMP_seed0.png", "hmm_states_lcbench_7593.png"),
+                     (E / "diagnostics/figures/lcbench/A_evolution_lcbench_FMP.png", "hmm_A_evolution_lcbench.png"),
                      (E / "sensitivity/figures_tuned/oat_lcbench.png", "sensitivity_lcbench_all.png"),
                      (E / "synt_functions/figures/convergence_cont.png", "convergence_synth_cont.png")]:
         if src.is_file():
             shutil.copyfile(src, figdir / dst)
         else:
             print("missing", src)
+    cfg = json.loads((E / "configs/fmp_tuned.json").read_text(encoding="utf-8"))
+    from hpo_rl.baselines.HMM_MCMC_FMP import DEFAULT_EMISSION_MU
+
+    def sig2(v):
+        return f"{v:.2g}" if v < 1 else (f"{v:.1f}" if v < 10 else f"{v:.0f}")
+
+    for key, name in (("T_mcmc", "Tmcmc"), ("sigma_fraction", "Sigma"), ("wide_sigma_fraction", "Wide"), ("kde_tau", "KdeTau"),
+                      ("bw_prior_strength", "Rho"), ("burnin_fraction", "Burnin"), ("p_dream", "Pdream")):
+        macros["Tuned" + name] = sig2(float(cfg[key]))
+    for key, name in (("hmm_window", "Window"), ("rejection_streak", "Streak"), ("n_init", "Ninit"), ("n_chains", "Chains")):
+        macros["Tuned" + name] = str(int(cfg[key]))
+    macros["TunedEmisScale"] = f"{float(cfg['emission_mu'][1]) / float(DEFAULT_EMISSION_MU[1]):.2f}"
+    macros["TunedScore"] = f"{float(cfg['_meta']['score']):.2f}"
+    bt = json.loads((E / "configs/baselines_tuned.json").read_text(encoding="utf-8"))
+    macros["TunedScoreTPE"] = f"{float(bt['_meta']['TPE']['score']):.2f}"
+    macros["TunedScoreCMAES"] = f"{float(bt['_meta']['CMAES']['score']):.2f}"
     with open(out / "numbers.tex", "w", encoding="utf-8") as fh:
         fh.write("% generated by experiments_new/paper/make_assets.py -- do not edit\n")
         for k, v in sorted(macros.items()):
-            body = f"\\ensuremath{{{v}}}" if (v[:1] in "+-[" or "times" in v) else v
+            body = f"\\ensuremath{{{v}}}" if (v[:1] in "+-[<" or "times" in v) else v
             fh.write(f"\\newcommand{{\\num{k}}}{{{body}}}\n")
     print(f"{len(macros)} macros; tables in {out}")
 

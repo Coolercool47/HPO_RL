@@ -59,5 +59,31 @@
   "n_errors": 0,
   "errors": [],
   "pending_after": 0
+ },
+ {
+  "time": "2026-09-21 20:16:45",
+  "argv": [
+   "experiments_new/lcbench/run.py",
+   "--workers",
+   "8",
+   "--out",
+   "experiments_new/lcbench/results_table5",
+   "--methods",
+   "FMP"
+  ],
+  "n_jobs": 520,
+  "memory_peaks": {
+   "workers_rss_sum_gb": 2.4420204162597656,
+   "workers_rss_max_gb": 0.3010711669921875,
+   "used_gb": 13.427719116210938,
+   "swap_used_gb": 0.7767410278320312,
+   "min_available_gb": 2.3492965698242188
+  },
+  "workers": 8,
+  "heavy_gb": 2.0,
+  "n_run": 520,
+  "n_errors": 0,
+  "errors": [],
+  "pending_after": 0
  }
 ]
