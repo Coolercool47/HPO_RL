@@ -893,19 +893,24 @@ class Chain:
             posterior[int(self.state)] = 1.0
         self.last_posterior = posterior
         weights = _mix_weights(posterior, self.gen.float_weights, self.gen.cat_weights)
-        # kernel
-        use_dream = self.p_dream > 0.0 and self.gen.dream_ready() and self.rng.random() < self.p_dream
-        if use_dream:
-            self.last_kernel = "dream"
-            x_prime = self.gen.propose_dream(self.current_x, weights[1])
-        else:
-            self.last_kernel = "factorized"
-            # categorical-only steps exist only if there is a categorical coordinate and something else
-            # to leave untouched; otherwise the step would re-propose the current configuration
-            cat_only = (self.gen.has_categorical and bool(self.gen._fi_indices)
-                        and self.rng.random() < self.p_cat_step)
-            x_prime = self.gen.propose(self.current_x, weights, self.state, categorical_only=cat_only,
-                                       explore_subsample=self.explore_subsample, explore_frac=self.explore_frac)
+        # kernel. A candidate identical to the current configuration is a null move of the chain:
+        # it would be accepted with probability one and leave the state unchanged, so evaluating it
+        # only burns budget (and feeds a spurious zero increment to the controller). Such draws are
+        # discarded and redrawn, which leaves the sequence of distinct states unchanged in law.
+        for _attempt in range(32):
+            use_dream = self.p_dream > 0.0 and self.gen.dream_ready() and self.rng.random() < self.p_dream
+            if use_dream:
+                self.last_kernel = "dream"
+                x_prime = self.gen.propose_dream(self.current_x, weights[1])
+            else:
+                self.last_kernel = "factorized"
+                # categorical-only steps need a categorical coordinate and something else to leave untouched
+                cat_only = (self.gen.has_categorical and bool(self.gen._fi_indices)
+                            and self.rng.random() < self.p_cat_step)
+                x_prime = self.gen.propose(self.current_x, weights, self.state, categorical_only=cat_only,
+                                           explore_subsample=self.explore_subsample, explore_frac=self.explore_frac)
+            if any(x_prime[k] != self.current_x[k] for k in x_prime):
+                break
         loss_prime = float(objective(x_prime))
         loss_old = self.current_loss
         # acceptance
